@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  SlidersHorizontal,
   BarChart3,
   Globe2,
   HelpCircle,
@@ -46,6 +47,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import type { BlindSpotItem } from '@/db/schema';
 import {
   getCountryRulePack,
@@ -710,7 +712,12 @@ export function ModuleBWorkspace({
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       return initialStep;
     }
-    return 0;
+    if (!plan.moduleBData?.beachhead?.lastSavedAt) return 1;
+    if (!plan.moduleBData?.competitorsAndStatusQuo?.lastSavedAt) return 2;
+    if (!plan.moduleBData?.marketSizing?.lastSavedAt) return 3;
+    if (!plan.moduleBData?.competitiveWedge?.lastSavedAt) return 4;
+    if (!(plan.moduleBData?.thingsToConsider?.length)) return 5;
+    return 6;
   });
 
   // Handle deep-link scrolling and highlight
@@ -883,11 +890,25 @@ export function ModuleBWorkspace({
   function createDefaultBlankSegments(
     count: number
   ): MarketSizingSegmentEntry[] {
+    const modAPriceNote = plan.conceptCanvas?.revenueAndGrantFit?.trim() || '';
+    const numericMatch = modAPriceNote.match(/([0-9][0-9,]*(?:\.[0-9]+)?)/);
+    const extractedModAPrice = numericMatch
+      ? numericMatch[1].replace(/,/g, '')
+      : '';
+    const inferredMonthly = /\b(month|monthly|\/mo|subscription|retainer)\b/i.test(
+      modAPriceNote
+    );
+
     return Array.from({ length: count }, (_, idx) => ({
       id: `seg-init-${idx + 1}`,
-      segmentName: '',
-      billingCadence: 'YEARLY_OR_ONE_OFF' as CustomerBillingCadence,
-      pricePerCustomerInput: '',
+      segmentName:
+        idx === 0
+          ? plan.conceptCanvas?.targetCustomer?.trim()?.slice(0, 80) || ''
+          : '',
+      billingCadence: (idx === 0 && inferredMonthly
+        ? 'MONTHLY_RECURRING'
+        : 'YEARLY_OR_ONE_OFF') as CustomerBillingCadence,
+      pricePerCustomerInput: idx === 0 ? extractedModAPrice : '',
       year1To2CustomerGoalInput: '',
       reachableCustomersInTargetMarketsInput: '',
     }));
@@ -907,7 +928,12 @@ export function ModuleBWorkspace({
   const [otherWiderMarketScaleText, setOtherWiderMarketScaleText] =
     useState<string>(savedStep3?.otherWiderMarketScaleText ?? '');
   const [sourceAndAssumptionNotes, setSourceAndAssumptionNotes] =
-    useState<string>(savedStep3?.sourceAndAssumptionNotes ?? '');
+    useState<string>(
+      savedStep3?.sourceAndAssumptionNotes ||
+        (plan.conceptCanvas?.revenueAndGrantFit?.trim()
+          ? `Carried forward from Module A pricing note: ${plan.conceptCanvas.revenueAndGrantFit.trim()}`
+          : '')
+    );
 
   // Step 3 Layer 1–2 Coaching & Action States
   const [showStep3WhyCard, setShowStep3WhyCard] = useState(true);
@@ -978,8 +1004,39 @@ export function ModuleBWorkspace({
   const [otherUnfairAdvantageText, setOtherUnfairAdvantageText] =
     useState<string>(savedStep4?.otherUnfairAdvantageText ?? '');
   const [competitiveEdgeSummary, setCompetitiveEdgeSummary] = useState<string>(
-    savedStep4?.competitiveEdgeSummary ?? ''
+    savedStep4?.competitiveEdgeSummary ||
+      plan.conceptCanvas?.unfairAdvantage?.trim() ||
+      ''
   );
+
+  // Auto-sync newly added Step 2 competitors into Step 4's Competitive Wedge Matrix during the same session
+  useEffect(() => {
+    const namedStep2 = competitors
+      .map((c) => c.name.trim())
+      .filter((n) => n.length > 0);
+    if (namedStep2.length === 0) return;
+
+    setComparisonRows((prev) => {
+      const existingLabels = new Set(
+        prev.map((r) => r.label.trim().toLowerCase())
+      );
+      const additions: CompetitiveComparisonRow[] = [];
+      namedStep2.forEach((compName, idx) => {
+        if (!existingLabels.has(compName.toLowerCase())) {
+          existingLabels.add(compName.toLowerCase());
+          additions.push({
+            rowId: `row-sync-${Date.now()}-${idx}`,
+            label: compName,
+            priceValueScore: 'MEDIUM',
+            speedTimeSavedScore: 'MEDIUM',
+            easeOfUseScore: 'LOW',
+            specialistQualityScore: 'MEDIUM',
+          });
+        }
+      });
+      return additions.length > 0 ? [...prev, ...additions] : prev;
+    });
+  }, [competitors]);
 
   // Step 4 Layer 1–2 Coaching & Action States
   const [showStep4WhyCard, setShowStep4WhyCard] = useState(true);
@@ -1203,31 +1260,58 @@ export function ModuleBWorkspace({
 
   function handleUseIndustryBenchmark() {
     if (isVaultReadonly) return;
-    const hasTwoGroups = buyerTypes.length > 1 || marketSegments.length > 1;
-    if (hasTwoGroups) {
+    const cat = plan.industryCategory || '';
+    const isPhysicalOrFood =
+      cat === 'E-Commerce / Physical Product / Food & Drink' ||
+      /food|drink|retail|hardware|craft|apparel|product/i.test(cat);
+    const isServiceOrAgency =
+      cat === 'Service / Agency / Consulting' ||
+      /service|consult|agency|coaching|training/i.test(cat);
+    const isConsumerMarketplace = cat === 'Consumer App / Marketplace';
+
+    if (isPhysicalOrFood) {
       setMarketSegments([
         {
           id: `seg-bench-${Date.now()}-1`,
-          segmentName: 'Individual Users / Self-Serve Customers',
+          segmentName: 'Direct-to-Consumer Online & Local Buyers',
           billingCadence: 'YEARLY_OR_ONE_OFF',
-          pricePerCustomerInput: '29',
-          year1To2CustomerGoalInput: '350',
-          reachableCustomersInTargetMarketsInput: '25000',
+          pricePerCustomerInput: '85',
+          year1To2CustomerGoalInput: '450',
+          reachableCustomersInTargetMarketsInput: '30000',
         },
+        ...(buyerTypes.length > 1
+          ? [
+              {
+                id: `seg-bench-${Date.now()}-2`,
+                segmentName: 'Retail Stockists / Corporate Trade Accounts',
+                billingCadence: 'YEARLY_OR_ONE_OFF' as const,
+                pricePerCustomerInput: '1800',
+                year1To2CustomerGoalInput: '12',
+                reachableCustomersInTargetMarketsInput: '350',
+              },
+            ]
+          : []),
+      ]);
+      setWiderMarketMultiplier('5X');
+      setSourceAndAssumptionNotes(
+        `Industry benchmark for ${targetMarkets.join(', ')}: bottom-up estimate of annual spend per repeat D2C customer${buyerTypes.length > 1 ? ' plus wholesale/trade stockist accounts' : ''}.`
+      );
+    } else if (isServiceOrAgency) {
+      setMarketSegments([
         {
-          id: `seg-bench-${Date.now()}-2`,
-          segmentName: 'Universities, Accelerators & Business Accounts',
+          id: `seg-bench-${Date.now()}-1`,
+          segmentName: 'Core Client Sprints / Retainer Accounts',
           billingCadence: 'YEARLY_OR_ONE_OFF',
-          pricePerCustomerInput: '2500',
-          year1To2CustomerGoalInput: '8',
-          reachableCustomersInTargetMarketsInput: '180',
+          pricePerCustomerInput: '3500',
+          year1To2CustomerGoalInput: '18',
+          reachableCustomersInTargetMarketsInput: '1200',
         },
       ]);
-      setWiderMarketMultiplier('10X');
+      setWiderMarketMultiplier('5X');
       setSourceAndAssumptionNotes(
-        `Industry benchmark for ${targetMarkets.join(', ')}: combines individual user passes with annual institutional/business cohort licences.`
+        `Industry benchmark for ${targetMarkets.join(', ')}: bottom-up count of target client businesses purchasing annual retainers or fixed-scope project sprints.`
       );
-    } else if (plan.industryCategory === 'Consumer App / Marketplace') {
+    } else if (isConsumerMarketplace) {
       setMarketSegments([
         {
           id: `seg-bench-${Date.now()}-1`,
@@ -1252,6 +1336,18 @@ export function ModuleBWorkspace({
           year1To2CustomerGoalInput: '45',
           reachableCustomersInTargetMarketsInput: '3500',
         },
+        ...(buyerTypes.length > 1
+          ? [
+              {
+                id: `seg-bench-${Date.now()}-2`,
+                segmentName: 'Larger Multi-Seat / Team Accounts',
+                billingCadence: 'YEARLY_OR_ONE_OFF' as const,
+                pricePerCustomerInput: '2400',
+                year1To2CustomerGoalInput: '10',
+                reachableCustomersInTargetMarketsInput: '400',
+              },
+            ]
+          : []),
       ]);
       setWiderMarketMultiplier('5X');
       setSourceAndAssumptionNotes(
@@ -1259,7 +1355,7 @@ export function ModuleBWorkspace({
       );
     }
     setSaveBanner(
-      '📊 Loaded typical industry benchmark numbers! Feel free to adjust any number to match your plan.'
+      'Loaded typical industry benchmark numbers for your sector! Adjust any figure to match your pricing and customer count.'
     );
   }
 
@@ -2339,7 +2435,7 @@ export function ModuleBWorkspace({
               onClick={() => setShowImStuck((v) => !v)}
               className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
             >
-              <Wand2 className="mr-1 h-3.5 w-3.5" />
+              <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
               I&apos;m Stuck
             </Button>
             <Button
@@ -2472,7 +2568,7 @@ export function ModuleBWorkspace({
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-bold text-slate-900">
-                  <Wand2 className="h-4 w-4 text-emerald-700" />
+                  <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                   Preflight Co-Pilot: Let&apos;s Describe Your First Customers in
                   3 Easy Steps
                 </span>
@@ -2529,7 +2625,7 @@ export function ModuleBWorkspace({
                   onClick={handleDraftFromStuckHelper}
                   className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
                   Draft My Customer Description
                 </Button>
               </div>
@@ -2658,10 +2754,6 @@ export function ModuleBWorkspace({
               )}
             </div>
 
-            <p className="mb-2 text-xs leading-relaxed text-slate-600">
-              Your First Core Customer Group (Who buys first?) — (A &ldquo;Beachhead&rdquo; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
-            </p>
-
             {showBeachheadTooltip && (
               <div className="mb-3 rounded-xl border border-slate-200 bg-emerald-50/90 p-3 text-xs text-slate-950">
                 <div className="flex items-center gap-1.5 font-bold text-slate-900">
@@ -2759,20 +2851,25 @@ export function ModuleBWorkspace({
                     setOtherDecisionMakerSetupText(e.target.value)
                   }
                   placeholder="e.g., Reimbursed via employer stipend, insurance-funded, or split between parent & school..."
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base sm:text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
 
             <div className="mt-3">
-              <label
-                htmlFor="decision-maker-input"
-                className="mb-1 block text-xs font-medium text-slate-700"
-              >
-                {endUserVsDecisionMaker === 'SAME_PERSON'
-                  ? 'Describe who swipes the card and how they pay:'
-                  : 'Who is the Economic Buyer (approves budget) vs. the Champion/User?'}
-              </label>
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <label
+                  htmlFor="decision-maker-input"
+                  className="block text-xs font-medium text-slate-700"
+                >
+                  {endUserVsDecisionMaker === 'SAME_PERSON'
+                    ? 'Describe who swipes the card and how they pay:'
+                    : 'Who approves the budget (Buyer) vs. who asks for it internally (Champion/User)?'}
+                </label>
+                {endUserVsDecisionMaker !== 'SAME_PERSON' && (
+                  <JargonTooltip term="CHAMPION" label="What is a Champion?" />
+                )}
+              </div>
               <input
                 id="decision-maker-input"
                 type="text"
@@ -2780,7 +2877,7 @@ export function ModuleBWorkspace({
                 value={decisionMakerRole}
                 onChange={(e) => setDecisionMakerRole(e.target.value)}
                 placeholder="Who approves the budget or pays for the product?"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
               />
             </div>
           </div>
@@ -3193,7 +3290,7 @@ export function ModuleBWorkspace({
               onClick={() => setShowStep2ImStuck(!showStep2ImStuck)}
               className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
             >
-              <Wand2 className="mr-1 h-3.5 w-3.5" />
+              <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
               I&apos;m Stuck
             </Button>
           </div>
@@ -3266,7 +3363,7 @@ export function ModuleBWorkspace({
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-bold text-slate-900">
-                  <Wand2 className="h-4 w-4 text-emerald-700" />
+                  <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                   Preflight Co-Pilot: Let&apos;s Draft Why Customers Will Switch
                   to You
                 </span>
@@ -3311,7 +3408,7 @@ export function ModuleBWorkspace({
                   onClick={handleDraftStep2FromStuckHelper}
                   className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
                   Draft My &ldquo;Why Switch&rdquo; Sentence
                 </Button>
               </div>
@@ -3442,7 +3539,7 @@ export function ModuleBWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5" />
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
                       Find Competitors for Me with AI
                     </>
                   )}
@@ -3923,7 +4020,7 @@ export function ModuleBWorkspace({
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-1 h-3.5 w-3.5" />
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
                   Estimate Customer Counts with AI
                 </>
               )}
@@ -3980,31 +4077,31 @@ export function ModuleBWorkspace({
                     <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                     <div className="space-y-2">
                       <p className="font-semibold text-emerald-950">
-                        How a Multi-Group Startup Sizes Their Market (Example in {countryPack.defaultCurrency})
+                        Bottom-Up Market Sizing Examples ({countryPack.defaultCurrency})
                       </p>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 mt-2">
                         <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
                           <div className="font-bold text-slate-900">
-                            Group 1: Individual Founders (Self-Serve)
+                            B2B SaaS (Monthly Subscription)
                           </div>
                           <ul className="mt-1.5 space-y-1 text-slate-700">
                             <li>
-                              • <strong>Price:</strong> {countryPack.defaultCurrency} 29
-                              per year/pass
+                              • <strong>Price:</strong>{' '}
+                              {formatPlanCurrency(99, countryPack.defaultCurrency)}
+                              /mo ({formatPlanCurrency(1188, countryPack.defaultCurrency)}/yr)
                             </li>
                             <li>
-                              • <strong>Year 1–2 Customer Goal:</strong> 400 founders ={' '}
+                              • <strong>Year 1–2 Goal (SOM):</strong> 50 SMEs ={' '}
                               <strong>
-                                {formatPlanCurrency(11600, countryPack.defaultCurrency)}
+                                {formatPlanCurrency(59400, countryPack.defaultCurrency)}
                                 /yr
                               </strong>
                             </li>
                             <li>
-                              • <strong>Reachable Customers in Markets:</strong> 25,000
-                              founders ={' '}
+                              • <strong>Reachable Market (SAM):</strong> 3,500 SMEs ={' '}
                               <strong>
                                 {formatPlanCurrency(
-                                  725000,
+                                  4158000,
                                   countryPack.defaultCurrency
                                 )}
                                 /yr
@@ -4014,26 +4111,55 @@ export function ModuleBWorkspace({
                         </div>
                         <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
                           <div className="font-bold text-slate-900">
-                            Group 2: Universities &amp; Accelerators (B2B / Cohort)
+                            Physical / D2C Brand (Annual Spend)
                           </div>
                           <ul className="mt-1.5 space-y-1 text-slate-700">
                             <li>
-                              • <strong>Price:</strong> {countryPack.defaultCurrency}{' '}
-                              2,500 per annual cohort licence
+                              • <strong>Avg Annual Spend:</strong>{' '}
+                              {formatPlanCurrency(85, countryPack.defaultCurrency)}
+                              /customer
                             </li>
                             <li>
-                              • <strong>Year 1–2 Customer Goal:</strong> 10 programmes ={' '}
+                              • <strong>Year 1–2 Goal (SOM):</strong> 500 buyers ={' '}
                               <strong>
-                                {formatPlanCurrency(25000, countryPack.defaultCurrency)}
+                                {formatPlanCurrency(42500, countryPack.defaultCurrency)}
                                 /yr
                               </strong>
                             </li>
                             <li>
-                              • <strong>Reachable Customers in Markets:</strong> 200
-                              programmes ={' '}
+                              • <strong>Reachable Market (SAM):</strong> 30,000 buyers ={' '}
                               <strong>
                                 {formatPlanCurrency(
-                                  500000,
+                                  2550000,
+                                  countryPack.defaultCurrency
+                                )}
+                                /yr
+                              </strong>
+                            </li>
+                          </ul>
+                        </div>
+                        <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
+                          <div className="font-bold text-slate-900">
+                            Productized Service / Agency
+                          </div>
+                          <ul className="mt-1.5 space-y-1 text-slate-700">
+                            <li>
+                              • <strong>Annual Value:</strong>{' '}
+                              {formatPlanCurrency(3500, countryPack.defaultCurrency)}
+                              /client sprint
+                            </li>
+                            <li>
+                              • <strong>Year 1–2 Goal (SOM):</strong> 18 clients ={' '}
+                              <strong>
+                                {formatPlanCurrency(63000, countryPack.defaultCurrency)}
+                                /yr
+                              </strong>
+                            </li>
+                            <li>
+                              • <strong>Reachable Market (SAM):</strong> 1,200 firms ={' '}
+                              <strong>
+                                {formatPlanCurrency(
+                                  4200000,
                                   countryPack.defaultCurrency
                                 )}
                                 /yr
@@ -4043,14 +4169,7 @@ export function ModuleBWorkspace({
                         </div>
                       </div>
                       <p className="mt-2 text-[11px] text-emerald-900">
-                        Combined Year 1–2 Revenue Goal:{' '}
-                        <strong>
-                          {formatPlanCurrency(36600, countryPack.defaultCurrency)}/yr
-                        </strong>{' '}
-                        • Combined Reachable Market:{' '}
-                        <strong>
-                          {formatPlanCurrency(1225000, countryPack.defaultCurrency)}/yr
-                        </strong>
+                        Tip: Assessors prefer realistic <strong>bottom-up</strong> math (Number of target buyers &times; Annual spend) over vague top-down industry percentages.
                       </p>
                     </div>
                   </div>
@@ -4095,7 +4214,7 @@ export function ModuleBWorkspace({
                   onClick={handleRunAiMarketSizing}
                   className="bg-emerald-700 text-white hover:bg-emerald-800"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
                   Let AI Estimate Customer Counts for {plan.title}
                 </Button>
                 <Button
@@ -4533,18 +4652,13 @@ export function ModuleBWorkspace({
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
               {/* Box 1: Year 1-2 Goal (SOM) */}
               <div className="rounded-xl border border-emerald-400/40 bg-emerald-950/40 p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-emerald-300">
                     1. Your Year 1–2 Revenue Goal
                   </span>
-                  <span
-                    className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200"
-                    title="Serviceable Obtainable Market: the realistic slice of customers you plan to win in Year 1–2."
-                  >
-                    Often called SOM
-                  </span>
+                  <JargonTooltip term="TAM_SAM_SOM" label="Often called SOM" />
                 </div>
-                <div className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                <div className="mt-2 font-mono tabular-nums text-2xl font-extrabold tracking-tight text-white">
                   {totalYear1To2RevenueSom > 0
                     ? `${formatPlanCurrency(totalYear1To2RevenueSom, countryPack.defaultCurrency)}/yr`
                     : 'Enter numbers above'}
@@ -4558,18 +4672,13 @@ export function ModuleBWorkspace({
 
               {/* Box 2: Reachable Market in Selected Countries (SAM) */}
               <div className="rounded-xl border border-emerald-400/40 bg-slate-900/40 p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-slate-300">
                     2. Reachable Market ({targetMarkets.join(', ')})
                   </span>
-                  <span
-                    className="rounded-md bg-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-slate-200"
-                    title="Serviceable Available Market: the total annual value of all reachable target customers in your selected selling countries."
-                  >
-                    Often called SAM
-                  </span>
+                  <JargonTooltip term="TAM_SAM_SOM" label="Often called SAM" />
                 </div>
-                <div className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                <div className="mt-2 font-mono tabular-nums text-2xl font-extrabold tracking-tight text-white">
                   {totalReachableMarketSam > 0
                     ? `${formatPlanCurrency(totalReachableMarketSam, countryPack.defaultCurrency)}/yr`
                     : 'Enter numbers above'}
@@ -4583,18 +4692,13 @@ export function ModuleBWorkspace({
 
               {/* Box 3: Wider Long-Term Market (TAM) */}
               <div className="rounded-xl border border-emerald-600/40 bg-slate-950/40 p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-slate-300">
                     3. Wider Long-Term Market
                   </span>
-                  <span
-                    className="rounded-md bg-slate-500/30 px-2 py-0.5 text-[10px] font-semibold text-slate-200"
-                    title="Total Addressable Market: the wider 3–5 year opportunity as you expand into new regions and adjacent customer segments."
-                  >
-                    Often called TAM
-                  </span>
+                  <JargonTooltip term="TAM_SAM_SOM" label="Often called TAM" />
                 </div>
-                <div className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                <div className="mt-2 font-mono tabular-nums text-2xl font-extrabold tracking-tight text-white">
                   {totalWiderMarketTam > 0
                     ? `${formatPlanCurrency(totalWiderMarketTam, countryPack.defaultCurrency)}/yr`
                     : 'Enter numbers above'}
@@ -4866,7 +4970,7 @@ export function ModuleBWorkspace({
                 </>
               ) : (
                 <>
-                  <Wand2 className="mr-1 h-3.5 w-3.5" />
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
                   Auto-Draft Competitive Edge with AI
                 </>
               )}
@@ -5001,14 +5105,11 @@ export function ModuleBWorkspace({
                     <th className="px-2 py-2.5 text-center">
                       💷 Value for Money
                     </th>
-                    <th
-                      className="px-2 py-2.5 text-center"
-                      title="Promised Delivery &amp; Reply Speed — (SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.)"
-                    >
-                      ⚡ Speed / Time Saved
-                      <span className="block text-[9px] font-normal text-slate-400">
-                        Delivery Speed (SLA)
-                      </span>
+                    <th className="px-2 py-2.5 text-center">
+                      <div>⚡ Speed / Time Saved</div>
+                      <div className="mt-0.5 flex justify-center normal-case">
+                        <JargonTooltip term="SLA" label="Delivery Speed (SLA)" />
+                      </div>
                     </th>
                     <th className="px-2 py-2.5 text-center">
                       🎯 Ease of Use
@@ -5217,8 +5318,8 @@ export function ModuleBWorkspace({
                 disabled={isVaultReadonly}
                 value={switchingFrictionPlanNotes}
                 onChange={(e) => setSwitchingFrictionPlanNotes(e.target.value)}
-                placeholder="e.g., Customers can complete Module A for free in 10 minutes with zero credit card required..."
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
+                placeholder="e.g., Customers can import an existing CSV or order a low-risk starter pack in 5 minutes with zero lock-in..."
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
               />
             </div>
           </div>
@@ -5308,7 +5409,7 @@ export function ModuleBWorkspace({
                   disabled={isVaultReadonly}
                   onClick={() => setShowStep4ImStuck((v) => !v)}
                 >
-                  <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
+                  <Compass className="h-3.5 w-3.5 text-emerald-700" />
                   {showStep4ImStuck ? 'Close Helper' : "I'm Stuck — Help Me"}
                 </Button>
                 <Button
@@ -5318,7 +5419,7 @@ export function ModuleBWorkspace({
                   disabled={isVaultReadonly}
                   onClick={handleDraftSummaryFromSelections}
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
                   Draft from Selected Cards
                 </Button>
                 {competitiveEdgeSummary.trim() && (
@@ -5351,7 +5452,7 @@ export function ModuleBWorkspace({
             {showStep4ImStuck && (
               <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                 <div className="text-xs font-bold text-slate-950">
-                  ✨ Quick 2-Question Edge Builder
+                  Quick 2-Question Edge Builder
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
@@ -5365,8 +5466,8 @@ export function ModuleBWorkspace({
                       onChange={(e) =>
                         setStuckStep4EasyFirstStep(e.target.value)
                       }
-                      placeholder="e.g., use our free Module A canvas in 10 minutes"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                      placeholder="e.g., try a 14-day pilot, free diagnostic audit, or starter bundle"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs"
                     />
                   </div>
                   <div>
@@ -5380,8 +5481,8 @@ export function ModuleBWorkspace({
                       onChange={(e) =>
                         setStuckStep4WhyHardToCopy(e.target.value)
                       }
-                      placeholder="e.g., built-in Irish/UK grant rules and university cohort partnerships"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                      placeholder="e.g., 10 years of trade domain expertise, local compliance workflows, or vetted supplier bench"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs"
                     />
                   </div>
                 </div>

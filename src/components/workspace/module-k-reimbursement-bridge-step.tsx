@@ -18,6 +18,8 @@ import {
   DollarSign,
   Briefcase,
   Layers,
+  BookmarkPlus,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +32,10 @@ import {
   type ModuleKStep3ReimbursementBridgeSavedData,
 } from '@/lib/auth/session-store';
 import { SUPPORTED_GRANT_PROGRAMS } from '@/lib/grants/module-k-grant-audit';
-import { generateModuleKStep3ReimbursementBridgeAction } from '@/app/actions/module-k';
+import {
+  generateModuleKStep3ReimbursementBridgeAction,
+  parkModuleKOpenQuestionAction,
+} from '@/app/actions/module-k';
 
 export interface ModuleKReimbursementBridgeStepProps {
   plan: ActiveStartupPlan;
@@ -111,6 +116,9 @@ export function ModuleKReimbursementBridgeStep({
 
   const [activeWhyCard, setActiveWhyCard] = useState<boolean>(false);
   const [activeExampleCard, setActiveExampleCard] = useState<boolean>(false);
+  const [showParkInput, setShowParkInput] = useState<boolean>(false);
+  const [parkQuestionText, setParkQuestionText] = useState<string>('');
+  const [parkSavedNotice, setParkSavedNotice] = useState<boolean>(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -300,10 +308,56 @@ export function ModuleKReimbursementBridgeStep({
           disabled={isGeneratingAi || isVaultReadonly}
           className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-          {isGeneratingAi ? 'Synthesizing Bridge Plan...' : 'Auto-Generate Bridge Plan with AI'}
+          <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+          {isGeneratingAi ? 'Synthesizing Bridge Plan...' : 'Calibrate Bridge Plan'}
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setShowParkInput((prev) => !prev)}
+          disabled={isVaultReadonly}
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+          Park It
+        </Button>
+        {parkSavedNotice && (
+          <span className="text-[11px] font-semibold text-emerald-700">
+            ✓ Parked in Open Questions
+          </span>
+        )}
       </div>
+
+      {showParkInput && (
+        <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+          <Input
+            type="text"
+            value={parkQuestionText}
+            onChange={(e) => setParkQuestionText(e.target.value)}
+            placeholder="e.g., Check if supplier will accept 60-day staged milestone terms..."
+            className="flex-1 bg-white text-base sm:text-xs"
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={async () => {
+              if (!parkQuestionText.trim()) return;
+              await parkModuleKOpenQuestionAction({
+                planId: plan.id,
+                questionText: `[Step 3 - Reimbursement Bridge] ${parkQuestionText.trim()}`,
+              });
+              setParkQuestionText('');
+              setShowParkInput(false);
+              setParkSavedNotice(true);
+              setTimeout(() => setParkSavedNotice(false), 3500);
+            }}
+            className="bg-slate-900 text-xs text-white hover:bg-slate-800"
+          >
+            Save to Parking Lot
+          </Button>
+        </div>
+      )}
 
       {activeWhyCard && (
         <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
@@ -705,7 +759,7 @@ export function ModuleKReimbursementBridgeStep({
             disabled={isGeneratingAi || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Bridge Plan with AI'}
           </Button>
         </div>

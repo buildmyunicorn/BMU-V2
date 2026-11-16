@@ -76,6 +76,7 @@ export function ThreeQuoteConciergeModal({
   const [rfpCategory, setRfpCategory] = useState<QuoteSupplierCategory>(
     sourceModule === 'MOD_E_OPERATIONS' ? 'EQUIPMENT_SUPPLIER' : defaultCategory
   );
+  const [customCategoryText, setCustomCategoryText] = useState('');
   const [projectTitle, setProjectTitle] = useState(
     initialEquipmentName
       ? `3 Quotes for ${initialEquipmentName}`
@@ -89,6 +90,9 @@ export function ThreeQuoteConciergeModal({
         : '€5,000 – €15,000 ex-VAT'
   );
   const [targetDeliveryTimeline, setTargetDeliveryTimeline] = useState('6–8 weeks');
+  const [isCustomTimeline, setIsCustomTimeline] = useState(false);
+  const [customTimelineText, setCustomTimelineText] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [scopeSummary, setScopeSummary] = useState(
     sourceModule === 'MOD_E_OPERATIONS'
       ? `Formal equipment quotation needed for grant compliance (${isUK ? 'Innovate UK & BBB' : 'LEO & Enterprise Ireland Appendix C'}). Specification must include make, model, delivery terms, warranty, and net ex-VAT breakdown.`
@@ -188,12 +192,24 @@ export function ThreeQuoteConciergeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!founderName.trim() || !founderEmail.trim()) {
-      alert('Please provide your name and email address for supplier quote delivery.');
+      setValidationError(
+        'Please enter your full name and official email address below so suppliers can send your quotes.'
+      );
       return;
     }
 
+    setValidationError(null);
     setIsSubmitting(true);
     setDispatchResult(null);
+
+    const effectiveTimeline =
+      isCustomTimeline && customTimelineText.trim()
+        ? customTimelineText.trim()
+        : targetDeliveryTimeline;
+    const effectiveScope =
+      rfpCategory === 'OTHER' && customCategoryText.trim()
+        ? `[Supplier Category: ${customCategoryText.trim()}] ${scopeSummary}`
+        : scopeSummary;
 
     const res = await submitThreeQuoteRfpAction({
       planId,
@@ -201,8 +217,8 @@ export function ThreeQuoteConciergeModal({
       rfpCategory,
       projectTitle,
       budgetRange,
-      targetDeliveryTimeline,
-      scopeSummary,
+      targetDeliveryTimeline: effectiveTimeline,
+      scopeSummary: effectiveScope,
       workPackages,
       founderContact: {
         name: founderName.trim(),
@@ -329,12 +345,14 @@ export function ThreeQuoteConciergeModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {dispatchResult?.error && (
+            {(validationError || dispatchResult?.error) && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">Error dispatching quotes: </span>
-                  {dispatchResult.error}
+                  <span className="font-bold">
+                    {validationError ? 'Missing contact details: ' : 'Error dispatching quotes: '}
+                  </span>
+                  {validationError || dispatchResult?.error}
                 </div>
               </div>
             )}
@@ -344,17 +362,18 @@ export function ThreeQuoteConciergeModal({
               <label className="block text-xs font-bold text-slate-900 mb-1.5">
                 Supplier / Provider Category:
               </label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {[
-                  { id: 'DEV_AGENCY', label: 'Dev / Software Agency', icon: '💻' },
-                  { id: 'ECOMMERCE_STUDIO', label: 'E-Commerce / Shopify', icon: '🛍️' },
-                  { id: 'EQUIPMENT_SUPPLIER', label: 'Equipment & Machinery', icon: '⚙️' },
-                  { id: 'PACKAGING_PRINTING', label: 'Packaging & Print', icon: '📦' },
+                  { id: 'DEV_AGENCY' as const, label: 'Dev / Software Agency', icon: '💻' },
+                  { id: 'NO_CODE_STUDIO' as const, label: 'E-Commerce / No-Code', icon: '🛍️' },
+                  { id: 'EQUIPMENT_SUPPLIER' as const, label: 'Equipment & Machinery', icon: '⚙️' },
+                  { id: 'BRANDING_DESIGN' as const, label: 'Packaging, Print & Brand', icon: '📦' },
+                  { id: 'OTHER' as const, label: 'Other / Specialist', icon: '✨' },
                 ].map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setRfpCategory(cat.id as QuoteSupplierCategory)}
+                    onClick={() => setRfpCategory(cat.id)}
                     className={`rounded-lg border p-2 text-left text-xs transition ${
                       rfpCategory === cat.id
                         ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-900 ring-2 ring-emerald-700/20'
@@ -366,6 +385,15 @@ export function ThreeQuoteConciergeModal({
                   </button>
                 ))}
               </div>
+              {rfpCategory === 'OTHER' && (
+                <input
+                  type="text"
+                  value={customCategoryText}
+                  onChange={(e) => setCustomCategoryText(e.target.value)}
+                  placeholder="Specify supplier category (e.g. Food-grade bottling, ISO lab testing, CAD tooling)..."
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
+                />
+              )}
             </div>
 
             {/* Project Title & Target Budget */}
@@ -404,14 +432,17 @@ export function ThreeQuoteConciergeModal({
               <label className="block text-xs font-bold text-slate-900 mb-1">
                 Target Timeline / Lead Time:
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {['2–4 weeks', '6–8 weeks', '3–4 months'].map((t) => (
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setTargetDeliveryTimeline(t)}
+                    onClick={() => {
+                      setIsCustomTimeline(false);
+                      setTargetDeliveryTimeline(t);
+                    }}
                     className={`rounded-lg border px-2.5 py-1.5 text-xs text-center transition ${
-                      targetDeliveryTimeline === t
+                      !isCustomTimeline && targetDeliveryTimeline === t
                         ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-900'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                     }`}
@@ -419,7 +450,27 @@ export function ThreeQuoteConciergeModal({
                     {t}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomTimeline(true)}
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs text-center transition ${
+                    isCustomTimeline
+                      ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-900'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
+                  }`}
+                >
+                  Other / Custom
+                </button>
               </div>
+              {isCustomTimeline && (
+                <input
+                  type="text"
+                  value={customTimelineText}
+                  onChange={(e) => setCustomTimelineText(e.target.value)}
+                  placeholder="Specify custom lead time or milestone schedule (e.g. Phased delivery over 12 weeks)..."
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
+                />
+              )}
             </div>
 
             {/* Scope Summary */}

@@ -28,6 +28,7 @@ import {
   formatPlanCurrency,
   type SupportedCountryCode,
 } from '@/lib/localization';
+import { formatCompilerModeLabel } from '@/lib/export/enum-labels';
 import type {
   SavedFounderMotivation,
   SavedTeamAndBudget,
@@ -1271,12 +1272,9 @@ function buildSmartFallbackCompetitors(params: {
   const combinedContext = `${params.planTitle} ${params.brainDumpText || ''} ${params.coreProblem || ''} ${params.proposedSolution || ''} ${params.targetCustomerDescription || ''}`.toLowerCase();
 
   const isStartupOrBusinessPlanTool =
-    combinedContext.includes('unicorn') ||
-    combinedContext.includes('founder') ||
-    combinedContext.includes('startup') ||
-    combinedContext.includes('business plan') ||
-    combinedContext.includes('accelerator') ||
-    combinedContext.includes('pitch');
+    /\b(business plan|business planning|pitch deck|grant application tool|incubator platform|accelerator platform|startup validation)\b/.test(
+      combinedContext
+    );
 
   if (isStartupOrBusinessPlanTool) {
     return {
@@ -1626,16 +1624,11 @@ function buildSmartFallbackMarketSizing(params: {
   const combinedContext = `${params.planTitle} ${params.brainDumpText || ''} ${params.targetCustomerDescription || ''}`.toLowerCase();
 
   const isStartupOrBusinessPlanTool =
-    combinedContext.includes('unicorn') ||
-    combinedContext.includes('founder') ||
-    combinedContext.includes('startup') ||
-    combinedContext.includes('business plan') ||
-    combinedContext.includes('accelerator') ||
-    combinedContext.includes('university');
+    /\b(business plan|business planning|pitch deck|grant application tool|incubator platform|accelerator platform|startup validation)\b/.test(
+      combinedContext
+    );
 
-  const hasMultipleBuyerModels = (params.buyerTypes?.length || 0) > 1;
-
-  if (isStartupOrBusinessPlanTool || hasMultipleBuyerModels) {
+  if (isStartupOrBusinessPlanTool) {
     return {
       segments: [
         {
@@ -2402,7 +2395,7 @@ function translateFounderPitchToCustomerWorkflow(
 function detectIdeaDomainArchetype(combinedText: string): IdeaDomainArchetype {
   const lower = combinedText.toLowerCase();
   if (
-    /\b(founder|founders|startup|startups|unicorn|business plan|idea to|mvp|pitch deck|incubator|accelerator|grant match|early stage|co-founder)\b/.test(
+    /\b(business plan|business planning|pitch deck|incubator platform|accelerator platform|grant match|startup validation)\b/.test(
       lower
     )
   ) {
@@ -3967,7 +3960,7 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
           ? `Follow up with your ${strongSignalInterviews.length} Strong-Signal interviewee(s) (${strongSignalInterviews
               .slice(0, 2)
               .map((i) => i.intervieweeNameOrRole)
-              .join(', ')}) to co-design your V1 scope in Module D and validate pricing in Module F.`
+              .join(', ')}) to co-design your V1 scope in Module D and validate pricing in Module H.`
           : waitlistLeads.length > 0
             ? `Invite the ${waitlistLeads.length} waitlist respondent(s) (${waitlistLeads
                 .slice(0, 2)
@@ -3979,7 +3972,7 @@ export async function analyzeModuleCSurveyResultsViaRouter(params: {
         waitlistLeads.length > 0
           ? `${waitlistLeads.length} of ${totalResponses} survey respondents (${waitlistConversionPct}%) opted into your waitlist. Click "Log 1-on-1 Call" next to high-pain leads to convert them into pilot interviews.`
           : totalInterviews > 0
-            ? `${totalInterviews} 1-on-1 interview(s) logged (${strongSignalInterviews.length} Strong Signal). Keep logging verbatim quotes and current spend so Module F (Pricing) and Module I (Business Plan) can cite real buyer proof.`
+            ? `${totalInterviews} 1-on-1 interview(s) logged (${strongSignalInterviews.length} Strong Signal). Keep logging verbatim quotes and current spend so Module H (Pricing) and Module L (Business Plan) can cite real buyer proof.`
             : 'No waitlist emails captured yet — make sure "Collect Early-Bird Waitlist Emails" is enabled on your survey.',
       lastAnalyzedAt: new Date().toISOString(),
       aiEngineUsed: 'smart-synthesizer',
@@ -4032,7 +4025,7 @@ Return JSON matching:
   "signalScoreOutOf100": number (0-100),
   "validatedPainPoints": ["3 specific insights backed by survey percentages and 1-on-1 interview takeaways"],
   "politenessAlertOrRisks": ["2 Mom-Test blind-spot warnings or false-positive checks"],
-  "recommendedNextAction": "Concrete next step for the founder in Module D (Product) and Module F (Pricing)",
+  "recommendedNextAction": "Concrete next step for the founder in Module D (Product) and Module H (Pricing)",
   "topWaitlistLeadAdvice": "1 sentence on how to convert waitlist leads and strong-signal interviewees"
 }`;
 
@@ -9383,9 +9376,9 @@ export async function generateModuleEBlindSpotAuditViaRouter(input: {
         severity: totalUnitOpsCost > 15 ? 'IMPORTANT' : 'WATCH',
         whyItMatters: `Your Step 1 direct variable cost (${currencySym}${directOrderCost.toFixed(2)}) plus Step 4 expected return/remake buffer (${currencySym}${returnBuffer.toFixed(2)}) equals ${currencySym}${totalUnitOpsCost.toFixed(2)} per order before payment processor or marketplace fees.`,
         recommendedActionOrFix:
-          'Carry this exact combined unit operations cost into Module G (Pricing & Pocket Profit) so your retail/B2B price preserves a healthy gross margin after packaging, shipping, and returns.',
+          'Carry this exact combined unit operations cost into Module H (Pricing & Pocket Profit) so your retail/B2B price preserves a healthy gross margin after packaging, shipping, and returns.',
         founderMitigationNote:
-          'Synced directly to Module G Unit Economics COGS baseline.',
+          'Synced directly to Module H Unit Economics COGS baseline.',
         isResolved: false,
       },
       {
@@ -9403,7 +9396,7 @@ export async function generateModuleEBlindSpotAuditViaRouter(input: {
             ? 'Innovate UK Smart and R&D grants only reimburse the pro-rata depreciation of capital equipment used on the project during the grant period, and Start Up Loans require verifiable commercial supplier quotes.'
             : 'Public grant bodies disallow retrospective capital expenditure incurred prior to formal grant approval.',
         recommendedActionOrFix: isIE
-          ? 'Keep all >= €1,000 equipment quotes dated and filed for Module K Appendix C, ring-fence laptops under 100% Own Funds/BYOD, and do not pay supplier deposits on grant-funded items before your LEO Letter of Offer.'
+          ? 'Keep all >= €1,000 equipment quotes dated and filed for Module L Appendix C, ring-fence laptops under 100% Own Funds/BYOD, and do not pay supplier deposits on grant-funded items before your LEO Letter of Offer.'
           : isGB
             ? 'Ensure Step 2 useful life (months) and project usage (%) accurately reflect R&D project usage for Innovate UK Q9 financial tables, and retain written supplier quotes.'
             : 'Retain 3 written supplier quotes and wait for formal grant sign-off before placing capital equipment deposits.',
@@ -9454,12 +9447,12 @@ export async function generateModuleEBlindSpotAuditViaRouter(input: {
         : isGB
           ? `${input.planTitle || 'Our business'} operates a structured, grant-audit-ready fulfillment and operations architecture in the United Kingdom. In Step 1, our order lifecycle averages ${activeMins} active minutes per order (supporting up to ~${maxWeeklyOrders} orders/week within current founder operational hours). In Step 2, our premises (${currencySym}${monthlyPremises.toLocaleString()}/month overhead) and ${currencySym}${totalCapex.toLocaleString()} capital equipment schedule align with Innovate UK eligible capital usage depreciation and British Business Bank Start Up Loans verification standards. Step 3 and Step 4 establish a 4-category Project Risk Register, 3-gate Quality Control SOP, and UK Consumer Rights Act 2015 returns workflow, while Step 5 secures Companies House, HMRC UTR, UK HSE workplace safety (HSWA 1974), and statutory ICO Data Protection Fee compliance.`
           : `${input.planTitle || 'Our business'} operates a structured end-to-end fulfillment, capital equipment, 4-category risk management, 3-gate quality control, and regulatory compliance architecture averaging ${activeMins} active minutes per order (up to ~${maxWeeklyOrders} orders/week).`,
-      operationsToFinanceAndTeamHandshakeNarrative: `Downstream Financial & Team Handshake: (1) Module G Unit Economics COGS Baseline — ${currencySym}${directOrderCost.toFixed(2)} direct fulfillment cost + ${currencySym}${returnBuffer.toFixed(2)} return/remake buffer = ${currencySym}${totalUnitOpsCost.toFixed(2)} total operational cost per order; (2) Module I Monthly Fixed Operations Overhead — ${currencySym}${monthlyPremises.toLocaleString()}/month premises overhead + ~${currencySym}${monthlyInsEst.toLocaleString()}/month indicative commercial insurance estimate (derived from an estimated annual premium of ~${currencySym}${annualInsEst.toLocaleString()}/year via ${input.selectedInsuranceProviderName || (isIE ? 'Irish commercial broker' : isGB ? 'UK commercial broker' : 'commercial broker')}; note that this insurance figure is an indicative planning estimate only and actual coverage, policy limits, and premiums may vary subject to formal insurer underwriting) = ~${currencySym}${totalMonthlyOpsFixed.toLocaleString()}/month; (3) Module F Team Hiring Trigger — operational capacity beyond ~${maxWeeklyOrders} orders/week triggers our first part-time fulfillment/operations support hire.`,
+      operationsToFinanceAndTeamHandshakeNarrative: `Downstream Financial & Team Handshake: (1) Module H Unit Economics COGS Baseline — ${currencySym}${directOrderCost.toFixed(2)} direct fulfillment cost + ${currencySym}${returnBuffer.toFixed(2)} return/remake buffer = ${currencySym}${totalUnitOpsCost.toFixed(2)} total operational cost per order; (2) Module J Monthly Fixed Operations Overhead — ${currencySym}${monthlyPremises.toLocaleString()}/month premises overhead + ~${currencySym}${monthlyInsEst.toLocaleString()}/month indicative commercial insurance estimate (derived from an estimated annual premium of ~${currencySym}${annualInsEst.toLocaleString()}/year via ${input.selectedInsuranceProviderName || (isIE ? 'Irish commercial broker' : isGB ? 'UK commercial broker' : 'commercial broker')}; note that this insurance figure is an indicative planning estimate only and actual coverage, policy limits, and premiums may vary subject to formal insurer underwriting) = ~${currencySym}${totalMonthlyOpsFixed.toLocaleString()}/month; (3) Module F Team Hiring Trigger — operational capacity beyond ~${maxWeeklyOrders} orders/week triggers our first part-time fulfillment/operations support hire.`,
       aiCoachTip: isIE
-        ? 'Irish Grant Assessor Tip: Before submitting your Module K LEO or Enterprise Ireland business plan, double-check that your Step 2 Capital Equipment total matches your Module J Grant Application figure and that your Step 1+4 unit cost is reflected in Module G Pocket Profit.'
+        ? 'Irish Grant Assessor Tip: Before submitting your Module L LEO or Enterprise Ireland business plan, double-check that your Step 2 Capital Equipment total matches your Module K Grant Application figure and that your Step 1+4 unit cost is reflected in Module H Pocket Profit.'
         : isGB
-          ? 'UK Grant & Loan Assessor Tip: Before compiling your Module K Innovate UK or Start Up Loans pack, verify that your Step 2 eligible capital usage depreciation and Step 5 indicative monthly insurance overhead match your Module I 36-month cashflow.'
-          : 'Ensure your Step 1+4 unit operational cost flows into Module G Pricing and your Step 2+5 monthly fixed overheads flow into Module I Finance.',
+          ? 'UK Grant & Loan Assessor Tip: Before compiling your Module L Innovate UK or Start Up Loans pack, verify that your Step 2 eligible capital usage depreciation and Step 5 indicative monthly insurance overhead match your Module J 36-month cashflow.'
+          : 'Ensure your Step 1+4 unit operational cost flows into Module H Pricing and your Step 2+5 monthly fixed overheads flow into Module J Finance.',
     };
   };
 
@@ -9513,7 +9506,7 @@ Return valid JSON matching:
     }
   ],
   "executiveOperationsSummaryNarrative": "3-4 sentence grant-ready executive operations summary covering Steps 1-5",
-  "operationsToFinanceAndTeamHandshakeNarrative": "2-3 sentence quantitative handshake to Module G (unit COGS), Module I (monthly premises + indicative insurance estimate noting actual coverage & premium may vary), and Module F (team hiring trigger)",
+  "operationsToFinanceAndTeamHandshakeNarrative": "2-3 sentence quantitative handshake to Module H (unit COGS), Module J (monthly premises + indicative insurance estimate noting actual coverage & premium may vary), and Module F (team hiring trigger)",
   "aiCoachTip": "1-2 sentence practical tip"
 }`;
 
@@ -9776,23 +9769,95 @@ export async function weaveMasterDocumentStoryViaRouter(input: {
         };
       }
 
+      if (f.hasModuleF) {
+        verifiedLedger.moduleF_TeamAndHeadcount = {
+          teamPosture: f.teamStructurePostureLabel,
+          teamMembersCount: f.teamMembersCount,
+          hatsAssignedCount: f.hatsAssignedCount,
+          monthlySurvivalBurn: `${f.currency} ${f.monthlyNetSurvivalBurnTotal}`,
+          plannedHiresCount: f.plannedHiresCount,
+          plannedHires: f.plannedHiresSummaries.slice(0, 4).map((r) => `${r.roleTitle} (${r.targetQuarter}, ${f.currency} ${r.annualGrossSalary})`),
+        };
+      }
+
+      if (f.hasModuleG) {
+        verifiedLedger.moduleG_CorporateSetup = {
+          opsReadinessPercent: f.opsReadinessPercent,
+          legalStructure: f.legalEntityStructureLabel || undefined,
+          registeredEntityName: sanitizePromptInput(f.registeredEntityName, 140) || undefined,
+          hasDedicatedBusinessIban: f.hasDedicatedIban,
+          vatStatus: f.vatStatusLabel || undefined,
+        };
+      }
+
+      if (f.hasModuleH) {
+        verifiedLedger.moduleH_RevenueAndBreakeven = {
+          revenueModel: f.revenueModelVehicleLabel,
+          blendedNetPrice: f.blendedAveragePriceNet > 0 ? `${f.currency} ${f.blendedAveragePriceNet}` : undefined,
+          year1TargetCustomers: f.year1TargetCustomers || undefined,
+          year1ProjectedNetTurnover: f.year1ProjectedNetTurnover > 0 ? `${f.currency} ${f.year1ProjectedNetTurnover}` : undefined,
+          year3ProjectedNetTurnover: f.year3ProjectedNetTurnover > 0 ? `${f.currency} ${f.year3ProjectedNetTurnover}` : undefined,
+          primarySalesMotion: f.primarySalesMotionLabel || undefined,
+        };
+      }
+
+      if (f.hasModuleI) {
+        verifiedLedger.moduleI_GoToMarket = {
+          positioning: sanitizePromptInput(f.positioningFormulaSummary || f.elevatorHook140, 240) || undefined,
+          first10Strategy: f.first10ArchetypeLabel || undefined,
+          first10ProspectsCount: f.first10ProspectsCount,
+          monthlyMarketingBudget: `${f.currency} ${f.monthlyMarketingBudget}`,
+          estimatedCac: f.calculatedCashCac > 0 ? `${f.currency} ${f.calculatedCashCac}` : undefined,
+        };
+      }
+
+      if (f.hasModuleJ) {
+        verifiedLedger.moduleJ_FinancialForecast = {
+          costPosture: f.operatingCostPostureLabel,
+          monthlyFixedOverheads: `${f.currency} ${f.monthlyFixedOverheadsTotal}`,
+          startingCashDay1: `${f.currency} ${f.startingCashBalanceDay1}`,
+          externalFundingMapped: `${f.currency} ${f.totalExternalFundingMapped}`,
+          primaryFundingStrategy: f.primaryFundingStrategyLabel || undefined,
+        };
+      }
+
+      if (f.hasModuleK) {
+        verifiedLedger.moduleK_GrantsAndCapitalStack = {
+          selectedGrantScheme: f.selectedGrantKey || undefined,
+          targetFundingGap: f.totalTargetFundingGap > 0 ? `${f.currency} ${f.totalTargetFundingGap}` : undefined,
+          promoterSkinInTheGame: f.skinInTheGameCash > 0 ? `${f.currency} ${f.skinInTheGameCash}` : undefined,
+          grantsAllocated: f.totalGrantsAllocated > 0 ? `${f.currency} ${f.totalGrantsAllocated}` : undefined,
+          loansAllocated: f.totalLoansAllocated > 0 ? `${f.currency} ${f.totalLoansAllocated}` : undefined,
+          investorTaxScheme: f.primaryTaxScheme || undefined,
+        };
+      }
+
+      if (f.hasModuleL) {
+        verifiedLedger.moduleL_SubmissionDossier = {
+          compilerMode: f.compilerModeLabel || undefined,
+          submissionObjective: f.submissionObjectiveLabel || undefined,
+          targetAgency: sanitizePromptInput(f.targetAgencyOrCommitteeName, 140) || undefined,
+          targetFundingAsk: f.targetFundingAskAmount > 0 ? `${f.currency} ${f.targetFundingAskAmount}` : undefined,
+        };
+      }
+
       const prompt = `You are a strict, zero-hallucination executive copy-editor for Startup Preflight.
-Your ONLY job is to weave the founder's verified inputs in VERIFIED_FOUNDER_FACTS below into a smooth, coherent 3-paragraph Executive Story.
+Your ONLY job is to weave the founder's verified inputs in VERIFIED_FOUNDER_FACTS below into a smooth, coherent 3-paragraph Executive Story suitable for an investor, lender, or grant assessor.
 
 STRICT ZERO-HALLUCINATION RULES (MANDATORY):
 1. CLOSED-WORLD FACTS ONLY: You may ONLY state facts, numbers, prices, currencies, customer segments, competitors, survey counts, features, and operational metrics that appear explicitly in VERIFIED_FOUNDER_FACTS below.
 2. NEVER INVENT OR EXTRAPOLATE: Do NOT invent market statistics, customer quotes, competitor names, survey responses, timelines, or costs.
-3. UNSTARTED MODULES: If a module is NOT present in VERIFIED_FOUNDER_FACTS (for example, if moduleC_CustomerValidation or moduleE_OperationsAndRisk is absent), state clearly in that paragraph that that section has not yet been populated—NEVER make up placeholder facts for it.
-4. PLAIN-ENGLISH TERMINOLOGY: Never write "/v/[slug]" or any URL route path. Always refer to surveys in plain English as "public validation surveys".
+3. UNSTARTED MODULES: Omit unstarted modules gracefully or note briefly where financial/operational modeling is still in progress—NEVER make up placeholder facts for absent modules.
+4. ZERO INTERNAL MODULE META-TALK: Never write "In Module A", "Module B shows", "/v/[slug]", or internal app jargon. Write natural, publication-ready business prose.
 
 VERIFIED_FOUNDER_FACTS:
 ${JSON.stringify(verifiedLedger, null, 2)}
 
 Return valid JSON matching this exact structure:
 {
-  "paragraph1OpportunityAndMarket": "3-4 crisp sentences weaving Module A (Concept & Founder Fit) and Module B (Beachhead Market, Competitors & SOM/SAM) using only verified facts.",
-  "paragraph2ValidationAndProduct": "3-4 crisp sentences weaving Module C (Public Validation Surveys & 1-on-1 Interviews) and Module D (Product Vehicle, Channel Split, V1 Must-Haves & Work Packages) using only verified facts.",
-  "paragraph3OperationsAndExecution": "3-4 crisp sentences weaving Module E (Fulfillment Mode, Unit Order Effort/Cost, Premises/Equipment CapEx & Risk Mitigation) using only verified facts."
+  "paragraph1OpportunityAndMarket": "3-4 crisp sentences weaving the core problem, customer, beachhead market, competitive wedge, SOM/SAM, and go-to-market positioning using only verified facts.",
+  "paragraph2ValidationAndProduct": "3-4 crisp sentences weaving customer validation evidence, product vehicle, channel strategy, V1 scope, and pricing/revenue model using only verified facts.",
+  "paragraph3OperationsAndExecution": "3-4 crisp sentences weaving fulfillment operations, team & hiring posture, corporate readiness, 36-month financial overheads, and capital/grant strategy using only verified facts."
 }`;
 
       const response = await ai.models.generateContent({
@@ -10374,28 +10439,28 @@ Extract the candidate's actual qualifications from the uploaded CV and compose a
 
 CRITICAL EXTRACTION REQUIREMENTS:
 1. "linkedInUrl": Extract the candidate's exact LinkedIn profile URL (e.g. "https://www.linkedin.com/in/username") if present in the contact info or text. Prepend https:// if missing. Return empty string if not found.
-2. STANDOUT ROLES & COMPANIES:
-   - Identify top-tier companies (such as Google, Meta, Stripe, AWS, Microsoft, Apple, etc.) and leadership positions (such as "Head of Google's Startup Team", "Director of Product", "VP of Engineering").
-   - You MUST prominently feature these exact positions by name in both "keyPastCompaniesOrTrackRecord" and "compiled150WordNarrative". DO NOT replace them with vague phrases. Mention them by name!
+2. STANDOUT ROLES, SECTOR EXPERTISE & EMPLOYERS:
+   - Identify notable past employers, clinics, trade/food producers, retail chains, or tech firms and leadership positions (such as "Senior Production Supervisor", "Clinical Practice Lead", "Operations Manager", or "Director of Product").
+   - You MUST prominently feature these exact positions and employers by name in both "keyPastCompaniesOrTrackRecord" and "compiled150WordNarrative". DO NOT replace them with vague phrases.
 3. "compiled150WordNarrative":
-   - MUST be AT LEAST 150 TO 190 WORDS in length (strict Irish LEO application guidelines explicitly enforce a mandatory 150-word minimum per promoter).
+   - MUST be AT LEAST 150 TO 190 WORDS in length (${country === 'IE' ? 'strict Irish LEO application guidelines enforce a mandatory 150-word minimum per promoter' : 'comprehensive assessor-ready founder capability statement'}).
    - Structure:
-     1. Full Name, role in the startup, and standout past leadership title (e.g. "Having served as Head of Google's Startup Team...").
-     2. Academic background (degrees, universities) and relevant enterprise training.
-     3. Career track record (exact past employers, leadership roles, technical/commercial achievements).
+     1. Full Name, role in the startup, and standout past industry or leadership role.
+     2. Qualifications, trade certifications, clinical accreditations, or academic background and relevant enterprise training.
+     3. Career track record (exact past employers, hands-on operational, commercial, or technical achievements).
      4. Specific role responsibilities and execution capability within this startup.
 
 Return strictly valid JSON with this exact schema:
 {
   "fullName": "Extracted candidate full name",
-  "jobTitle": "Suggested role title in this startup (e.g. Founder & CEO)",
+  "jobTitle": "Suggested role title in this startup (e.g. Founder & Head of Operations / CEO)",
   "linkedInUrl": "Extracted LinkedIn profile URL or empty string",
   "email": "Extracted email address or empty string",
-  "relevantEducationAndDegrees": "e.g. BSc in Computer Science (UCD), ACCA Qualified",
-  "relevantTrainingCourses": "e.g. LEO Start Your Own Business, Agile Product Management",
+  "relevantEducationAndDegrees": "e.g. Culinary Arts Diploma, BSc Physiotherapy, Trade Certificate, or BSc Computer Science",
+  "relevantTrainingCourses": "e.g. HACCP Level 3, Start Your Own Business, or Commercial Management",
   "priorIndustryExperienceYears": 8,
-  "keyPastCompaniesOrTrackRecord": "e.g. Head of Google's Startup Team, 8 years senior leadership at Google",
-  "compiled150WordNarrative": "A complete, highly professional, third-person background profile of AT LEAST 150 words explicitly mentioning their standout roles (such as Head of Google's Startup Team) and track record."
+  "keyPastCompaniesOrTrackRecord": "e.g. 8 years commercial operations, production, clinical, or software delivery",
+  "compiled150WordNarrative": "A complete, professional, third-person founder capability profile of AT LEAST 150 words explicitly mentioning their standout past roles, qualifications, and hands-on track record."
 }`;
 
       let contentParts: any[] = [];
@@ -11008,26 +11073,28 @@ function buildSmartTeamAuditAndBrief(params: {
   } else {
     blindSpots.push({
       id: 'tb-deadlock-governance',
-      title: 'Co-Founder Decision Deadlock & Equity Deadlock Risk',
+      title: 'Co-Founder Decision Tie-Breaker & Voting Clarity',
       category: 'DECISION_DEADLOCK_OR_GOVERNANCE_SPLIT',
       severity: 'IMPORTANT',
       whyItMatters:
-        'Equal 50/50 equity splits with informal voting rules frequently lead to catastrophic governance paralysis if founders disagree on pivots, fundraising, or hiring.',
+        'Equal 50/50 equity splits without a clear tie-breaking rule can stall key decisions if co-founders disagree on product direction, fundraising, or hiring.',
       recommendedActionOrFix:
-        'Establish a formal Founders Agreement with designated tie-breaking mechanisms (e.g. Lead Founder casting vote on operational strategy, independent advisor mediation on exits).',
+        'Add a simple tie-breaking clause to your Founders Agreement (e.g. each founder has final say in their functional domain, with an agreed mentor or advisor acting as a tie-breaker on major company decisions).',
     });
   }
 
-  blindSpots.push({
-    id: 'tb-equity-vesting-cliff',
-    title: 'Absence of 4-Year Equity Vesting with a 1-Year Cliff',
-    category: 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK',
-    severity: 'CRITICAL',
-    whyItMatters:
-      'If any co-founder or sweat-equity contributor departs within the first 12 months without reverse-vesting, they retain their full equity stake as "dead equity", rendering the company uninvestable for future institutional rounds.',
-    recommendedActionOrFix:
-      'Adopt a standard 4-year vesting schedule with a 12-month cliff and strict bad-leaver share buyback rights before incorporating or issuing shares.',
-  });
+  if (!isSolo) {
+    blindSpots.push({
+      id: 'tb-equity-vesting-cliff',
+      title: 'Protecting Co-Founders with 4-Year Equity Vesting & a 1-Year Cliff',
+      category: 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK',
+      severity: 'CRITICAL',
+      whyItMatters:
+        'If a co-founder steps away in the first 12 months without vesting in place, they keep their full share allocation ("dead equity"), which is unfair to the remaining team and complicates future grant or angel rounds.',
+      recommendedActionOrFix:
+        'Adopt a standard 4-year vesting schedule with a 12-month trial cliff so every co-founder earns their shares month-by-month as they contribute.',
+    });
+  }
 
   if (runwayMonths < 6) {
     blindSpots.push({
@@ -11767,7 +11834,7 @@ Tasks:
    - Paragraph 2: Breakeven feasibility against baseline overheads and founder survival commitments.
    - Paragraph 3: Operational delivery bandwidth feasibility and defense for grant/loan committee evaluators.
 2. Generate 4 constructive Blind-Spot Review items (JSON array with id, title, category, severity="CRITICAL"|"WARNING"|"INFO", explanation, suggestedAction).
-3. Set revenueReadinessConfidence to one of: "READY_FOR_COMMERCIAL_LAUNCH", "PRICING_TESTING_RECOMMENDED", "WORKING_CAPITAL_GAP_WARNING", "NEEDS_CAPACITY_EXPANSION".
+3. Set revenueReadinessConfidence to one of: "READY_FOR_COMMERCIAL_LAUNCH", "PRICING_TESTING_RECOMMENDED", "WORKING_CAPITAL_GAP_WARNING", "NEEDS_CAPACITY_EXPANSION", "OTHER".
 4. Provide a 1-sentence assessorTip highlighting what a grant evaluator will check first.
 
 Return strictly JSON:
@@ -11783,7 +11850,7 @@ Return strictly JSON:
       "suggestedAction": "string"
     }
   ],
-  "revenueReadinessConfidence": "READY_FOR_COMMERCIAL_LAUNCH" | "PRICING_TESTING_RECOMMENDED" | "WORKING_CAPITAL_GAP_WARNING" | "NEEDS_CAPACITY_EXPANSION",
+  "revenueReadinessConfidence": "READY_FOR_COMMERCIAL_LAUNCH" | "PRICING_TESTING_RECOMMENDED" | "WORKING_CAPITAL_GAP_WARNING" | "NEEDS_CAPACITY_EXPANSION" | "OTHER",
   "assessorTip": "string"
 }`;
 
@@ -11802,7 +11869,7 @@ Return strictly JSON:
         const parsed = JSON.parse(text) as {
           executiveCommercialSummaryNarrative?: string;
           blindSpots?: BlindSpotItem[];
-          revenueReadinessConfidence?: 'READY_FOR_COMMERCIAL_LAUNCH' | 'PRICING_TESTING_RECOMMENDED' | 'WORKING_CAPITAL_GAP_WARNING' | 'NEEDS_CAPACITY_EXPANSION';
+          revenueReadinessConfidence?: 'READY_FOR_COMMERCIAL_LAUNCH' | 'PRICING_TESTING_RECOMMENDED' | 'WORKING_CAPITAL_GAP_WARNING' | 'NEEDS_CAPACITY_EXPANSION' | 'OTHER';
           assessorTip?: string;
         };
 
@@ -11967,6 +12034,7 @@ export interface GenerateModuleIPositioningParams {
   beachheadPersona?: string;
   competitiveWedge?: string;
   preferredTone?: string;
+  otherToneOfVoiceText?: string;
 }
 
 export interface GenerateModuleIPositioningResult {
@@ -12100,7 +12168,7 @@ CONTEXT & FOUNDER DATA:
 - Unique Value Prop: ${sanitizePromptInput(params.uvpStatement || '', 250)}
 - Beachhead Persona (Mod B): ${sanitizePromptInput(params.beachheadPersona || params.targetCustomer || '', 200)}
 - Competitive Wedge (Mod B): ${sanitizePromptInput(params.competitiveWedge || '', 200)}
-- Preferred Tone: ${params.preferredTone || fallback.suggestedToneOfVoice}
+- Preferred Tone: ${params.preferredTone === 'OTHER' && params.otherToneOfVoiceText ? `OTHER (${sanitizePromptInput(params.otherToneOfVoiceText, 120)})` : params.preferredTone || fallback.suggestedToneOfVoice}
 
 TASK REQUIREMENTS:
 1. Elevator Hook (STRICT: MAXIMUM 140 CHARACTERS): A punchy, memorably clear one-sentence hook designed for a landing page H1, Twitter bio, or elevator intro. It MUST be <= 140 characters.
@@ -12111,7 +12179,7 @@ TASK REQUIREMENTS:
    - primaryBenefit: "...that [single primary transformative outcome/benefit]..."
    - competitiveWedge: "...unlike [status quo or alternative competitors], we [unfair advantage / unique capability]..."
 3. Tone of Voice:
-   - Select one matching: AUTHORITATIVE_TRUSTED, APPROACHABLE_FRIENDLY, PLAYFUL_BOLD, TECHNICAL_TRANSPARENT, PREMIUM_CURATED.
+   - Select one matching: AUTHORITATIVE_TRUSTED, APPROACHABLE_FRIENDLY, PLAYFUL_BOLD, TECHNICAL_TRANSPARENT, PREMIUM_CURATED, OTHER (keep OTHER if the founder specified a custom tone).
    - Tone Boundaries ("We are [X] but never [Y]"): Give concrete 1-line guidance on brand voice guardrails.
 4. Core Brand Pillars: Exactly 3 crisp, memorable pillars (3-6 words each) that anchor all marketing collateral and website sections.
 5. Assessor Tip: 1 sentence advice for presenting this positioning during a commercial panel or grant interview.
@@ -12126,7 +12194,7 @@ Return strictly valid JSON:
     "primaryBenefit": "string",
     "competitiveWedge": "string"
   },
-  "suggestedToneOfVoice": "AUTHORITATIVE_TRUSTED" | "APPROACHABLE_FRIENDLY" | "PLAYFUL_BOLD" | "TECHNICAL_TRANSPARENT" | "PREMIUM_CURATED",
+  "suggestedToneOfVoice": "AUTHORITATIVE_TRUSTED" | "APPROACHABLE_FRIENDLY" | "PLAYFUL_BOLD" | "TECHNICAL_TRANSPARENT" | "PREMIUM_CURATED" | "OTHER",
   "toneOfVoiceBoundary": {
     "weAre": "string",
     "weAreNever": "string"
@@ -12159,10 +12227,14 @@ Return strictly valid JSON:
           'PLAYFUL_BOLD',
           'TECHNICAL_TRANSPARENT',
           'PREMIUM_CURATED',
+          'OTHER',
         ];
-        const tone = validTones.includes(parsed.suggestedToneOfVoice)
-          ? parsed.suggestedToneOfVoice
-          : fallback.suggestedToneOfVoice;
+        const tone =
+          params.preferredTone === 'OTHER'
+            ? 'OTHER'
+            : validTones.includes(parsed.suggestedToneOfVoice)
+              ? parsed.suggestedToneOfVoice
+              : fallback.suggestedToneOfVoice;
 
         const pillars: [string, string, string] = Array.isArray(parsed.corePillars) &&
           parsed.corePillars.length >= 3
@@ -14577,7 +14649,8 @@ export interface GenerateModuleJExecutiveBriefResult {
     | 'BANK_AND_GRANT_UNDERWRITING_READY'
     | 'BOOTSTRAP_CASHFLOW_SELF_FUNDED'
     | 'REQUIRES_BRIDGE_OR_LOAN_FACILITY'
-    | 'NEEDS_UNIT_ECONOMICS_RECALIBRATION';
+    | 'NEEDS_UNIT_ECONOMICS_RECALIBRATION'
+    | 'OTHER';
   executiveFinancialSummaryNarrative: string;
   aiAssessorTip: string;
   engineMode: 'gemini-2.5-flash' | 'smart-synthesizer';
@@ -14701,6 +14774,7 @@ Return strictly JSON with:
           'BOOTSTRAP_CASHFLOW_SELF_FUNDED',
           'REQUIRES_BRIDGE_OR_LOAN_FACILITY',
           'NEEDS_UNIT_ECONOMICS_RECALIBRATION',
+          'OTHER',
         ];
         return {
           allowed: true,
@@ -15829,7 +15903,7 @@ export async function generateModuleLStep2AuditViaRouter(
       status: 'PASSED',
       detail: isUK
         ? `Capital expenditure items scheduled in Module E conform to Innovate UK capital depreciation standards rather than expensing full asset write-offs.`
-        : `Scheduled equipment in Module E avoids prohibited general laptop/MacBook purchases and prepares 3 independent supplier quotes for capital items over €5,000.`,
+        : `Scheduled equipment in Module E avoids prohibited general laptop/MacBook purchases and prepares 3 independent supplier quotes for capital items ≥ €1,000 ex-VAT.`,
       assessorImpact: `Strict adherence prevents claims officers from withholding reimbursement vouchers during post-award claim audits.`,
       targetModuleCode: 'MOD_E_OPERATIONS',
       targetStep: 2,
@@ -15899,7 +15973,7 @@ MODULE CONTEXT SNAPSHOTS:
 - Mod K Capital Stack: ${sanitizePromptInput(params.moduleKFundingStackAndBuffer || 'Non-dilutive grant stack and reimbursement float bridge', 200)}
 
 TASK:
-Perform a deep, adversarial Cross-Module Contradiction and Pre-Flight Underwriter Audit across the 6 statutory dimensions.
+Perform a rigorous, constructive Cross-Module Pre-Flight Readiness & Consistency Audit across the 6 dimensions below. Act as a supportive senior co-founder and experienced grant/loan advisor: spot any mismatches an evaluator might ask about and give the founder clear, encouraging, practical fixes.
 Return strictly a JSON object:
 {
   "overallAuditScore": 85,
@@ -16163,18 +16237,47 @@ function synthesizeBusinessPlanSectionDraft(
   const prompt = (params.assessorPrompt || "").toLowerCase();
   const summary = params.planContextSummary || "";
 
-  const extractField = (key: string, defaultVal: string) => {
-    const match = summary.match(new RegExp(`${key}:\\s*([^\\n]+)`, "i"));
+  const extractField = (key: string, defaultVal = "") => {
+    const match = summary.match(new RegExp(`^\\s*${key}:\\s*([^\\n]+)`, "im"));
     return match && match[1]?.trim() ? match[1].trim() : defaultVal;
   };
 
+  const extractQuotedSubfield = (line: string, subKey: string): string => {
+    if (!line) return "";
+    const match = line.match(new RegExp(`${subKey}="([^"]*)"`, "i"));
+    return match && match[1]?.trim() ? match[1].trim() : "";
+  };
+
   const ventureName = params.planTitle || "The Venture";
-  const industry = params.industryCategory || "Technology & Services";
-  const problem = extractField("PROBLEM", "acute operational friction, manual bottlenecks, and excessive status-quo expenditure");
-  const solution = extractField("SOLUTION", "a purpose-built, high-reliability commercial architecture and operational workflow");
-  const targetCustomer = extractField("CUSTOMER", "verified commercial buyers seeking immediate workflow efficiency");
-  const marketSizing = extractField("MARKET", `a verified serviceable market exceeding ${currencySymbol}250,000 in Year 1`);
-  const validation = extractField("VALIDATION", "empirical customer discovery confirming high urgency and clear willingness-to-pay");
+  const industry = params.industryCategory || "Commercial Venture";
+  const conceptLine = extractField("CONCEPT");
+  const oneLiner = extractField("ONE_LINER");
+  const problem =
+    extractQuotedSubfield(conceptLine, "Problem") ||
+    extractField("PROBLEM") ||
+    "documented customer workflow friction and underserved operational needs";
+  const solution =
+    extractQuotedSubfield(conceptLine, "Solution") ||
+    extractField("SOLUTION") ||
+    oneLiner ||
+    "a focused, commercially viable product and service model";
+  const targetCustomer =
+    extractQuotedSubfield(conceptLine, "TargetCustomer") ||
+    extractField("CUSTOMER") ||
+    "clearly defined initial beachhead customers";
+  const unfairAdvantage = extractQuotedSubfield(conceptLine, "UnfairAdvantage");
+
+  const marketLine = extractField("MARKET");
+  const validationLine = extractField("VALIDATION");
+  const productVehicleLine = extractField("PRODUCT_VEHICLE");
+  const operationsLine = extractField("OPERATIONS");
+  const teamHeadcountLine = extractField("TEAM_HEADCOUNT");
+  const corporateSetupLine = extractField("CORPORATE_SETUP");
+  const pricingBreakevenLine = extractField("PRICING_BREAKEVEN");
+  const marketingGtmLine = extractField("MARKETING_GTM");
+  const finance36mLine = extractField("FINANCE_36M");
+  const grantsCapitalStackLine = extractField("GRANTS_CAPITAL_STACK");
+  const defenseNotesLine = extractField("DEFENSE_NOTES");
 
   // 1. Executive Summary & Facility / Borrowing Request
   if (
@@ -16185,11 +16288,21 @@ function synthesizeBusinessPlanSectionDraft(
     prompt.includes("loan facility") ||
     prompt.includes("purpose of borrowing")
   ) {
-    const text = `${ventureName} is a high-growth ${industry} enterprise operating in ${countryName}, founded to resolve ${problem}. By deploying ${solution}, the company directly addresses the core operational requirements of ${targetCustomer}, transforming fragmented incumbent workarounds into a streamlined, high-reliability commercial offering.
+    const marketSummaryClause = marketLine
+      ? `Market analysis (${marketLine.replace(/\|/g, ";")}) establishes a focused commercial beachhead.`
+      : `Initial commercial focus prioritizes beachhead customers before wider geographic expansion.`;
+    const validationSummaryClause = validationLine
+      ? `Customer discovery records (${validationLine.replace(/\|/g, ";")}) inform product scope and commercial pricing.`
+      : `Structured customer discovery is prioritized ahead of major capital commitments.`;
+    const capitalClause = grantsCapitalStackLine || finance36mLine
+      ? `Financial and funding structure (${[pricingBreakevenLine, finance36mLine, grantsCapitalStackLine].filter(Boolean).join(" • ").replace(/\|/g, ";")}) aligns milestone execution with disciplined cashflow governance in ${countryName}.`
+      : `Capital deployment is tied to phased product delivery, early customer acquisition, and disciplined working capital management in ${countryName}.`;
 
-Our operational model is established on rigorously validated unit economics and documented customer traction. Through primary market validation (${validation}), the business has verified strong commercial pull prior to committing capital. Target market sizing demonstrates ${marketSizing}, establishing a defensible, realistic growth path across our beachhead and adjacent regional segments.
+    const text = `${ventureName} is a ${industry} business based in ${countryName}, built to address ${problem}. By delivering ${solution}, the business serves ${targetCustomer}${unfairAdvantage ? `, supported by ${unfairAdvantage}` : ""}.
 
-Capital allocated under this submission is strictly targeted toward high-impact development milestones, initial commercial customer acquisition, and working capital cashflow reserves. The promoter team maintains full-time operational commitment and prudent financial governance, ensuring robust cashflow discipline, debt service coverage, and measurable commercial additionality in ${countryName}.`;
+${validationSummaryClause} ${marketSummaryClause}
+
+${capitalClause}${defenseNotesLine ? ` ${defenseNotesLine}` : ""}`;
 
     return {
       compiledResponseText: text,
@@ -16210,11 +16323,18 @@ Capital allocated under this submission is strictly targeted toward high-impact 
     prompt.includes("creditworthiness") ||
     prompt.includes("track record")
   ) {
-    const text = `The management team of ${ventureName} brings extensive commercial domain expertise and cross-functional operational experience in ${industry}. The leadership structure has been mapped across key operational hats—including technical architecture, commercial pipeline development, customer fulfillment, and strict regulatory compliance.
+    const teamClause = teamHeadcountLine
+      ? `Current team and survival budget profile: ${teamHeadcountLine.replace(/\|/g, ";")}.`
+      : `Leadership responsibilities cover product delivery, commercial acquisition, customer operations, and statutory governance.`;
+    const corpClause = corporateSetupLine
+      ? `Corporate and operational readiness stands as follows: ${corporateSetupLine.replace(/\|/g, ";")}.`
+      : `Founder drawings are kept disciplined during early trading to preserve company cash runway.`;
 
-Promoter full-time commitment is underpinned by a verified Personal Survival Budget, ensuring lean household overheads and complete alignment with company milestones. Rather than drawing inflated early salaries, leadership compensation is structured to safeguard early company cash reserves, providing substantial operational runway during the initial commercialization horizon.
+    const text = `The promoter team leading ${ventureName} brings direct domain capability in ${industry} to serve ${targetCustomer}. ${teamClause}
 
-To support projected growth over the next 36 months, the venture has scheduled a phased hiring plan focused on specialized delivery personnel, account management, and technical support. All planned hires incorporate statutory ${isUK ? "PAYE, Employer NICs, and auto-enrolment pensions" : "Irish PAYE, Employer PRSI, and statutory entitlements"}, maintaining transparent governance and sustainable regional employment.`;
+${corpClause} Household survival requirements and founder drawings are explicitly separated from business working capital so early customer revenues reinforce operational runway.
+
+As commercial milestones are achieved over the 36-month horizon, incremental hires incorporate statutory ${isUK ? "PAYE, Employer Class 1 NICs, and workplace pension contributions" : "Irish PAYE and Employer Class A PRSI (11.15%)"} within the financial forecast.`;
 
     return {
       compiledResponseText: text,
@@ -16235,11 +16355,15 @@ To support projected growth over the next 36 months, the venture has scheduled a
     prompt.includes("job creation") ||
     prompt.includes("salary plan")
   ) {
-    const text = `The 3-year headcount schedule for ${ventureName} has been directly calibrated against operational workload and revenue expansion milestones in ${countryName}. Initial staffing prioritizes core technical execution and customer onboarding, before progressively scaling dedicated operational, client delivery, and regional support roles.
+    const hiringClause = teamHeadcountLine
+      ? `Documented staffing and headcount posture for ${ventureName}: ${teamHeadcountLine.replace(/\|/g, ";")}.`
+      : `${ventureName} operates lean founder-led execution initially, tying any future hires strictly to validated revenue capacity.`;
 
-All payroll projections fully account for statutory overheads—including ${isUK ? "Employer Class 1 National Insurance Contributions (NICs) at statutory rates and mandatory auto-enrolment workplace pensions" : "statutory Employer Class A PRSI (11.05%), statutory leave accruals, and workplace pension provisions"}. Founder and early executive remuneration remains tied to milestones to protect cashflow, avoiding unsustainable fixed overhead drag during early market validation.
+    const text = `The 3-year staffing plan for ${ventureName} in ${countryName} is paced against verified commercial demand rather than speculative headcount expansion. ${hiringClause}
 
-Over the 36-month horizon, ${ventureName} establishes a disciplined pathway toward sustainable net-new regional job creation. Each incremental hire is supported by clear job specifications, measurable delivery KPIs, and fully accounted working capital allocations.`;
+All scheduled payroll costs account for statutory employer on-costs—including ${isUK ? "Employer Class 1 National Insurance Contributions (NICs) and mandatory auto-enrolment workplace pensions" : "Irish Employer Class A PRSI (11.15%) and statutory employment obligations"}. Founder remuneration remains aligned with cashflow milestones to avoid premature fixed-cost burn.
+
+Each planned role is linked to measurable delivery capacity, customer support throughput, or export growth in ${countryName}.`;
 
     return {
       compiledResponseText: text,
@@ -16260,11 +16384,18 @@ Over the 36-month horizon, ${ventureName} establishes a disciplined pathway towa
     prompt.includes("addressable market") ||
     prompt.includes("export")
   ) {
-    const text = `The commercial opportunity for ${ventureName} addresses a defined, high-urgency market segment characterized by substantial dissatisfaction with incumbent workarounds. Grounded in bottom-up unit metrics, ${marketSizing}. This opportunity is segmented into an immediate beachhead target and wider domestic and international expansion tiers.
+    const marketDetail = marketLine
+      ? `Bottom-up market analysis records: ${marketLine.replace(/\|/g, ";")}.`
+      : `Market sizing focuses first on a clearly bounded beachhead segment (${targetCustomer}) before expanding into wider regional and international tiers.`;
+    const gtmDetail = marketingGtmLine
+      ? `Go-to-market execution is structured around: ${marketingGtmLine.replace(/\|/g, ";")}.`
+      : `Customer acquisition prioritizes direct, measurable channels with low initial customer acquisition cost.`;
 
-Our beachhead focus centers on ${targetCustomer}, where switching friction is minimized due to acute operational pain points. Current market alternatives—ranging from fragmented spreadsheets to costly legacy consultancies—fail to provide an integrated, cost-effective solution, creating an immediate competitive wedge for ${ventureName}.
+    const text = `${ventureName} targets a specific market gap where ${targetCustomer} experience ${problem}. ${marketDetail}
 
-Furthermore, the expansion strategy emphasizes export additionality with zero economic displacement. By delivering distinctive proprietary value rather than redistributing existing local spend, ${ventureName} generates net-new commercial revenues and creates high-value regional export linkages across ${countryName} and international markets.`;
+By delivering ${solution}, the venture establishes a clear competitive wedge against manual workarounds and legacy incumbents. ${gtmDetail}
+
+Commercial expansion is designed around net-new value creation and export scalability from ${countryName}, avoiding deadweight displacement of local high-street or domestic service businesses.`;
 
     return {
       compiledResponseText: text,
@@ -16284,11 +16415,15 @@ Furthermore, the expansion strategy emphasizes export additionality with zero ec
     prompt.includes("willingness-to-pay") ||
     prompt.includes("customer discovery")
   ) {
-    const text = `Market demand for ${ventureName} has been validated through rigorous primary customer discovery conducted in strict accordance with 'Mom Test' methodology. Rather than relying on speculative hypotheticals, interviews and structured discovery focused on documented past behavior, active workflow bottlenecks, and verified expenditure on alternative tools.
+    const validationDetail = validationLine
+      ? `Recorded customer validation evidence: ${validationLine.replace(/\|/g, ";")}.`
+      : `Primary customer discovery is structured using non-leading 'Mom Test' interviews and validation surveys focused on current behavior and budget ownership.`;
 
-Validation outcomes confirm ${validation}. Prospective commercial buyers highlighted persistent frustration with incumbent delays, manual error rates, and opaque pricing, establishing strong willingness-to-pay for an authoritative, purpose-built vehicle.
+    const text = `Demand assumptions for ${ventureName} are grounded in primary customer discovery with ${targetCustomer} around ${problem}. Rather than asking hypothetical opinion questions, discovery focuses on existing workarounds, time lost, and real budget behavior.
 
-These empirical findings directly informed the commercial roadmap, allowing the team to eliminate low-priority features and refine core value propositions. An active waitlist of qualified early adopters has been compiled, providing a concrete pipeline of conversion-ready accounts for the launch phase.`;
+${validationDetail}
+
+Insights from customer discovery directly govern V1 scope prioritization and commercial pricing${pricingBreakevenLine ? ` (${pricingBreakevenLine.replace(/\|/g, ";")})` : ""}, ensuring capital is deployed only behind features customers actively value.`;
 
     return {
       compiledResponseText: text,
@@ -16309,17 +16444,21 @@ These empirical findings directly informed the commercial roadmap, allowing the 
     prompt.includes("technical step-change") ||
     prompt.includes("work packages")
   ) {
-    const text = `${ventureName} delivers a robust, proprietary technical vehicle engineered to provide ${solution}. The architecture adopts a pragmatic 'own-the-core, rent-the-commodity' design posture—integrating proven infrastructure for standard capabilities while investing custom development into proprietary algorithmic and workflow innovations.
+    const productDetail = productVehicleLine
+      ? `Product build and scope parameters: ${productVehicleLine.replace(/\|/g, ";")}.`
+      : `V1 delivery prioritizes the minimum high-value product scope needed to solve ${problem} reliably for ${targetCustomer}, deferring non-essential features to post-launch phases.`;
 
-Development is organized into discrete Work Packages (WP1: Core Architecture & Ingestion Engine, WP2: Workflow Automation & User Interface, WP3: Integration, Security & Field Pilots). Each work package includes quantifiable technical milestones, automated test coverage gates, and verifiable deliverables that de-risk execution.
+    const text = `${ventureName} is engineered to deliver ${solution} for ${targetCustomer}. ${productDetail}
 
-This technical step-change delivers substantial improvements over legacy alternatives in both execution speed and error reduction. Intellectual property and key data structures are securely owned by the business, establishing a durable competitive moat and long-term asset value.`;
+Execution follows a disciplined build-vs-buy posture—using proven commercial infrastructure for commodity functions while concentrating custom effort on core customer value, quality control, and proprietary IP.
+
+Delivery is gated into clear milestones with explicit verification criteria prior to scaling spend, protecting both timeline predictability and unit margins.`;
 
     return {
       compiledResponseText: text,
       aiAssessorTip: isUK
-        ? "Break down project delivery into distinct Work Packages (WP1, WP2, etc.) with explicit deliverable outputs and Gantt chart milestone dependencies."
-        : "Technical merit criteria require a clear explanation of how the product is built and why it represents an innovative advance over standard practices.",
+        ? "Break down project delivery into distinct Work Packages (WP1, WP2, etc.) with explicit deliverable outputs and milestone dependencies."
+        : "Technical merit criteria require a clear explanation of how the product is built and why it represents a practical advance over status-quo workarounds.",
     };
   }
 
@@ -16335,17 +16474,24 @@ This technical step-change delivers substantial improvements over legacy alterna
     prompt.includes("equipment") ||
     prompt.includes("risk register")
   ) {
-    const text = `Operating infrastructure for ${ventureName} has been structured for high capital efficiency and fulfillment resilience. Premises requirements utilize a flexible commercial workspace model, keeping fixed lease overheads minimal while ensuring enterprise-grade data security and collaborative operational capacity.
+    const opsDetail = operationsLine
+      ? `Operational fulfillment, premises, and risk schedule: ${operationsLine.replace(/\|/g, ";")}.`
+      : `Fulfillment workflows and premises overheads are kept lean during V1 launch to protect unit contribution margins and working capital.`;
+    const corpDetail = corporateSetupLine
+      ? `Statutory and operational setup status: ${corporateSetupLine.replace(/\|/g, ";")}.`
+      : `Procurement governance adheres to institutional audit standards, including competitive supplier quotations where required.`;
 
-Equipment and capital procurement strictly comply with official procurement guidelines (including statutory 3-quote competitive tender verification and asset depreciation scheduling). Key operational assets are insured under comprehensive Commercial Public and Employer Liability policies, safeguarding the enterprise against unforeseen operational disruptions.
+    const text = `Day-to-day fulfillment for ${ventureName} is structured for predictable unit delivery and low fixed overhead drag. ${opsDetail}
 
-A comprehensive 4-category Risk Register has been implemented covering Technical, Market, Financial, and Governance vectors. Primary mitigation strategies include dual-sourced vendor redundancy, continuous automated cloud backups, strict GDPR/data privacy compliance, and dynamic cashflow monitoring, ensuring operational continuity under all trading conditions.`;
+${corpDetail} For capital equipment procurement in ${countryName}, ${isUK ? "asset usage and depreciation schedules are tracked against project milestones" : "3 independent written supplier quotes are maintained for any capital item of €1,000 or more, excluding general-purpose consumer laptops"}.
+
+Operational, commercial, financial, and regulatory risks are actively tracked with concrete contingency triggers so single-supplier or onboarding bottlenecks do not disrupt customer delivery.`;
 
     return {
       compiledResponseText: text,
       aiAssessorTip: isUK
         ? "Ensure equipment procurement rules and supply chain single-point-of-failure risks are clearly mitigated."
-        : "LEO requires 3 independent written quotes for every single equipment item over €5,000, and bans laptops unless specialized for technical R&D.",
+        : "LEO requires 3 independent written quotes for every capital item of €1,000 or more, and excludes general-purpose consumer laptops.",
     };
   }
 
@@ -16362,11 +16508,21 @@ A comprehensive 4-category Risk Register has been implemented covering Technical
     prompt.includes("breakeven") ||
     prompt.includes("dscr")
   ) {
-    const text = `The financial architecture of ${ventureName} is grounded in conservative, bottom-up unit economics modeled through our 3-year Pocket Profit framework. Pricing is calibrated directly against validated customer willingness-to-pay, yielding strong gross contribution margins after accounting for direct delivery costs and third-party payment processing fees.
+    const revDetail = pricingBreakevenLine
+      ? `Commercial pricing and 3-year breakeven profile: ${pricingBreakevenLine.replace(/\|/g, ";")}.`
+      : `Unit pricing is structured to maintain positive contribution margin after direct delivery costs, payment processing, and channel fees.`;
+    const finDetail = finance36mLine
+      ? `36-month overhead and cashflow baseline: ${finance36mLine.replace(/\|/g, ";")}.`
+      : `Fixed monthly overheads and founder drawings are paced conservatively against customer cash collections.`;
+    const stackDetail = grantsCapitalStackLine
+      ? `Capital stack and liquidity bridge: ${grantsCapitalStackLine.replace(/\|/g, ";")}.`
+      : `Working capital reserves are sized to cover early operating costs and payment timing gaps.`;
 
-Breakeven analysis indicates that the business achieves operational profitability upon securing a lean beachhead customer volume, significantly minimizing downside exposure. 36-month projections demonstrate progressive margin expansion as fixed operational overheads are amortized across an expanding subscriber base.
+    const text = `Financial projections for ${ventureName} are built bottom-up from unit pricing, direct fulfillment costs, and localized statutory overheads in ${countryName}. ${revDetail}
 
-Working capital requirements have been mapped across a detailed 36-month cashflow forecast, specifically identifying the lowest cash trough month. Debt service coverage ratios (DSCR) remain comfortably above conservative banking thresholds (exceeding 1.8x), supported by prudent cash reserves to absorb receivables timing friction and seasonal fluctuations.`;
+${finDetail}
+
+${stackDetail} Cashflow timing—including customer collection terms and any grant reimbursement lag—is explicitly accounted for to protect solvency across the 36-month forecast.`;
 
     return {
       compiledResponseText: text,
@@ -16385,11 +16541,15 @@ Working capital requirements have been mapped across a detailed 36-month cashflo
     prompt.includes("public funding") ||
     prompt.includes("why is public funding")
   ) {
-    const text = `Public funding support is critical to accelerate the development timeline and scale of ${ventureName}. Without grant or funding backing, development would be constrained to a severely protracted timescale, increasing market risk and delaying commercial deployment in ${countryName}.
+    const grantDetail = grantsCapitalStackLine
+      ? `Planned funding stack and matching liquidity: ${grantsCapitalStackLine.replace(/\|/g, ";")}.`
+      : `Co-funding and working capital reserves are structured so vouched expenditure can be cash-flowed cleanly prior to reimbursement claims.`;
 
-The additionality of this funding is twofold: technically, it enables comprehensive R&D and rigorous security hardening prior to market release; commercially, it facilitates immediate high-value job creation and accelerated export positioning. The venture maintains secured matching funds to satisfy statutory co-funding obligations.
+    const text = `External funding accelerates ${ventureName}'s path from early validation to commercial trading and export capability in ${countryName}. Without structured capital support, product delivery and market entry would be constrained to a slower self-funded timeline.
 
-Value for money is demonstrated through quantifiable economic return on investment. Over the 3-year project horizon, ${ventureName} projects significant net economic output, statutory tax contributions, and skilled job creation, delivering substantial additionality for the regional and national economy.`;
+${grantDetail}
+
+Economic value for money is anchored in net-new commercial revenue, export potential, and sustainable employment in ${countryName} without displacing existing local enterprises.`;
 
     return {
       compiledResponseText: text,
@@ -16400,9 +16560,13 @@ Value for money is demonstrated through quantifiable economic return on investme
   }
 
   // Fallback for custom or archetype-specific sections
-  const customDraft = `${ventureName} establishes a disciplined operational and commercial posture for ${params.sectionTitle} within ${countryName}. By aligning ${solution} with the verified priorities of ${targetCustomer}, the venture mitigates key commercial risks and ensures high delivery consistency.
+  const customDraft = `${ventureName} outlines a clear operational and commercial plan for ${params.sectionTitle} in ${countryName}. By delivering ${solution} for ${targetCustomer}, the business addresses ${problem} with disciplined execution.
 
-Execution in this area is supported by empirical validation and transparent governance. Operational mechanics and financial allocations have been modeled to maintain capital efficiency, satisfy statutory compliance, and deliver measurable commercial additionality.`;
+${[marketLine, validationLine, productVehicleLine, pricingBreakevenLine, finance36mLine]
+  .filter(Boolean)
+  .slice(0, 2)
+  .map((line) => line.replace(/\|/g, ";"))
+  .join(" ") || "Execution priorities, cost controls, and statutory compliance are aligned with phased commercial milestones."}`;
 
   return {
     compiledResponseText: customDraft,
@@ -16445,15 +16609,17 @@ export async function generateModuleLStep3SectionViaRouter(
     'You are an expert Grant Assessor and Business Plan Compiler.'
   );
 
+  const compilerModeLabel = formatCompilerModeLabel(params.compilerMode);
+
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
       const ai = getGenAiClient(authCtx.activeApiKey);
 
-      const prompt = `You are an expert Grant Assessor and Business Plan Compiler for ${params.hqCountryCode} (${params.compilerMode}).
+      const prompt = `You are an expert Grant Assessor and Business Plan Compiler for ${params.hqCountryCode} (${compilerModeLabel}).
 Startup: "${params.planTitle}"
 Industry: ${params.industryCategory || "Startup Venture"}
 Currency: ${params.baseCurrency} (${currencySymbol})
-Compiler Mode: ${params.compilerMode}
+Submission Format: ${compilerModeLabel}
 
 SECTION TO DRAFT/REFINE:
 Section Number: ${params.sectionNumber}
@@ -16462,19 +16628,19 @@ Assessor Question / Rubric Prompt: "${params.assessorPrompt}"
 Scoring Weight: ${params.scoringWeightPercent || 20}%
 Word Limit: STRICT MAXIMUM OF ${limit} WORDS (Do NOT exceed ${limit} words).
 
-OVERALL VENTURE CONTEXT & EVIDENCE FROM MODULES A–K:
-${sanitizePromptInput(params.planContextSummary || "", 1200)}
+VERIFIED VENTURE FACTS & EVIDENCE FROM THE FOUNDER'S PLAN:
+${sanitizePromptInput(params.planContextSummary || "", 2400)}
 
-EXISTING DRAFT (IF ANY):
+EXISTING DRAFT (IF CUSTOM EDITED):
 ${sanitizePromptInput(params.currentResponseText || "", 600)}
 
 TASK:
 Write an authoritative, evidence-backed official submission response strictly answering the assessor prompt.
 Rules:
-1. Ground the response in real facts, numbers, and operational mechanics from the venture context.
-2. Maintain an evidence-led, professional assessor tone.
-3. Keep the length strictly under ${limit} words (ideal is 75% to 95% of the limit).
-4. Do NOT use generic buzzwords or hollow marketing fluff. Focus on additionality, risk mitigation, and commercial traction.
+1. CLOSED-WORLD GROUNDING: Use ONLY real facts, numbers, prices, headcount, survey counts, and operational mechanics present in VERIFIED VENTURE FACTS above. Never invent survey percentages, revenue numbers, headcount figures, DSCR ratios, LOIs, or supplier quotes that are not explicitly stated.
+2. If a specific metric is marked "not yet modeled" or absent, describe the founder's conservative operating approach without fabricating numbers.
+3. ZERO INTERNAL JARGON: Never mention internal app labels like "Module A", "Module H", "/v/[slug]", or raw enum codes (e.g., IE_LEO_OFFICIAL_FORM). Write natural, human-authored business prose.
+4. Keep the length strictly under ${limit} words (ideal is 75% to 95% of the limit).
 
 Return strictly a JSON object:
 {
@@ -16563,14 +16729,15 @@ export async function generateModuleLStep4AuditViaRouter(
   params: GenerateModuleLStep4AuditParams
 ): Promise<GenerateModuleLStep4AuditResult> {
   const isUK = params.hqCountryCode === "GB";
+  const compilerModeLabel = formatCompilerModeLabel(params.compilerMode);
 
   const fallback: GenerateModuleLStep4AuditResult = {
     allowed: true,
     aiBinderAssessment:
-      "All primary statutory appendices (Financials, Technical Merit, 3-Quote Procurement, Team CVs, Survey Evidence, and Corporate Registration) have been verified against institutional underwriting standards. Ensure all supplier quotes for capital items over €5,000 / £5,000 are formally dated and signed prior to portal upload.",
+      `Supporting appendices for ${compilerModeLabel} have been reviewed against underwriting and procurement rules. Before final submission, verify that every capital item of ${isUK ? "£1,000+" : "€1,000+"} carries dated independent supplier quotations and that financial forecasts match your narrative figures.`,
     aiAssessorTip: isUK
       ? "Innovate UK assessors review the Work Package & Risk appendices in tandem with your narrative. Any uncosted milestone in Appendix B will lead to cost disqualification."
-      : "LEO claims officers will not disburse grant reimbursement tranches without verifiable, stamped invoice copies matching Appendix C supplier quotations.",
+      : "LEO claims officers require 3 independent written quotes for capital items of €1,000 or more and stamped paid invoices matching Appendix C prior to grant reimbursement.",
     engineMode: "smart-synthesizer",
   };
 
@@ -16582,11 +16749,11 @@ export async function generateModuleLStep4AuditViaRouter(
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
       const ai = getGenAiClient(authCtx.activeApiKey);
-      const prompt = `You are an institutional Grant Claims Auditor and Underwriting Reviewer for ${params.hqCountryCode} (${params.compilerMode}).
+      const prompt = `You are an institutional Grant Claims Auditor and Underwriting Reviewer for ${params.hqCountryCode} (${compilerModeLabel}).
 Startup: "${params.planTitle}"
 Industry: ${params.industryCategory || "Venture"}
 Currency: ${params.baseCurrency}
-Compiler Mode: ${params.compilerMode}
+Submission Format: ${compilerModeLabel}
 
 APPENDICES EVIDENCE STATUS:
 ${sanitizePromptInput(params.appendicesSummary || "All 6 Appendices reviewed.", 1000)}
@@ -16685,23 +16852,24 @@ export async function generateModuleLStep5DossierViaRouter(
 ): Promise<GenerateModuleLStep5DossierResult> {
   const isUK = params.hqCountryCode === "GB";
   const currencySymbol = isUK ? "£" : params.hqCountryCode === "IE" ? "€" : "$";
+  const compilerModeLabel = formatCompilerModeLabel(params.compilerMode);
   const formattedAsk = params.targetAskAmount
     ? `${currencySymbol}${params.targetAskAmount.toLocaleString()}`
     : `${currencySymbol}50,000`;
 
   const fallback: GenerateModuleLStep5DossierResult = {
     allowed: true,
-    committeeReadinessScore: Math.max(90, params.overallAuditScore ?? 92),
+    committeeReadinessScore: params.overallAuditScore ?? 75,
     executiveDossierSummary:
-      `${params.planTitle} represents a thoroughly audited, institutional-grade commercial submission formatted for ${params.compilerMode}. Supported by empirical customer discovery telemetry from Module C, robust unit economics from Module H, and verified compliance across statutory employer payroll taxes and 3-quote supplier schedules, the project substantiates clear commercial additionality and export viability with zero deadweight domestic displacement.`,
+      `${params.planTitle} is compiled as an institutional submission formatted for ${compilerModeLabel}. Ensure customer validation evidence, unit economics, statutory employer payroll taxes, and supplier quote schedules are fully reconciled prior to final committee or lender review.`,
     finalSubmissionChecklist: [
-      "All required narrative sections compiled within official agency word caps.",
-      `Matching funding buffer (${formattedAsk} target) confirmed in dedicated business bank account.`,
-      "Mandatory Appendices A through F verified and linked to source operational modules.",
+      "All required narrative sections compiled within target word caps.",
+      `Target funding facility or co-funding reserve (${formattedAsk}) reconciled against cashflow projections.`,
+      "Supporting Appendices A through F reviewed for completeness and consistency.",
       isUK
         ? "Work Package milestones and asset depreciation schedules cross-referenced against costs."
-        : "3 independent itemized supplier quotes prepared for capital equipment over €5,000.",
-      "Statutory submission declaration formally confirmed by authorized corporate officer.",
+        : "3 independent itemized supplier quotes prepared for any capital item of €1,000 or more (excluding consumer laptops).",
+      "Submission sign-off declaration reviewed and confirmed by an authorized company officer.",
     ],
     aiAssessorTip: isUK
       ? "Innovate UK 5-assessor panels penalize applications with inconsistent financial projections. Ensure staff day rates in Question 9 mirror your 36-month cashflow tables exactly."
@@ -16717,20 +16885,20 @@ export async function generateModuleLStep5DossierViaRouter(
   if (authCtx.canCallLiveGemini && authCtx.activeApiKey) {
     try {
       const ai = getGenAiClient(authCtx.activeApiKey);
-      const prompt = `You are the Evaluation Committee Chair conducting the final pre-submission review of a formal business plan & grant submission in ${params.hqCountryCode} (${params.compilerMode}).
+      const prompt = `You are the Evaluation Committee Chair conducting the final pre-submission review of a formal business plan & grant submission in ${params.hqCountryCode} (${compilerModeLabel}).
 Startup: "${params.planTitle}"
 Industry: ${params.industryCategory || "Venture"}
 Currency: ${params.baseCurrency} (${currencySymbol})
-Compiler Mode: ${params.compilerMode}
+Submission Format: ${compilerModeLabel}
 Funding Ask: ${formattedAsk}
-Pre-Flight Gatekeeper Score: ${params.overallAuditScore ?? 88}/100
+Pre-Flight Gatekeeper Score: ${params.overallAuditScore ?? 75}/100
 Compiled Sections: ${params.sectionsCount ?? 7} (${params.totalWords ?? 2200} words)
 Executive Defense: ${sanitizePromptInput(params.executiveHook || "", 600)}
 
 TASK:
-1. Generate an authoritative 3-4 sentence "Executive Dossier Summary" suitable for committee evaluators and investment boards.
-2. Determine an objective Committee Readiness Score (0-100, typically 85-98 if well-prepared).
-3. Provide 5 crisp pre-submission checklist verification points tailored specifically to this mode (${params.compilerMode}).
+1. Generate an authoritative 3-4 sentence "Executive Dossier Summary" suitable for committee evaluators and investment boards (never mention internal app labels like "Module C" or raw enum codes).
+2. Determine an objective Committee Readiness Score (0-100) aligned with the Pre-Flight Gatekeeper Score.
+3. Provide 5 crisp pre-submission checklist verification points tailored specifically to ${compilerModeLabel}.
 4. Provide a 1-2 sentence high-impact Assessor Tip on how to handle the oral committee presentation or final submission portal upload.
 
 Return strictly a JSON object:

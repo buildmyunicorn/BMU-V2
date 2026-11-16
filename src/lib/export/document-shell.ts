@@ -67,7 +67,7 @@ export const BMU_DOCUMENT_STYLES = `
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 2px solid #4f46e5;
+      border-bottom: 2px solid #047857;
       padding-bottom: 20px;
       margin-bottom: 28px;
       gap: 16px;
@@ -77,7 +77,7 @@ export const BMU_DOCUMENT_STYLES = `
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #4f46e5;
+      color: #047857;
       margin-bottom: 6px;
     }
     h1 {
@@ -112,7 +112,7 @@ export const BMU_DOCUMENT_STYLES = `
       color: #1e293b;
       background: #f1f5f9;
       padding: 8px 12px;
-      border-left: 4px solid #4f46e5;
+      border-left: 4px solid #047857;
       border-radius: 4px;
       margin-bottom: 12px;
     }
@@ -145,15 +145,15 @@ export const BMU_DOCUMENT_STYLES = `
       background: #fffbeb;
     }
     .card-highlight {
-      border-color: #c7d2fe;
-      background: #eef2ff;
+      border-color: #a7f3d0;
+      background: #ecfdf5;
     }
     .card-label {
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #4f46e5;
+      color: #047857;
       margin-bottom: 4px;
     }
     .card-value {
@@ -184,9 +184,9 @@ export const BMU_DOCUMENT_STYLES = `
     }
     .pill-emerald {
       display: inline-block;
-      background: #eef2ff;
-      border: 1px solid #c7d2fe;
-      color: #3730a3;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
       font-size: 12px;
       font-weight: 600;
       padding: 4px 10px;
@@ -233,9 +233,9 @@ export const BMU_DOCUMENT_STYLES = `
       border-bottom: none;
     }
     .doc-table tr.row-highlight td {
-      background: #eef2ff;
+      background: #ecfdf5;
       font-weight: 700;
-      color: #1e1b4b;
+      color: #0f172a;
     }
     .checklist-item {
       display: flex;
@@ -248,7 +248,7 @@ export const BMU_DOCUMENT_STYLES = `
     .checkbox {
       width: 16px;
       height: 16px;
-      border: 2px solid #6366f1;
+      border: 2px solid #059669;
       border-radius: 4px;
       margin-top: 2px;
       flex-shrink: 0;

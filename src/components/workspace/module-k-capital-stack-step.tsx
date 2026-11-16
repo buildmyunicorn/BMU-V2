@@ -18,6 +18,8 @@ import {
   Plus,
   Trash2,
   Info,
+  BookmarkPlus,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +34,10 @@ import {
 } from '@/lib/auth/session-store';
 import { SUPPORTED_GRANT_PROGRAMS } from '@/lib/grants/module-k-grant-audit';
 import { getPlanTrackCapabilities } from '@/lib/localization';
-import { generateModuleKCapitalStackNarrativeAction } from '@/app/actions/module-k';
+import {
+  generateModuleKCapitalStackNarrativeAction,
+  parkModuleKOpenQuestionAction,
+} from '@/app/actions/module-k';
 
 export interface ModuleKCapitalStackStepProps {
   plan: ActiveStartupPlan;
@@ -184,8 +189,14 @@ export function ModuleKCapitalStackStep({
   const [fundingSources, setFundingSources] = useState<CapitalAllocationTierItem[]>(initialSources);
   const [activeWhyCard, setActiveWhyCard] = useState<boolean>(false);
   const [activeExampleCard, setActiveExampleCard] = useState<boolean>(false);
+  const [showParkInput, setShowParkInput] = useState<boolean>(false);
+  const [parkQuestionText, setParkQuestionText] = useState<string>('');
+  const [parkSavedNotice, setParkSavedNotice] = useState<boolean>(false);
   const [fundingStrategyNarrative, setFundingStrategyNarrative] = useState<string>(
     existingStep2?.fundingStrategyNarrative || ''
+  );
+  const [otherPresetText, setOtherPresetText] = useState<string>(
+    existingStep2?.otherPresetText || ''
   );
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
@@ -423,6 +434,7 @@ export function ModuleKCapitalStackStep({
     try {
       const payload: ModuleKStep2CapitalStackSavedData = {
         presetUsed: activePreset,
+        otherPresetText: activePreset === 'OTHER' ? otherPresetText : undefined,
         totalTargetFundingGap,
         fundingSources,
         skinInTheGameCash: skinInTheGame,
@@ -503,10 +515,56 @@ export function ModuleKCapitalStackStep({
           disabled={isGeneratingAi || isVaultReadonly}
           className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-          {isGeneratingAi ? 'Synthesizing with AI...' : 'Auto-Generate Narrative with AI'}
+          <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+          {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Capital Narrative'}
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setShowParkInput((prev) => !prev)}
+          disabled={isVaultReadonly}
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+          Park It
+        </Button>
+        {parkSavedNotice && (
+          <span className="text-[11px] font-semibold text-emerald-700">
+            ✓ Parked in Open Questions
+          </span>
+        )}
       </div>
+
+      {showParkInput && (
+        <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+          <Input
+            type="text"
+            value={parkQuestionText}
+            onChange={(e) => setParkQuestionText(e.target.value)}
+            placeholder="e.g., Confirm exact Microfinance Ireland vs personal savings split with co-founder..."
+            className="flex-1 bg-white text-base sm:text-xs"
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={async () => {
+              if (!parkQuestionText.trim()) return;
+              await parkModuleKOpenQuestionAction({
+                planId: plan.id,
+                questionText: `[Step 2 - Capital Stack] ${parkQuestionText.trim()}`,
+              });
+              setParkQuestionText('');
+              setShowParkInput(false);
+              setParkSavedNotice(true);
+              setTimeout(() => setParkSavedNotice(false), 3500);
+            }}
+            className="bg-slate-900 text-xs text-white hover:bg-slate-800"
+          >
+            Save to Parking Lot
+          </Button>
+        </div>
+      )}
 
       {activeWhyCard && (
         <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
@@ -681,7 +739,7 @@ export function ModuleKCapitalStackStep({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div
             onClick={() => handleApplyPreset('NON_DILUTIVE_LEO_BOOTSTRAP')}
             className={`cursor-pointer rounded-xl border p-4 transition-all ${
@@ -747,7 +805,60 @@ export function ModuleKCapitalStackStep({
               Attracts angel capital leveraging SEIS/EII 50% tax relief as matching funds to unlock major government co-funding.
             </p>
           </div>
+
+          <div
+            onClick={() => handleApplyPreset('OTHER')}
+            className={`cursor-pointer rounded-xl border p-4 transition-all ${
+              activePreset === 'OTHER'
+                ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <Badge className="bg-slate-100 text-slate-800 text-[10px]">
+                Custom Blend
+              </Badge>
+              <span className="text-xs font-semibold text-slate-500">Bespoke Stack</span>
+            </div>
+            <h5 className="mt-2 text-sm font-bold text-slate-900">
+              Other / Custom Capital Mix
+            </h5>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+              Customer pre-orders, revenue-based financing, strategic partner co-investment, or custom tranches.
+            </p>
+          </div>
         </div>
+
+        {activePreset === 'OTHER' && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-900">
+              Describe your custom capital stack strategy:
+            </Label>
+            <Input
+              value={otherPresetText}
+              onChange={(e) => setOtherPresetText(e.target.value)}
+              placeholder="e.g. 40% customer deposits + 30% founder cash + 30% equipment finance..."
+              className="bg-white text-base sm:text-xs"
+            />
+          </div>
+        )}
+
+        {/* Plain-English Irish Revenue SURE Callout */}
+        {isIreland && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+            <div className="flex items-start gap-2.5">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+              <div className="space-y-1">
+                <div className="font-bold text-emerald-950">
+                  Plain-English Tip: What is Irish Revenue SURE (Startup Refunds for Entrepreneurs)?
+                </div>
+                <p className="text-[11px] leading-relaxed text-emerald-900">
+                  If you paid PAYE income tax in an Irish salaried job within the past 4–6 years and invest your own savings into ordinary shares in your new Irish trading LTD, Revenue can refund up to <strong>41% of your invested amount</strong> straight back to you in cash (for example, investing <span className="font-mono tabular-nums font-semibold">€25,000</span> of savings can trigger up to <span className="font-mono tabular-nums font-semibold">€10,250</span> back from prior PAYE tax — 0% debt and 0% equity dilution). You can calculate this in Step 4.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -839,7 +950,7 @@ export function ModuleKCapitalStackStep({
             disabled={isGeneratingAi || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Narrative with AI'}
           </Button>
         </div>

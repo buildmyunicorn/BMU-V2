@@ -195,7 +195,7 @@ export function buildDynamicModuleCBlindSpots(
               validSurveys.length > 0
                 ? `Your survey questions focus on concrete past behavior rather than hypotheticals, and your published survey is locked against retroactive edits.`
                 : `Logging structured 1-on-1 interviews with concrete workaround notes and pain scores protects ${input.planTitle} from "false positive" politeness.`,
-            suggestedAction: `Keep capturing exact verbatim customer phrases — those raw words will become your highest-converting landing page headline in Module G.`,
+            suggestedAction: `Keep capturing exact verbatim customer phrases — those raw words will become your highest-converting landing page headline in Module I.`,
           };
 
   // -------------------------------------------------------------------------
@@ -285,7 +285,7 @@ export function buildDynamicModuleCBlindSpots(
           severity: 'WARNING',
           title:
             'Missing Evidence on What Customers Currently Spend (Money or Hours)',
-          explanation: `Neither your survey questions nor your 1-on-1 interview logs currently capture what "${beachheadLabel}" already spends (in money or wasted staff hours) on duct-tape workarounds. Without a baseline cost of the status quo, pricing ${input.planTitle} in Module F will be guesswork.`,
+          explanation: `Neither your survey questions nor your 1-on-1 interview logs currently capture what "${beachheadLabel}" already spends (in money or wasted staff hours) on duct-tape workarounds. Without a baseline cost of the status quo, pricing ${input.planTitle} in Module H will be guesswork.`,
           suggestedAction: `Ask in your survey or next 1-on-1 call: "What are you currently using to handle this today, and roughly how much money or time does that workaround cost you each month?"`,
         }
       : {
@@ -293,8 +293,8 @@ export function buildDynamicModuleCBlindSpots(
           category: 'Willingness-to-Pay & Workaround Spend',
           severity: 'INFO',
           title: `Status-Quo Workaround & Budget Anchors Captured (${interviewsWithWorkaroundSpend.length} Interview Log${interviewsWithWorkaroundSpend.length === 1 ? '' : 's'}${hasSpendSurveyQuestion ? ' + Survey Spend Question' : ''})`,
-          explanation: `You are actively tracking what customers already spend in time and money on existing workarounds. This gives you a factual anchor for both V1 scope (Module D) and Pocket Profit pricing (Module F).`,
-          suggestedAction: `When you move to Module F (Pricing Architect), anchor your price against the monthly cost or time wasted on the customer's current workaround rather than pricing based on your build costs.`,
+          explanation: `You are actively tracking what customers already spend in time and money on existing workarounds. This gives you a factual anchor for both V1 scope (Module D) and Pocket Profit pricing (Module H).`,
+          suggestedAction: `When you move to Module H (Pricing Architect), anchor your price against the monthly cost or time wasted on the customer's current workaround rather than pricing based on your build costs.`,
         };
 
   // -------------------------------------------------------------------------
@@ -335,15 +335,15 @@ export function buildDynamicModuleCBlindSpots(
     title:
       totalWarmLeads === 0
         ? `0 Early-Bird Waitlist Emails or Pilot Commitments Captured Yet`
-        : `${totalWarmLeads} Warm Early-Bird / Pilot Lead${totalWarmLeads === 1 ? '' : 's'} Ready for Module D & G${customEdgeNote}`,
+        : `${totalWarmLeads} Warm Early-Bird / Pilot Lead${totalWarmLeads === 1 ? '' : 's'} Ready for Module D & I${customEdgeNote}`,
     explanation:
       totalWarmLeads === 0
         ? `Validation shouldn't just produce charts — it should build your first pipeline of beta buyers. In ${countryPack.countryName}, programs like ${topGrant ? topGrant.grantName : 'local feasibility grants'} and angel investors look for documented primary market research and named early-adopter interest.`
-        : `You have captured ${realWaitlistLeads.length} real survey waitlist lead(s) (${waitlistResponses.length} including samples) and ${pilotCallLeads.length} high-intent 1-on-1 interview lead(s)${customEdgeNote}. In ${countryPack.countryName}, this primary validation log directly strengthens ${topGrant ? topGrant.grantName : 'grant & investor'} applications in Module H & Module I.`,
+        : `You have captured ${realWaitlistLeads.length} real survey waitlist lead(s) (${waitlistResponses.length} including samples) and ${pilotCallLeads.length} high-intent 1-on-1 interview lead(s)${customEdgeNote}. In ${countryPack.countryName}, this primary validation log directly strengthens ${topGrant ? topGrant.grantName : 'grant & investor'} applications in Module K & Module L.`,
     suggestedAction:
       totalWarmLeads === 0
         ? `Enable "Collect Early-Bird Waitlist Emails" on your survey with a clear beta incentive, and ask every 1-on-1 interviewee if they want early access when your V1 launches.`
-        : `Export your Module C Customer Validation Brief below as proof of primary market demand, then carry these ${totalWarmLeads} warm lead(s) into Module D (V1 Scope) and Module G (First 10 Customers Playbook).`,
+        : `Export your Module C Customer Validation Brief below as proof of primary market demand, then carry these ${totalWarmLeads} warm lead(s) into Module D (V1 Scope) and Module I (First 10 Customers Playbook).`,
   };
 
   return [card1, card2, card3, card4, card5, card6];

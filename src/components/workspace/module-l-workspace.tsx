@@ -6,7 +6,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Sparkles,
+  SlidersHorizontal,
   ArrowLeft,
   ArrowRight,
   ShieldCheck,
@@ -27,6 +27,7 @@ import {
 } from '@/lib/localization';
 import type {
   ActiveStartupPlan,
+  SavedModuleLData,
   ModuleLStep1ModeSavedData,
   ModuleLStep2ContradictionAuditSavedData,
   ModuleLStep3NarrativeCompilerSavedData,
@@ -41,11 +42,15 @@ import { ModuleLContradictionAuditStep } from '@/components/workspace/module-l-c
 import { ModuleLNarrativeCompilerStep } from '@/components/workspace/module-l-narrative-compiler-step';
 import { ModuleLAppendicesBinderStep } from '@/components/workspace/module-l-appendices-binder-step';
 import { ModuleLSubmissionDossierStep } from '@/components/workspace/module-l-submission-dossier-step';
+import { BusinessPlanStudioWorkspace } from '@/components/workspace/business-plan-studio-workspace';
 
 export interface ModuleLWorkspaceProps {
   plan: ActiveStartupPlan;
   selectedCountry?: string;
+  founderName?: string;
+  whiteLabelEnabled?: boolean;
   isVaultReadonly?: boolean;
+  onUpdatePlanModuleLData?: (updatedModuleL: SavedModuleLData) => void;
   onSaveStep1Mode?: (
     step1Data: ModuleLStep1ModeSavedData,
     progress?: number
@@ -91,7 +96,11 @@ export interface ModuleLWorkspaceProps {
 
 export function ModuleLWorkspace({
   plan,
+  selectedCountry,
+  founderName = 'Founder',
+  whiteLabelEnabled = false,
   isVaultReadonly = false,
+  onUpdatePlanModuleLData,
   onSaveStep1Mode,
   onSaveStep2Audit,
   onSaveStep3Compiler,
@@ -103,9 +112,12 @@ export function ModuleLWorkspace({
   onNavigateToModule,
   initialStep,
 }: ModuleLWorkspaceProps) {
+  const [activeViewMode, setActiveViewMode] = useState<'COMPILER' | 'STUDIO'>('COMPILER');
   const isStep1Complete = Boolean(plan.moduleLData?.step1Mode?.lastSavedAt);
-  const isStep2Complete = Boolean(plan.moduleLData?.step2Audit?.lastSavedAt);
-  const isStep3Complete = Boolean(plan.moduleLData?.step3Compiler?.lastSavedAt);
+  // Visual Step 2 is Narrative Compiler (persisted in DB under step3Compiler for 100% backward compatibility)
+  const isVisualStep2CompilerComplete = Boolean(plan.moduleLData?.step3Compiler?.lastSavedAt);
+  // Visual Step 3 is Pre-Flight Contradiction Audit (persisted in DB under step2Audit for 100% backward compatibility)
+  const isVisualStep3AuditComplete = Boolean(plan.moduleLData?.step2Audit?.lastSavedAt);
   const isStep4Complete = Boolean(plan.moduleLData?.step4Appendices?.lastSavedAt);
   const isStep5Complete = Boolean(plan.moduleLData?.step5DossierBrief?.lastSavedAt);
 
@@ -113,9 +125,9 @@ export function ModuleLWorkspace({
     initialStep ??
     (!isStep1Complete
       ? 1
-      : !isStep2Complete
+      : !isVisualStep2CompilerComplete
         ? 2
-        : !isStep3Complete
+        : !isVisualStep3AuditComplete
           ? 3
           : !isStep4Complete
             ? 4
@@ -137,8 +149,8 @@ export function ModuleLWorkspace({
 
   const completedCoreStepsCount =
     (isStep1Complete ? 1 : 0) +
-    (isStep2Complete ? 1 : 0) +
-    (isStep3Complete ? 1 : 0) +
+    (isVisualStep2CompilerComplete ? 1 : 0) +
+    (isVisualStep3AuditComplete ? 1 : 0) +
     (isStep4Complete ? 1 : 0) +
     (isStep5Complete ? 1 : 0);
 
@@ -171,7 +183,7 @@ export function ModuleLWorkspace({
       {/* ========================================================================= */}
       {/* 1. TOP HEADER MODULE CARD (Strict GEMINI.md Section 6.1 Standard)         */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +191,7 @@ export function ModuleLWorkspace({
                 Module L • Capstone Official Compiler
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
-                <Sparkles className="mr-1 h-3 w-3" />
+                <ShieldCheck className="mr-1 h-3 w-3" />
                 {countryFlag} {countryName}{' '}
                 {isGrantsEnabled
                   ? 'Grant & Business Plan Compiler'
@@ -194,10 +206,10 @@ export function ModuleLWorkspace({
                 ? 'Module L: Interactive Business Plan & Official Grant Compiler'
                 : 'Module L: Interactive Commercial & Investor Business Plan Compiler'}
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               {isGrantsEnabled
-                ? 'Transform your verified answers across Modules A–K into committee-ready IE LEO forms, UK Innovate UK 9-Question applications, Start Up Loan workbooks, or SEIS/EIS/EII investor packs with Appendices A–F.'
-                : 'Transform your verified answers across Modules A–K into bank-ready commercial business plans, angel/seed investor memos, or custom accelerator applications with Appendices A–F.'}
+                ? 'Compile your verified answers across Modules A–K & Launchpad (Module G) into committee-ready IE LEO forms, UK Innovate UK 9-Question applications, Start Up Loan workbooks, or SEIS/EIS/EII investor packs — then run your Pre-Flight Contradiction Audit.'
+                : 'Compile your verified answers across Modules A–K & Launchpad (Module G) into bank-ready commercial business plans, angel/seed investor memos, or custom accelerator applications — then run your Pre-Flight Contradiction Audit.'}
             </p>
           </div>
 
@@ -227,19 +239,21 @@ export function ModuleLWorkspace({
                   View Master Blueprint
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
-                }
-                className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
-              >
-                {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
-              </Button>
+              {activeViewMode === 'COMPILER' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setOpenStep((prev) => (prev === 'ALL' ? 1 : 'ALL'))
+                  }
+                  className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+                >
+                  {openStep === 'ALL' ? 'Focus Step-by-Step' : 'Expand All Steps'}
+                </Button>
+              )}
             </div>
-            <div className="text-right text-[11px] text-slate-300">
+            <div className="text-right text-[11px] text-slate-300 font-mono tabular-nums">
               Module L Progress:{' '}
               <strong className="text-white">
                 {Math.round((completedCoreStepsCount / 5) * 100)}%
@@ -249,27 +263,68 @@ export function ModuleLWorkspace({
           </div>
         </div>
 
+        {/* Unified Compiler vs Multi-Version Studio View Switcher */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
+          <div className="grid grid-cols-1 gap-1.5 rounded-xl border border-slate-800 bg-slate-900/90 p-1 sm:inline-flex">
+            <button
+              type="button"
+              onClick={() => setActiveViewMode('COMPILER')}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                activeViewMode === 'COMPILER'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Step-by-Step Compiler &amp; Pre-Flight Audit</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveViewMode('STUDIO')}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                activeViewMode === 'STUDIO'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>
+                Full-Document Reader &amp; Multi-Version Studio
+                {plan.moduleLData?.versions && plan.moduleLData.versions.length > 0
+                  ? ` (${plan.moduleLData.versions.length})`
+                  : ''}
+              </span>
+            </button>
+          </div>
+          <span className="text-[11px] text-slate-400">
+            {activeViewMode === 'COMPILER'
+              ? 'Draft your sections first (Step 2), then verify zero contradictions (Step 3).'
+              : 'Manage multiple tailored dossier versions (Bank, Grant, Angel) from one source of truth.'}
+          </span>
+        </div>
+
         {/* Step Navigation Strip (Tile Grid Standard) */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        {activeViewMode === 'COMPILER' && (
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
               step: 'Step 1',
-              title: '1. Compiler Mode & Rubric',
+              title: '1. Who Is This Plan For?',
               done: isStep1Complete,
               targetId: 'module-l-step-1',
               stepNum: 1,
             },
             {
               step: 'Step 2',
-              title: '2. Pre-Flight Grant Audit',
-              done: isStep2Complete,
+              title: '2. Section Narrative Compiler',
+              done: isVisualStep2CompilerComplete,
               targetId: 'module-l-step-2',
               stepNum: 2,
             },
             {
               step: 'Step 3',
-              title: '3. Section Narrative Compiler',
-              done: isStep3Complete,
+              title: '3. Pre-Flight Grant Audit',
+              done: isVisualStep3AuditComplete,
               targetId: 'module-l-step-3',
               stepNum: 3,
             },
@@ -305,7 +360,7 @@ export function ModuleLWorkspace({
                     ? 'border-amber-300/80 bg-white/20 text-white shadow-xs ring-1 ring-amber-300/50'
                     : item.done
                       ? 'border-emerald-400/50 bg-emerald-500/20 text-white'
-                      : 'border-slate-200 bg-slate-950/40 text-slate-300'
+                      : 'border-slate-800 bg-slate-900 text-slate-300'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
@@ -321,18 +376,32 @@ export function ModuleLWorkspace({
                       Open
                     </span>
                   ) : (
-                    <span className="text-[10px] text-slate-300">Pending</span>
+                    <span className="text-[10px] text-slate-400">Pending</span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-slate-200/80">
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">
                   {item.title}
                 </div>
               </button>
             );
           })}
         </div>
+        )}
       </div>
 
+      {activeViewMode === 'STUDIO' ? (
+        <BusinessPlanStudioWorkspace
+          plan={plan}
+          selectedCountry={selectedCountry || plan.hqCountryCode}
+          founderName={founderName}
+          isVaultReadonly={isVaultReadonly}
+          whiteLabelEnabled={whiteLabelEnabled}
+          onUpdatePlanModuleLData={onUpdatePlanModuleLData}
+          onNavigateToModule={onNavigateToModule}
+          onParkQuestionInSession={onParkQuestionInSession}
+        />
+      ) : (
+      <>
       {/* ========================================================================= */}
       {/* STEP 1: COMPILER MODE, TARGET COMMITTEE & SCORING RUBRIC                  */}
       {/* ========================================================================= */}
@@ -346,14 +415,14 @@ export function ModuleLWorkspace({
           await onSaveStep1Mode?.(step1Data, progress);
         }}
         onAdvanceToStep2={() => scrollToStep(2, 'module-l-step-2')}
-        onJumpToCompilerStep3={() => scrollToStep(3, 'module-l-step-3')}
+        onJumpToCompilerStep3={() => scrollToStep(2, 'module-l-step-2')}
         onParkQuestionInSession={onParkQuestionInSession}
       />
 
       {/* ========================================================================= */}
-      {/* STEP 2: PRE-FLIGHT CONTRADICTION & GRANT AUDIT (Collapsed / Preview)      */}
+      {/* VISUAL STEP 2: SECTION-BY-SECTION NARRATIVE COMPILER (DB: step3Compiler)  */}
       {/* ========================================================================= */}
-      {openStep !== 'ALL' && openStep !== 2 ? (
+      {openStep !== 2 && openStep !== 'ALL' ? (
         <div
           id="module-l-step-2"
           onClick={() => setOpenStep(2)}
@@ -363,27 +432,27 @@ export function ModuleLWorkspace({
             <div className="flex items-start gap-3 min-w-0 flex-1">
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep2Complete
+                  isVisualStep2CompilerComplete
                     ? 'bg-emerald-600 text-white'
                     : 'bg-slate-900 text-white'
                 }`}
               >
-                {isStep2Complete ? <Check className="h-4 w-4" /> : '2'}
+                {isVisualStep2CompilerComplete ? <Check className="h-4 w-4" /> : '2'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
-                    2. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
+                    2. Interactive Section-by-Section Narrative &amp; Question Compiler
                   </h2>
                   <Badge
                     variant="outline"
                     className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
                   >
-                    {isStep2Complete ? 'Audit Complete' : 'Next Up'}
+                    {activeCatalogItem.sectionStructureLabel}
                   </Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
-                  Reconciles pricing vs. survey WTP, headcount vs. payroll, cashflow trough vs. capital stack, and 3-quote compliance across Modules A–K.
+                  Auto-assembles your official application responses from Modules A–K &amp; G with live word-limit gauges, scoring rubrics, and inline AI calibration.
                 </p>
               </div>
             </div>
@@ -391,9 +460,9 @@ export function ModuleLWorkspace({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-800 group-hover:bg-emerald-50"
             >
-              {isStep2Complete ? 'Edit Step' : 'Open Step'}
+              {isVisualStep2CompilerComplete ? 'Edit Step' : 'Open Step'}
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
@@ -412,121 +481,7 @@ export function ModuleLWorkspace({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base font-bold text-slate-900">
-                      2. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
-                    </CardTitle>
-                    <Badge
-                      variant="outline"
-                      className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
-                    >
-                      Synced to {activeCatalogItem.badge}
-                    </Badge>
-                  </div>
-                  <CardDescription className="mt-1 text-xs text-slate-600">
-                    Automated cross-examination of your numbers and narratives across Modules A–K before compiling your final submission sections.
-                  </CardDescription>
-                </div>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setOpenStep(0)}
-                className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
-              >
-                Collapse Step
-                <ChevronUp className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-5">
-            <ModuleLContradictionAuditStep
-              plan={plan}
-              isVaultReadonly={isVaultReadonly}
-              onSaveStep2Audit={async (data, progress = 40) => {
-                if (onSaveStep2Audit) {
-                  await onSaveStep2Audit(data, progress);
-                }
-              }}
-              onBackToStep1={() => {
-                setOpenStep(1);
-                const el = document.getElementById('module-l-step-1');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              onContinueToStep3={() => {
-                setOpenStep(3);
-                const el = document.getElementById('module-l-step-3');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              onNavigateToModule={onNavigateToModule}
-              onParkQuestionInSession={onParkQuestionInSession}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ========================================================================= */}
-      {/* STEP 3: SECTION-BY-SECTION NARRATIVE COMPILER                             */}
-      {/* ========================================================================= */}
-      {openStep !== 3 && openStep !== 'ALL' ? (
-        <div
-          id="module-l-step-3"
-          onClick={() => setOpenStep(3)}
-          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                  isStep3Complete
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-900 text-white'
-                }`}
-              >
-                {isStep3Complete ? <Check className="h-4 w-4" /> : '3'}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
-                    3. Interactive Section-by-Section Narrative &amp; Question Compiler
-                  </h2>
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
-                  >
-                    {activeCatalogItem.sectionStructureLabel}
-                  </Badge>
-                </div>
-                <p className="mt-0.5 truncate text-xs text-slate-500">
-                  Auto-assembles your official application responses from Modules A–K with live word-limit gauges, scoring rubrics, and inline AI calibration.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
-            >
-              {isStep3Complete ? 'Edit Step' : 'Open Step'}
-              <ChevronDown className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Card
-          id="module-l-step-3"
-          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs"
-        >
-          <CardHeader className="border-b border-slate-100 pb-4">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
-                  3
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="text-base font-bold text-slate-900">
-                      3. Interactive Section-by-Section Narrative &amp; Question Compiler
+                      2. Interactive Section-by-Section Narrative &amp; Question Compiler
                     </CardTitle>
                     <Badge
                       variant="outline"
@@ -536,7 +491,7 @@ export function ModuleLWorkspace({
                     </Badge>
                   </div>
                   <CardDescription className="mt-1 text-xs text-slate-600">
-                    Auto-assembles your official application responses from Modules A–K with live word-limit gauges, scoring rubrics, and inline AI calibration.
+                    Assemble and refine your written application sections first, grounded directly in your verified data across Modules A–K &amp; Launchpad.
                   </CardDescription>
                 </div>
               </div>
@@ -556,17 +511,131 @@ export function ModuleLWorkspace({
             <ModuleLNarrativeCompilerStep
               plan={plan}
               isVaultReadonly={isVaultReadonly}
-              onSaveStep3Compiler={async (data, progress = 60) => {
+              onSaveStep3Compiler={async (data, progress = 50) => {
                 if (onSaveStep3Compiler) {
                   await onSaveStep3Compiler(data, progress);
                 }
               }}
               onBackToStep2={() => {
+                setOpenStep(1);
+                const el = document.getElementById('module-l-step-1');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onContinueToStep4={() => {
+                setOpenStep(3);
+                const el = document.getElementById('module-l-step-3');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onNavigateToModule={onNavigateToModule}
+              onParkQuestionInSession={onParkQuestionInSession}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VISUAL STEP 3: PRE-FLIGHT CONTRADICTION & GRANT AUDIT (DB: step2Audit)    */}
+      {/* ========================================================================= */}
+      {openStep !== 'ALL' && openStep !== 3 ? (
+        <div
+          id="module-l-step-3"
+          onClick={() => setOpenStep(3)}
+          className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  isVisualStep3AuditComplete
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-900 text-white'
+                }`}
+              >
+                {isVisualStep3AuditComplete ? <Check className="h-4 w-4" /> : '3'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
+                    3. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-slate-300 text-slate-600 text-[10px] font-medium"
+                  >
+                    {isVisualStep3AuditComplete ? 'Audit Complete' : 'Pre-Flight Check'}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  Audits your compiled narrative against pricing vs. survey WTP, headcount vs. payroll, cashflow trough vs. capital stack, and 3-quote compliance.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-800 group-hover:bg-emerald-50"
+            >
+              {isVisualStep3AuditComplete ? 'Edit Step' : 'Open Step'}
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Card
+          id="module-l-step-3"
+          className="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-xs"
+        >
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
+                  3
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      3. Cross-Module Contradiction &amp; Grant Audit (Pre-Flight Gatekeeper)
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px] font-medium"
+                    >
+                      Synced to {activeCatalogItem.badge}
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Now that your narrative sections are drafted, stress-test every claim against your numbers across Modules A–K &amp; Launchpad before binding your appendices.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setOpenStep(0)}
+                className="shrink-0 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Collapse Step
+                <ChevronUp className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <ModuleLContradictionAuditStep
+              plan={plan}
+              isVaultReadonly={isVaultReadonly}
+              onSaveStep2Audit={async (data, progress = 65) => {
+                if (onSaveStep2Audit) {
+                  await onSaveStep2Audit(data, progress);
+                }
+              }}
+              onBackToStep1={() => {
                 setOpenStep(2);
                 const el = document.getElementById('module-l-step-2');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              onContinueToStep4={() => {
+              onContinueToStep3={() => {
                 setOpenStep(4);
                 const el = document.getElementById('module-l-step-4');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -800,6 +869,8 @@ export function ModuleLWorkspace({
             />
           </CardContent>
         </Card>
+      )}
+      </>
       )}
     </div>
   );

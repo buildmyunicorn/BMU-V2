@@ -527,6 +527,7 @@ export interface SavedModuleCData {
 export type ProductTrackType =
   | 'SAAS_SOFTWARE_AI'
   | 'PHYSICAL_PRODUCT_ECOM'
+  | 'LOCAL_SERVICE_BRICK_MORTAR'
   | 'MARKETPLACE_PLATFORM'
   | 'EDUCATION_PROGRAM_COHORT'
   | 'PRODUCTIZED_SERVICE_AGENCY'
@@ -1673,6 +1674,7 @@ export interface SavedModuleGData {
     registrationNumber: string; // CRO / Companies House CRN
     registrationDate: string;
     targetFormationTimeline: string;
+    customFormationTimeline?: string;
     incorporationNotes: string;
     incorporationOrder?: any;
   };
@@ -1692,6 +1694,7 @@ export interface SavedModuleGData {
     hasDedicatedIban: boolean;
     ibanLast4: string;
     targetOpeningTimeline: string;
+    customOpeningTimeline?: string;
     notes: string;
   };
   step4: {
@@ -1700,8 +1703,11 @@ export interface SavedModuleGData {
     customSoftwareChoice?: string;
     hasAccountant: boolean;
     accountantFirmName: string;
-    vatStatus: 'NOT_REGISTERED' | 'REGISTERED' | 'PLANNING_TO_REGISTER';
-    payrollSetup: 'NONE' | 'DIRECTOR_ONLY' | 'EXTERNAL_BUREAU' | 'IN_HOUSE';
+    vatStatus: 'NOT_REGISTERED' | 'REGISTERED' | 'PLANNING_TO_REGISTER' | 'VAT_EXEMPT_SECTOR' | 'OTHER';
+    customVatStatus?: string;
+    customVatStatusText?: string;
+    payrollSetup: 'NONE' | 'DIRECTOR_ONLY' | 'EXTERNAL_BUREAU' | 'IN_HOUSE' | 'OTHER';
+    customPayrollSetup?: string;
     notes: string;
   };
   step5: {
@@ -1713,6 +1719,7 @@ export interface SavedModuleGData {
     currentInsurerName: string;
     policyRenewalDate: string;
     targetCoverageTimeline: string;
+    customCoverageTimeline?: string;
     notes: string;
   };
   step6: {
@@ -1743,12 +1750,16 @@ export type RevenueModelVehicle =
   | 'HARDWARE_PLUS_PLAN'
   | 'OTHER';
 
-export type ProductOfferingStructure = 'SINGLE_OFFERING' | 'MULTI_OFFERING_TIERS';
+export type ProductOfferingStructure =
+  | 'SINGLE_OFFERING'
+  | 'MULTI_OFFERING_TIERS'
+  | 'OTHER';
 
 export interface RevenueModelStep1Data {
   revenueModelVehicle: RevenueModelVehicle;
   otherRevenueModelText?: string;
   offeringStructure: ProductOfferingStructure;
+  otherOfferingStructureText?: string;
   valueMetric: string; // e.g., "per active user / month", "per physical item shipped"
   billingCadenceDefault: 'MONTHLY' | 'ANNUAL' | 'ONE_OFF' | 'PROJECT_MILESTONE';
   offeringRangeSummary: string; // Plain-English summary of what's being charged
@@ -1763,7 +1774,7 @@ export interface PricingTierItem {
   priceGross?: number; // Gross sticker price including VAT (what customer pays at checkout)
   priceNetOfTax: number; // Clean turnover net of tax (required for bank & grant due diligence)
   taxRatePercent: number; // e.g. 23% IE, 20% UK, 0% US
-  billingFrequency: 'MONTHLY' | 'ANNUAL' | 'ONE_OFF';
+  billingFrequency: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'ONE_OFF';
   annualDiscountPercent?: number; // e.g. 20% off if billed annually
   salesMixPercent: number; // e.g. 30%, 60%, 10% (sum = 100%)
   deliverablesSummary: string; // 2-3 key deliverables
@@ -2107,6 +2118,7 @@ export interface MarketingBudgetStep4Data {
   weeklyFounderMarketingHours: number;
   paidAdsViabilityDecision?: PaidAdsViabilityDecision;
   excludePaidAdsFromModuleJ?: boolean;
+  explicitlyUnsyncedFromModuleJ?: boolean;
   syncedToModuleJOverheads: boolean;
   lastSyncedToModuleJAt?: string;
   cacAndBudgetNarrative: string;
@@ -2456,6 +2468,7 @@ export interface ModuleKStep3ReimbursementBridgeSavedData {
 }
 
 export type InvestorTaxReliefSchemeType =
+  | 'NONE_BOOTSTRAPPED'
   // UK Schemes
   | 'GB_SEIS_SEED_ENTERPRISE'
   | 'GB_EIS_ENTERPRISE_INVESTMENT'

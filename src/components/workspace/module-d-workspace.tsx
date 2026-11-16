@@ -70,6 +70,7 @@ import {
   buildModuleDStandaloneHtmlBrief as generateModuleDStandaloneHtmlBrief,
   type ModuleDBriefData,
 } from '@/lib/export/module-d-brief';
+import { computeDeduplicatedModuleDCosts } from '@/lib/finance/cross-module-normalizer';
 import type {
   ActiveStartupPlan,
   ProductTrackType,
@@ -262,6 +263,14 @@ export function detectRecommendedProductTrack(
     .toLowerCase();
 
   if (
+    /clinic|physio|dental|chiropract|osteopath|cafe|café|bakery|coffee shop|restaurant|bistro|catering|salon|barber|spa|gym|pilates|yoga|fitness studio|childcare|creche|crèche|plumb|electrician|hvac|heat pump|solar install|carpentry|landscap|cleaning service|dog groom|local venue|brick and mortar|brick-and-mortar/.test(
+      combined
+    )
+  ) {
+    return 'LOCAL_SERVICE_BRICK_MORTAR';
+  }
+
+  if (
     /autis|sleep|parent|course|curriculum|cohort|education|school|tutor|learning|training|workshop/.test(
       combined
     )
@@ -326,6 +335,14 @@ export const PRODUCT_TRACK_OPTIONS: Array<{
       'Artisan goods (e.g. woodworking), Amazon/Etsy/Shopify brands, food & drink, or CPG.',
     badgeText: 'Maker & E-Com Track',
     icon: Package,
+  },
+  {
+    value: 'LOCAL_SERVICE_BRICK_MORTAR',
+    label: 'Local Service, Hospitality, Clinic or Trade',
+    subtitle:
+      'Clinics, cafés, bakeries, fitness studios, salons, childcare, or domestic/commercial trades.',
+    badgeText: 'Local Venue & Trade Track',
+    icon: HeartHandshake,
   },
   {
     value: 'EDUCATION_PROGRAM_COHORT',
@@ -959,6 +976,95 @@ export const ADAPTIVE_STEP1_CONFIG_BY_TRACK: Record<
       '6. Why this Hybrid V1 Approach de-risks your capital & timeline',
     whyFitsPlaceholder:
       'e.g., Using off-the-shelf certified hardware modules with our proprietary web analytics dashboard lets us run a 20-customer paid pilot in 8 weeks before spending capital on custom tooling.',
+  },
+
+  LOCAL_SERVICE_BRICK_MORTAR: {
+    trackHeadline: 'Local Service, Hospitality, Clinic or Trade Mode Active',
+    trackCoachingTip:
+      'Software sprint and parcel courier jargon are hidden. Module D is now tailored to appointments/covers/jobs per day, fixed-price service packages, local online booking, and lean premises/van launch setups.',
+    formFactorQuestion:
+      '2. What is the core service package, appointment, or menu format customers book or buy on Day 1?',
+    formFactorSubtitle:
+      'Local service, clinic, hospitality, and trade startups win fastest when they launch with a crystal-clear flagship package or tight Day-1 menu instead of trying to offer 30 custom services at once.',
+    defaultFormFactor: 'FIXED_SCOPE_SPRINT',
+    formFactorOptions: [
+      {
+        value: 'FIXED_SCOPE_SPRINT',
+        label: 'Standardized Fixed-Price Appointment, Job, or Menu Core',
+        subtitle:
+          'e.g., Fixed €165 90-minute heat-pump service visit, 45-minute physio assessment, or tight 6-item specialty bakery/café counter.',
+        tag: 'Recommended Day-1 Format',
+      },
+      {
+        value: 'MONTHLY_RETAINER_SUBSCRIPTION',
+        label: 'Recurring Membership, Class Pack, or Maintenance Plan',
+        subtitle:
+          'e.g., Monthly Reformer Pilates membership, commercial grounds/cleaning contract, or annual boiler/equipment care plan.',
+        tag: 'Predictable Monthly Cashflow',
+      },
+      {
+        value: 'IN_PERSON_PLUS_DIGITAL_PORTAL',
+        label: 'In-Person Venue / Mobile Visit + Simple Online Booking & Follow-Up',
+        subtitle:
+          'Customers book a slot online in 60 seconds, attend in-person (or you visit their site), and get automated SMS reminders & re-booking.',
+        tag: 'Zero Phone-Tag Admin',
+      },
+      {
+        value: 'DIAGNOSTIC_PAID_PILOT',
+        label: 'Paid Initial Assessment / Taster Session -> Full Package Upgrade',
+        subtitle:
+          'Low-friction introductory consult, trial class, or site call-out fee that converts into a full treatment block or quoted job.',
+        tag: 'High Local Conversion',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Local Venue, Clinic, Hospitality, or Trade Format',
+        subtitle: 'Describe your exact local service, venue, or trade offering in your own words.',
+        tag: 'Custom',
+      },
+    ],
+    v1ApproachQuestion:
+      '3. How will you test demand and serve your first 20–50 local customers before signing heavy leases?',
+    v1ApproachSubtitle:
+      'Start Up Loans, LEO assessors, and commercial banks love local founders who prove bookings and repeat footfall before committing to expensive long-term fit-outs.',
+    defaultV1Approach: 'REPEATABLE_SOP_PLUS_STRIPE',
+    v1ApproachOptions: [
+      {
+        value: 'REPEATABLE_SOP_PLUS_STRIPE',
+        label: 'Mobile / Pop-Up / Rented Room or Equipped Van + Online Booking',
+        subtitle:
+          'Rent a clinical room by the day, trade at weekend markets/pop-ups, or operate from 1 equipped van before taking on a 5-year commercial lease.',
+        tag: 'Lowest Fixed-Rent Risk',
+      },
+      {
+        value: 'PAID_PILOT_SPRINT_FIRST_5',
+        label: 'Founding-Member Pre-Sale / Paid Pilot Bookings (First 20–50 Locals)',
+        subtitle:
+          'Pre-sell founding class packs, treatment blocks, or seasonal service slots to local waitlist leads to validate demand with cash upfront.',
+        tag: 'Cash-Positive Launch',
+      },
+      {
+        value: 'SMALL_BATCH_PHYSICAL_PLUS_CONCIERGE',
+        label: 'Lean Phase-1 Fit-Out (Essential Equipment Only + Tight Opening Hours)',
+        subtitle:
+          'Open a compact, well-located unit with essential equipment (including vetted second-hand catering/clinical kit where practical) and focused peak hours.',
+        tag: 'Lean Premises Setup',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Local Launch Approach',
+        subtitle: 'Describe how you are launching your local venue, clinic, or trade business.',
+        tag: 'Custom',
+      },
+    ],
+    ahaPromptLabel:
+      '5. The First-Visit Customer "Aha! Moment" (Why Locals Rave & Tell Neighbours)',
+    ahaPromptPlaceholder:
+      'e.g., A homeowner books a 90-minute heat-pump service online in 60 seconds with an exact arrival window, receives a clear photo health-check report on the spot, and saves €250/yr on winter heating bills...',
+    whyFitsLabel:
+      '6. Why this Day-1 Format protects your daily capacity, rent & margins',
+    whyFitsPlaceholder:
+      'e.g., Standardizing on a 90-minute service visit (up to 4 jobs/day per van) or renting a treatment room 3 days/week keeps fixed overhead low until repeat bookings hit 75% capacity.',
   },
 
   OTHER: {
@@ -1720,6 +1826,110 @@ export const ADAPTIVE_STEP2_CONFIG_BY_TRACK: Record<
       '5. Why This Hybrid Channel Mix Protects Hardware & Recurring Margins:',
     whyChannelFitsPlaceholder:
       'e.g., Direct web bundles keep blended fees under 10%, and activating the digital subscription on our web portal avoids Apple’s 30% in-app tax.',
+  },
+
+  LOCAL_SERVICE_BRICK_MORTAR: {
+    channelQuestionTitle:
+      '1. How do local customers book & pay you (Direct Walk-In / Web Booking vs. Third-Party Apps)?',
+    channelQuestionSubtitle:
+      'Direct online booking, walk-in tap-to-pay, and B2B local contracts cost ~1%–2.5% in card fees—whereas delivery apps or third-party booking marketplaces take 15%–30% of every order.',
+    defaultPrimaryChannel: 'DIRECT_WEB_STRIPE',
+    defaultSecondaryChannels: ['B2B_INVOICE_BANK_TRANSFER'],
+    defaultPrimarySharePercent: 80,
+    benchmarkBlendedFeePercent: 2.2,
+    channelOptions: [
+      {
+        value: 'DIRECT_WEB_STRIPE',
+        label: 'Direct Online Booking + In-Person Tap-to-Pay (Square / SumUp / Stripe)',
+        ownershipBadge: '100% Owned Audience',
+        typicalFeePercent: 1.9,
+        feeBreakdownText: '~1.75% in-person card tap / ~2.5% online booking deposit',
+        payoutSpeed: '1–2 Days',
+        subtitle:
+          'Customers book directly via your website/Google Business Profile or pay at the counter—you keep ~98% and own every repeat reminder.',
+      },
+      {
+        value: 'B2B_INVOICE_BANK_TRANSFER',
+        label: 'Local B2B / Commercial Contracts & Standing Orders ( Cafés, Offices, Landlords)',
+        ownershipBadge: 'Partner / B2B Channel',
+        typicalFeePercent: 0.5,
+        feeBreakdownText: '~0%–0.5% SEPA / Faster Payments bank transfer',
+        payoutSpeed: 'Weekly / Net 14–30',
+        subtitle:
+          'Anchor weekday capacity with commercial maintenance contracts, corporate catering, or wholesale café supply.',
+      },
+      {
+        value: 'DIRECT_WEB_CRAFT_MARKETS',
+        label: 'Walk-In Counter, Pop-Up Markets & Local Referral Word-of-Mouth',
+        ownershipBadge: '100% Owned Audience',
+        typicalFeePercent: 1.75,
+        feeBreakdownText: '~1.75% card reader fee (0% platform commission)',
+        payoutSpeed: 'Next Business Day',
+        subtitle:
+          'High-margin street footfall, weekend markets, or local GP/partner referrals with zero marketplace commission.',
+      },
+      {
+        value: 'FREELANCE_EXPERT_MARKETPLACE',
+        label: 'Third-Party Delivery / Booking Apps (Deliveroo, Fresha New-Client, ClassPass)',
+        ownershipBadge: 'Rented Marketplace Traffic',
+        typicalFeePercent: 22.0,
+        feeBreakdownText: '~15%–30% third-party delivery or new-client intro commission',
+        payoutSpeed: 'Weekly / Net 14',
+        subtitle:
+          'Useful for filling quiet off-peak slots, but heavy commissions require converting first-timers to direct re-booking.',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Local Booking or Sales Channel',
+        ownershipBadge: 'Custom Channel',
+        typicalFeePercent: 2.5,
+        feeBreakdownText: 'Specify your custom card or referral fee below',
+        payoutSpeed: 'Custom Terms',
+        subtitle: 'Describe how customers book and pay for your local service or venue.',
+      },
+    ],
+    deliveryQuestionTitle:
+      '3. Where & how do you fulfill each appointment, order, or call-out?',
+    deliveryQuestionSubtitle:
+      'Choose how your daily capacity (appointments, covers, or site visits per day) is delivered in Version 1.',
+    defaultDeliveryModel: 'LOCAL_PICKUP_AND_MARKETS',
+    deliveryOptions: [
+      {
+        value: 'LOCAL_PICKUP_AND_MARKETS',
+        label: 'In-Venue / Clinic / Studio / Counter Service',
+        tag: 'Fixed Location Capacity',
+        subtitle:
+          'Customers come to your premises, treatment room, studio, or counter during scheduled operating hours.',
+      },
+      {
+        value: 'MANUAL_CONCIERGE_FULFILLMENT',
+        label: 'Mobile On-Site Call-Outs / Home & Business Visits (Equipped Van)',
+        tag: 'Mobile Route Capacity',
+        subtitle:
+          'You travel to the customer’s home or commercial site grouped by postcode/town to minimize unpaid driving time.',
+      },
+      {
+        value: 'WORKSHOP_PACK_AND_COURIER',
+        label: 'Hybrid Counter / Kitchen + Local Drop-Off Rounds',
+        tag: 'Venue + Local Rounds',
+        subtitle:
+          'Combine direct counter/kitchen production with scheduled morning wholesale drops or local box deliveries.',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Local Service / Venue Delivery Model',
+        tag: 'Custom Setup',
+        subtitle: 'Describe how customers experience your service or venue.',
+      },
+    ],
+    bridgePromptLabel:
+      '4. Your Local Repeat-Booking & Referral Engine (Turning First-Timers into Regulars):',
+    bridgePromptPlaceholder:
+      'e.g., Every Google Maps / walk-in customer gets an automated SMS receipt with a 1-click re-booking link (or loyalty stamp / annual service reminder) so repeat visits pay 0% commission.',
+    whyChannelFitsLabel:
+      '5. Why This Direct Booking & Local Channel Mix Protects Your Pocket Profit:',
+    whyChannelFitsPlaceholder:
+      'e.g., Direct Google Business Profile bookings + 20% deposit upfront eliminate costly no-shows and keep card fees under 2%, protecting margin on every appointment.',
   },
 
   OTHER: {
@@ -2805,6 +3015,103 @@ const ADAPTIVE_STEP3_CONFIG_BY_TRACK: Record<
       'e.g., Pairing pre-certified small-batch hardware with a QR-activated web dashboard lets us ship pilot kits in weeks, prove recurring subscription retention, and unlock R&D grant funding.',
   },
 
+  LOCAL_SERVICE_BRICK_MORTAR: {
+    boardTitle:
+      '1. Ruthless V1 Service Menu & Capacity Filter (Day-1 Core Offer vs. V1.5 Add-Ons vs. V2 Expansion)',
+    boardSubtitle:
+      'Local venues, clinics, cafés, and trades lose money when they launch with 25 menu items, 7-day long hours, or over-specced fit-outs. Lock Day 1 to your highest-margin appointments, covers, or jobs.',
+    itemNounSingular: 'Service / Menu Item',
+    itemNounPlural: 'Service & Venue Scope Items',
+    v1BucketLabel: 'MUST-HAVE FOR V1 (Day-1 Core Offer)',
+    v1BucketSubtitle:
+      'Flagship appointments, tight high-margin menu, online booking + card deposits.',
+    v15BucketLabel: 'FAST-FOLLOW V1.5 (Months 3–6 Repeat & Upsell)',
+    v15BucketSubtitle:
+      'Monthly membership/maintenance plans, off-peak bundles, or wholesale B2B accounts.',
+    v2BucketLabel: 'V2 ICEBOX / REFUSED IN V1 (Heavy Overhead Traps)',
+    v2BucketSubtitle:
+      'Second premises, expensive custom fit-outs, or slow-moving menu bloat.',
+    maxRecommendedV1Items: 5,
+    categoryTagOptions: [
+      'Core Service / Menu',
+      'Booking & Deposits',
+      'Repeat Membership / B2B',
+      'Premises / Phase 2',
+      'OTHER',
+    ],
+    defaultDisciplineRule: 'CORE_AHA_FLOW_ONLY_NO_NATIVE_APP',
+    disciplineRuleOptions: [
+      {
+        value: 'CORE_AHA_FLOW_ONLY_NO_NATIVE_APP',
+        label: 'Tight Flagship Menu / Service Package + Peak-Hours Capacity Focus',
+        tag: 'Recommended for Local V1',
+        subtitle:
+          'Deliver 3–5 high-margin core services or menu items exceptionally well before expanding hours, staff, or premises.',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Local Service / Venue Scope Rule',
+        tag: 'Custom Rule',
+        subtitle: 'Specify your custom Day-1 capacity, menu, or call-out boundary.',
+      },
+    ],
+    defaultItems: [
+      {
+        id: 'loc-v1-1',
+        title: 'Flagship Fixed-Price Service Package / Tight Day-1 Hero Menu',
+        bucket: 'MUST_HAVE_V1',
+        categoryTag: 'Core Service / Menu',
+        effortImpact: 'MEDIUM',
+        rationaleOrNote:
+          'Delivers fast, consistent customer quality and predictable daily capacity (appointments, covers, or jobs/day).',
+      },
+      {
+        id: 'loc-v1-2',
+        title: '60-Second Online Booking + Upfront Card Deposit & SMS Reminder',
+        bucket: 'MUST_HAVE_V1',
+        categoryTag: 'Booking & Deposits',
+        effortImpact: 'LOW',
+        rationaleOrNote:
+          'Eliminates phone-tag admin and prevents costly last-minute no-shows.',
+      },
+      {
+        id: 'loc-v15-1',
+        title: 'Recurring Monthly Membership, Class Pack, or Annual Maintenance Plan',
+        bucket: 'FAST_FOLLOW_V1_5',
+        categoryTag: 'Repeat Membership / B2B',
+        effortImpact: 'LOW',
+        rationaleOrNote:
+          'Turns happy first-time local clients into predictable monthly cashflow.',
+      },
+      {
+        id: 'loc-v2-1',
+        title: 'Second Location / Heavy Custom Premises Fit-Out & Extended 7-Day Hours',
+        bucket: 'PARKING_LOT_V2',
+        categoryTag: 'Premises / Phase 2',
+        effortImpact: 'HIGH',
+        rationaleOrNote:
+          'Parked until Site/Van 1 consistently exceeds 75% weekly capacity for 3+ months.',
+      },
+    ],
+    quickAddChips: [
+      {
+        title: 'Automated Google Review SMS 2 Hours After Appointment / Visit',
+        bucket: 'MUST_HAVE_V1',
+        categoryTag: 'Booking & Deposits',
+        effortImpact: 'LOW',
+        rationaleOrNote: 'Compounds local Google Maps ranking at €0 ad spend.',
+      },
+    ],
+    refusePromptLabel:
+      '3. What We Explicitly Refuse to Offer or Spend On in Version 1:',
+    refusePromptPlaceholder:
+      'e.g., In Version 1, we refuse custom unquoted jobs outside our 20km radius, bloated 20-item menus that cause food waste, and signing a 5-year lease before hitting 70% weekly booking capacity...',
+    whyLeanWinsLabel:
+      '4. Why This Focused Local Offer Protects Daily Capacity & Cashflow:',
+    whyLeanWinsPlaceholder:
+      'e.g., Focusing on 1 flagship service/menu and taking online booking deposits lets 1 practitioner/van/kitchen hit breakeven quickly with minimal waste and zero admin staff.',
+  },
+
   OTHER: {
     boardTitle:
       '1. Ruthless V1 Scope Filter (Day-1 Launch Core vs. V1.5 Fast-Follow vs. V2 Icebox)',
@@ -3472,7 +3779,61 @@ const ADAPTIVE_STEP4_CONFIG_BY_TRACK: Record<ProductTrackType, AdaptiveStep4Conf
     whyBuySavesTimeLabel:
       '2. Why Pre-Certified Modules, Cloud Hosting & Fab Partners De-Risk Batch 1:',
     whyBuySavesTimePlaceholder:
-      'Explain how using pre-certified sensor/radio modules, monthly cloud infrastructure, and short-run PCBA partners saves 6+ months and tens of thousands in certification and tooling...',
+      'e.g., Explain how using pre-certified sensor/radio modules, monthly cloud infrastructure, and short-run PCBA partners saves 6+ months and tens of thousands in certification and tooling...',
+  },
+
+  LOCAL_SERVICE_BRICK_MORTAR: {
+    stepTitle: '3-Tier In-House Service Craft vs. Off-the-Shelf Booking & Trade Stack',
+    stepSubtitle:
+      'Keep 100% of your energy on your signature customer experience, clinical/trade quality, or recipes (Tier 1) while renting simple off-the-shelf POS/booking software and trade suppliers (Tier 2 & 3).',
+    whyAskingText:
+      'Bank underwriters and Start Up Loan / LEO assessors want to see that your startup capital goes into revenue-generating equipment and customer quality—not bespoke booking websites or over-engineered fit-outs when Square, Cliniko, Fresha, or Timely cost €25–€60/mo.',
+    tier1Label: 'TIER 1: DELIVER IN-HOUSE (SIGNATURE QUALITY & TRUST)',
+    tier1Subtitle: 'Hands-on clinical/trade expertise, signature recipes/menu, SOPs & local customer care',
+    tier1Badge: 'In-House Quality & Reputation',
+    tier2Label: 'TIER 2: BUY / RENT POS, BOOKING & ESSENTIAL KIT',
+    tier2Subtitle: 'Online booking/POS (Square, Cliniko, Timely), card reader, consumables & trade tools',
+    tier2Badge: 'Off-the-Shelf Tools & Kit',
+    tier3Label: 'TIER 3: VETTED TRADE FIT-OUT, LAB & COMPLIANCE PARTNERS',
+    tier3Subtitle: 'Certified electrical/gas/HACCP sign-off, laundry/waste contractor, or part-time bookkeeper',
+    tier3Badge: 'Certified Local Partners',
+    categoryOptions: [
+      'Signature Service / Menu SOPs',
+      'Booking, POS & Card Terminal (/mo)',
+      'Essential Trade / Clinic / Kitchen Kit',
+      'Consumables & Local Ingredients',
+      'Fit-Out, Safety & Insurance Sign-Off',
+    ],
+    ipRules: [
+      {
+        value: 'OWN_DELIVERY_PLAYBOOK_RENT_CLIENT_PORTAL',
+        label: '100% Owned Brand, Client List & Service SOPs; Rent Off-the-Shelf Booking/POS',
+        subtitle:
+          'We own our local brand trademark, Google reviews, direct client list, and operating checklists while using proven €30/mo booking and POS software.',
+        badge: 'Recommended for Local Services',
+      },
+      {
+        value: 'IN_HOUSE_CRAFT_AND_FINISHING_BUY_STOCK_PACKAGING',
+        label: '100% In-House Recipes, Preparation & Quality; Vetted Local Wholesale Suppliers',
+        subtitle:
+          'We prepare our signature hero items in-house and source staple ingredients/consumables from vetted wholesale partners.',
+        badge: 'Recommended for Food & Hospitality',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Local Brand & Equipment Rule',
+        subtitle: 'Define your own custom brand, franchise/SOP, or equipment rule.',
+        badge: 'Custom Rule',
+      },
+    ],
+    secretSaucePromptLabel:
+      '1. Our Signature Customer Experience & Quality Standard (Kept 100% In-House):',
+    secretSaucePromptPlaceholder:
+      'Explain what makes local customers choose you and come back (e.g. specialist accreditation, fixed-price transparency, signature sourdough bake, puntual 60-min arrival window)...',
+    whyBuySavesTimeLabel:
+      '2. How Off-the-Shelf Booking/POS & Smart Equipment Sourcing Protect Our Cash:',
+    whyBuySavesTimePlaceholder:
+      'Explain how using a €29/mo booking/POS system, renting room/van capacity sensibly, and getting 3 competitive supplier quotes keeps upfront cash outlay lean...',
   },
 
   OTHER: {
@@ -4167,6 +4528,84 @@ export const ADAPTIVE_STEP5_CONFIG_BY_TRACK: Record<
       },
     ],
   },
+  LOCAL_SERVICE_BRICK_MORTAR: {
+    stepTitle:
+      'Step 5: Launch Work Packages (WP1–WP4) & 4-Stage Customer Visit / Job Flow',
+    stepSubtitle:
+      'Organize your local launch into 4 practical phases (WP1 Site/Van & Compliance Setup -> WP2 Equipment & Booking System -> WP3 Founding Local Soft-Launch -> WP4 Repeat Membership & Referral Loop) plus a 4-Stage Customer Journey.',
+    whyThisMattersText:
+      'Start Up Loans, bank managers, and Local Enterprise Offices want to see a realistic sequence from securing licenses/insurance and essential equipment to opening your booking diary and hitting daily capacity targets.',
+    wpBoardTitle: '1. Local Launch Phases / Work Packages (WP1–WP4)',
+    wpBoardSubtitle:
+      'Start empty, click "Build Work Packages from My Steps 3 & 4", or click "Populate with AI".',
+    flowDiagramTitle: '2. 4-Stage Local Booking -> Delivery -> Re-Booking Flow',
+    flowDiagramSubtitle:
+      'Map how a local customer moves from Google/Booking Discovery (Stage 1) -> Arrival / Preparation (Stage 2) -> Core Service / Counter Experience (Stage 3) -> Payment, Review & Next Booking (Stage 4).',
+    cadenceRules: [
+      {
+        value: 'BATCH_PROTOTYPE_JIG_AND_PILOT_RUN',
+        label: 'Soft-Launch Founding Week -> Full Operating Hours Ramp',
+        subtitle:
+          'Run a 1–2 week soft launch with founding local customers to stress-test timing per appointment/order before opening full diary capacity.',
+        badge: 'Recommended Local Launch Cadence',
+      },
+      {
+        value: 'TWO_WEEK_AGILE_SPRINTS_USER_DEMO',
+        label: 'Weekly Capacity Utilization & Customer Review Check-In',
+        subtitle:
+          'Track weekly booked slots/covers, average spend per visit, and 5-star Google reviews every Friday.',
+        badge: 'Capacity Discipline',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other / Custom Local Rollout Cadence',
+        subtitle: 'Define your own opening schedule and ramp-up milestones.',
+        badge: 'Custom Rule',
+      },
+    ],
+    technicalMeritLabel:
+      '1. Daily Capacity Math (Appointments / Covers / Jobs per Day) & Quality Standard:',
+    technicalMeritPlaceholder:
+      'Explain your realistic daily capacity (e.g., 6 appointments/day at 45 mins each, or 85 morning coffee/pastry covers, or 4 domestic call-outs/day) and how your setup delivers consistent quality...',
+    deRiskingLabel:
+      '2. Premises, Weather/Seasonality & No-Show De-Risking Plan:',
+    deRiskingPlaceholder:
+      'Explain how upfront card deposits prevent no-shows, and how B2B standing contracts or memberships smooth quiet weekday/winter periods...',
+    defaultFlowStages: [
+      {
+        id: 'flow-loc-1',
+        stageNumber: 1,
+        stageTitle: 'Stage 1: Local Discovery & 60-Second Booking / Walk-In',
+        stageSubtitle: 'Customer finds you on Google Maps/referral and books slot with deposit (or walks in)',
+        keyToolsOrMaterials: 'Google Business Profile + Online Booking / POS',
+        outputOrHandoff: 'Confirmed slot / order in daily schedule',
+      },
+      {
+        id: 'flow-loc-2',
+        stageNumber: 2,
+        stageTitle: 'Stage 2: Pre-Visit Prep & Punctual Welcome',
+        stageSubtitle: 'Automated SMS reminder sent; station, kit, or fresh batch prepped before arrival',
+        keyToolsOrMaterials: 'Daily Prep SOP Checklist + Trade/Clinic Kit',
+        outputOrHandoff: 'Zero-wait start to appointment or order',
+      },
+      {
+        id: 'flow-loc-3',
+        stageNumber: 3,
+        stageTitle: 'Stage 3: Signature Service, Treatment, or Job Delivery',
+        stageSubtitle: 'Consistent, high-trust delivery within target time block',
+        keyToolsOrMaterials: 'In-House Expertise + Quality Sign-Off',
+        outputOrHandoff: 'Delighted local customer + clear outcome',
+      },
+      {
+        id: 'flow-loc-4',
+        stageNumber: 4,
+        stageTitle: 'Stage 4: Tap-to-Pay, Google Review & Repeat Booking',
+        stageSubtitle: 'Instant card settlement, automated review link, and next visit/membership booked',
+        keyToolsOrMaterials: 'Card Terminal + Automated SMS Re-Booking Link',
+        outputOrHandoff: '5-star local review + repeat regular',
+      },
+    ],
+  },
   OTHER: {
     stepTitle:
       'Step 5: Version 1 Work Packages (WP1–WP4) & 4-Stage Delivery Flow Diagram',
@@ -4385,12 +4824,19 @@ export function ModuleDWorkspace({
     return 'STEP_1';
   });
 
-  // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
+  // Step Accordion View State: auto-open first incomplete step on entry, or 1..6 / 'ALL'
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       return initialStep;
     }
-    return 0;
+    const existingModD = plan.moduleDData;
+    if ((existingModD?.productVehicle?.ahaMomentNarrative?.trim()?.length ?? 0) <= 10) return 1;
+    if ((existingModD?.channelMatrix?.rentToOwnBridgeStrategy?.trim()?.length ?? 0) <= 10) return 2;
+    if ((existingModD?.scopeFilter?.items?.length ?? 0) === 0) return 3;
+    if ((existingModD?.buildVsBuy?.items?.length ?? 0) === 0) return 4;
+    if ((existingModD?.workPackagesAndFlow?.workPackages?.length ?? 0) === 0) return 5;
+    if ((existingModD?.blindSpotAudit?.blindSpots?.length ?? 0) === 0) return 6;
+    return 1;
   });
 
   // Handle deep-link scrolling and highlight
@@ -4413,8 +4859,8 @@ export function ModuleDWorkspace({
   }, [initialStep, highlightTarget]);
   const [showModuleDBriefPreview, setShowModuleDBriefPreview] = useState(true);
 
-  const [showWhyCard, setShowWhyCard] = useState(true);
-  const [showExamples, setShowExamples] = useState(false);
+  const [activeWhyStep, setActiveWhyStep] = useState<number | null>(null);
+  const [activeExampleStep, setActiveExampleStep] = useState<number | null>(null);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
   const [isSavingStep2, setIsSavingStep2] = useState(false);
   const [isSavingStep3, setIsSavingStep3] = useState(false);
@@ -4828,181 +5274,54 @@ export function ModuleDWorkspace({
     preset: 'BMU_SAAS' | 'WOODWORKER_AMAZON_ETSY' | 'AUTISM_SLEEP_EDUCATION'
   ) => {
     if (isVaultReadonly) return;
-    const nowIso = new Date().toISOString();
+    if (
+      step3Data.items.length > 0 &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Replace your current Step 3 V1 scope items in the editor with this sample template? (Your saved Step 1 & Step 2 answers will NOT be touched.)'
+      )
+    ) {
+      return;
+    }
     if (preset === 'BMU_SAAS') {
-      const nextS1: ProductVehicleStep1Data = {
-        productTrack: 'SAAS_SOFTWARE_AI',
-        otherProductTrackText: '',
-        isTrackAutoDetected: false,
-        formFactor: 'WEB_PLATFORM',
-        otherFormFactorText: '',
-        v1PrototypeApproach: 'FOCUSED_FULL_CODE_V1',
-        otherV1PrototypeApproachText: '',
-        launchTimeline: '1_TO_3_MONTHS',
-        otherLaunchTimelineText: '',
-        ahaMomentNarrative:
-          'Within 60 seconds of signing up in their browser, an early-stage founder enters their raw startup idea and immediately receives a structured 1-Page Concept Canvas, Mom-Test public survey link, and localized IE/UK Grant Readiness score—without touching a blank 40-page template.',
-        whyThisVehicleFitsCustomer:
-          'A desktop-first, mobile-ready Web Platform avoids Apple/Google App Store 15–30% commissions, gives founders a full-screen workspace for financial & grant compilation, and provides mobile-optimized public survey links for respondents.',
-        lastSavedAt: nowIso,
-      };
-      const nextS2: ChannelMatrixStep2Data = {
-        primaryChannel: 'DIRECT_WEB_STRIPE',
-        otherPrimaryChannelText: '',
-        secondaryChannels: [
-          'LTD_LAUNCH_MARKETPLACE',
-          'B2B_INSTITUTIONAL_INVOICE',
-        ],
-        otherSecondaryChannelText: '',
-        primaryChannelSharePercent: 75,
-        estimatedBlendedFeePercent: computeAutoBlendedFeePercent(
-          'SAAS_SOFTWARE_AI',
-          'DIRECT_WEB_STRIPE',
-          ['LTD_LAUNCH_MARKETPLACE', 'B2B_INSTITUTIONAL_INVOICE'],
-          75
-        ),
-        deliveryFulfillmentModel: 'HYBRID_SELF_SERVE_PLUS_COHORT_CODE',
-        otherDeliveryFulfillmentText: '',
-        rentToOwnBridgeStrategy:
-          'Founders enter via our free Module A hook or redeem an Institutional Partner / University Cohort voucher code directly on startuppreflight.com—so we own 100% of user emails, workspace data, and upgrade paths with zero mobile app store tax.',
-        channelWhyItFitsNotes:
-          'Direct Web Checkout via Stripe (~2.9% fee) preserves 97% gross margin on 6-Month Passes, while ProductHunt launches and Irish LEO / UK University cohort licences give us rapid initial user volume and reviews without burning cash on cold ads.',
-        lastSavedAt: nowIso,
-      };
-      const nextS3: ScopeFilterStep3Data = {
+      setStep3Data({
         items: ADAPTIVE_STEP3_CONFIG_BY_TRACK.SAAS_SOFTWARE_AI.defaultItems,
         scopeDisciplineRule: 'CORE_AHA_FLOW_ONLY_NO_NATIVE_APP',
         otherScopeDisciplineRuleText: '',
         whatWeRefuseToBuildInV1Narrative:
-          'In Version 1, we strictly refuse to build native iOS/Android mobile apps, live Xero/QuickBooks accounting syncs, or custom enterprise SAML SSO. Every engineering hour is focused on the core browser workspace, customer validation surveys, and official IE/UK grant exports.',
+          'In Version 1, we strictly refuse to build native iOS/Android mobile apps, complex two-way ERP integrations, or custom enterprise SAML SSO. Every engineering hour stays focused on the core browser workflow that delivers immediate day-1 customer value.',
         whyThisLeanV1WinsFasterNarrative:
-          'Keeping Version 1 locked to 4 core web capabilities lets us ship in weeks, convert 6-Month Pass and Institutional Cohort customers immediately, and protect cloud AI margins with our 500 calls/day circuit breaker.',
-        lastSavedAt: nowIso,
-      };
-      setStep1Data(nextS1);
-      setStep2Data(nextS2);
-      setStep3Data(nextS3);
-      void onSaveStep1ProductVehicle(nextS1, 25);
-      void onSaveStep2ChannelMatrix(nextS2, 50);
-      persistStep3ScopeFilter(nextS3);
+          'Keeping Version 1 locked to 3–4 core web capabilities lets us launch in weeks rather than quarters, validate willingness-to-pay with real customers early, and avoid premature engineering overhead.',
+      });
       setSaveBanner(
-        'Loaded & saved Example #1: SaaS Platform (Startup Preflight) across Steps 1, 2 & 3 — Check Step 3 to see the Ruthless V1 SaaS Feature Scope Board!'
+        'Loaded sample B2B Web SaaS V1 Scope Filter into Step 3 (Steps 1 & 2 untouched). Review and click Save Step 3 to persist.'
       );
     } else if (preset === 'WOODWORKER_AMAZON_ETSY') {
-      const nextS1: ProductVehicleStep1Data = {
-        productTrack: 'PHYSICAL_PRODUCT_ECOM',
-        otherProductTrackText: '',
-        isTrackAutoDetected: false,
-        formFactor: 'CURATED_2_3_SKUS',
-        otherFormFactorText: '',
-        v1PrototypeApproach: 'IN_HOUSE_SMALL_BATCH_WORKSHOP',
-        otherV1PrototypeApproachText: '',
-        launchTimeline: 'UNDER_4_WEEKS',
-        otherLaunchTimelineText: '',
-        ahaMomentNarrative:
-          'When a gift buyer unboxes their parcel from Etsy or Amazon, they lift out a heavy, satin-finished hardwood chopping board with a deep juice groove, custom laser-engraved wedding/housewarming name, a 50ml tin of beeswax board butter, and a care card with a QR code.',
-        whyThisVehicleFitsCustomer:
-          'Focusing Day 1 on a 2–3 SKU hero range produced in repeatable workshop batches of 20 boards (using router jigs and batch clamping) cuts labour per board from 3 hours down to 40 minutes, keeps parcel weight under 2kg for Amazon FBA/courier tiers, and requires zero factory MOQs.',
-        lastSavedAt: nowIso,
-      };
-      const nextS2: ChannelMatrixStep2Data = {
-        primaryChannel: 'ETSY_MARKETPLACE',
-        otherPrimaryChannelText: '',
-        secondaryChannels: ['AMAZON_FBA', 'DIRECT_WEB_CRAFT_MARKETS'],
-        otherSecondaryChannelText: '',
-        primaryChannelSharePercent: 55,
-        estimatedBlendedFeePercent: computeAutoBlendedFeePercent(
-          'PHYSICAL_PRODUCT_ECOM',
-          'ETSY_MARKETPLACE',
-          ['AMAZON_FBA', 'DIRECT_WEB_CRAFT_MARKETS'],
-          55
-        ),
-        deliveryFulfillmentModel: 'HYBRID_FBA_STANDARD_WORKSHOP_CUSTOM',
-        otherDeliveryFulfillmentText: '',
-        rentToOwnBridgeStrategy:
-          'Every chopping board shipped via Etsy or Amazon includes a branded kraft care card with a QR code offering a free "Heirloom Timber Care Guide + 15% off Beeswax Board Butter Refills" on our direct website—turning rented marketplace gift buyers into owned direct repeat customers.',
-        channelWhyItFitsNotes:
-          'Etsy (~10.5% fee) gives us immediate high-intent handmade gift buyers for custom engraved boards shipped from our workshop, while Amazon FBA (~31% total fee) moves standard non-engraved boards on Prime autopilot. Our direct website & craft markets (~2.9% fee) capture 97% margin on repeat refills and corporate orders.',
-        lastSavedAt: nowIso,
-      };
-      const nextS3: ScopeFilterStep3Data = {
+      setStep3Data({
         items: ADAPTIVE_STEP3_CONFIG_BY_TRACK.PHYSICAL_PRODUCT_ECOM.defaultItems,
         scopeDisciplineRule: 'MAX_2_3_HERO_SKUS_STANDARD_JIG',
         otherScopeDisciplineRuleText: '',
         whatWeRefuseToBuildInV1Narrative:
-          'In Version 1, we strictly refuse custom one-off board dimensions, exotic slow-curing resin river pours, and stocking 10+ timber species. Every V1 board is cut on the same two workshop jigs and fits into a single standardized double-walled kraft gift box under 2kg.',
+          'In Version 1, we strictly refuse custom one-off product dimensions, slow-curing specialty finishes, and stocking 10+ raw material variants. Every V1 item fits standardized production jigs and a single protective shipping box.',
         whyThisLeanV1WinsFasterNarrative:
-          'Restricting V1 to 2–3 Hero SKUs lets us batch-glue and CNC/router-finish 20 boards at a time, cutting workshop labour from 3 hours to 40 minutes per board and protecting a 60%+ gross margin across Etsy and Amazon FBA.',
-        lastSavedAt: nowIso,
-      };
-      setStep1Data(nextS1);
-      setStep2Data(nextS2);
-      setStep3Data(nextS3);
-      void onSaveStep1ProductVehicle(nextS1, 25);
-      void onSaveStep2ChannelMatrix(nextS2, 50);
-      persistStep3ScopeFilter(nextS3);
+          'Restricting V1 to 2–3 Hero SKUs enables repeatable batch production, cuts unit labour time by over 40%, and protects a 60%+ gross margin across direct and marketplace channels.',
+      });
       setSaveBanner(
-        'Loaded & saved Example #2: Woodworker Chopping Boards (Amazon & Etsy) across Steps 1, 2 & 3 — Check Step 3 to see Hero SKUs vs. Offcut Coasters vs. Refused Custom Resin Tables!'
+        'Loaded sample Physical Product / Maker V1 SKU Filter into Step 3 (Steps 1 & 2 untouched). Review and click Save Step 3 to persist.'
       );
     } else if (preset === 'AUTISM_SLEEP_EDUCATION') {
-      const nextS1: ProductVehicleStep1Data = {
-        productTrack: 'EDUCATION_PROGRAM_COHORT',
-        otherProductTrackText: '',
-        isTrackAutoDetected: false,
-        formFactor: 'MOBILE_WEB_PORTAL_AUDIO_VIDEO',
-        otherFormFactorText: '',
-        v1PrototypeApproach: 'HOSTED_PORTAL_PLUS_LIVE_QA',
-        otherV1PrototypeApproachText: '',
-        launchTimeline: 'UNDER_4_WEEKS',
-        otherLaunchTimelineText: '',
-        ahaMomentNarrative:
-          'Within 3 minutes of joining on their phone at bedtime, an exhausted parent of an autistic child completes the Sensory Bedtime Profile Quiz, listens to a 5-minute "listen-in-the-dark" audio guide matched to their child’s sensory needs, and opens tonight’s printable visual bedtime routine.',
-        whyThisVehicleFitsCustomer:
-          'Sleep-deprived parents cannot watch 60-minute desktop lectures, and spending €25,000+ building a custom iOS app delays helping families by 6 months. A Mobile-Ready Web Portal with 5-minute audio lessons, a 14-night sleep tracker, and weekly live Q&A launches in under 4 weeks and keeps 97% margin.',
-        lastSavedAt: nowIso,
-      };
-      const nextS2: ChannelMatrixStep2Data = {
-        primaryChannel: 'DIRECT_WEB_PORTAL_STRIPE',
-        otherPrimaryChannelText: '',
-        secondaryChannels: [
-          'CHARITY_CLINIC_PARTNERSHIPS',
-          'HOSTED_COURSE_COMMUNITY',
-        ],
-        otherSecondaryChannelText: '',
-        primaryChannelSharePercent: 75,
-        estimatedBlendedFeePercent: computeAutoBlendedFeePercent(
-          'EDUCATION_PROGRAM_COHORT',
-          'DIRECT_WEB_PORTAL_STRIPE',
-          ['CHARITY_CLINIC_PARTNERSHIPS', 'HOSTED_COURSE_COMMUNITY'],
-          75
-        ),
-        deliveryFulfillmentModel: 'HYBRID_ON_DEMAND_PLUS_LIVE_QA',
-        otherDeliveryFulfillmentText: '',
-        rentToOwnBridgeStrategy:
-          'Exhausted parents discover us via autism charities, OT clinics, and SEN parent groups using a free "5-Minute Sensory Bedtime Checklist & Printable Visual Routine Card"—capturing 100% owned parent emails before they enrol on our direct web portal (avoiding Apple’s 30% app store tax).',
-        channelWhyItFitsNotes:
-          'Selling directly via our mobile-friendly web portal with Stripe (~2.9% fee) plus charity/OT clinic referral partners keeps blended fees at ~4.5% instead of losing 30% to the Apple App Store, while instant 24/7 audio access + weekly live Q&A supports parents when bedtime struggles happen.',
-        lastSavedAt: nowIso,
-      };
-      const nextS3: ScopeFilterStep3Data = {
+      setStep3Data({
         items:
           ADAPTIVE_STEP3_CONFIG_BY_TRACK.EDUCATION_PROGRAM_COHORT.defaultItems,
         scopeDisciplineRule: 'BITE_SIZED_5MIN_AUDIO_NO_CUSTOM_APP',
         otherScopeDisciplineRuleText: '',
         whatWeRefuseToBuildInV1Narrative:
-          'In Version 1, we refuse to spend €25,000 and 6 months building a custom native iOS/Android app or recording 40 hours of academic lectures. Everything is delivered as 5-minute audio/video guides and printable visual schedules inside a mobile-ready web portal.',
+          'In Version 1, we refuse to spend months building a custom native mobile app or recording 40 hours of long-form lectures. All V1 value is delivered through concise 5-minute guides, practical templates, and live Q&A inside a mobile-ready web portal.',
         whyThisLeanV1WinsFasterNarrative:
-          'Launching our core 6-module sensory sleep toolkit and weekly live Q&A in under 4 weeks lets us help our first 50 families immediately, gather real 14-night sleep improvement data, and keep 97% gross margin via Stripe.',
-        lastSavedAt: nowIso,
-      };
-      setStep1Data(nextS1);
-      setStep2Data(nextS2);
-      setStep3Data(nextS3);
-      void onSaveStep1ProductVehicle(nextS1, 25);
-      void onSaveStep2ChannelMatrix(nextS2, 50);
-      persistStep3ScopeFilter(nextS3);
+          'Launching a focused toolkit in under 4 weeks lets us onboard our first 50 paying customers immediately, measure real customer outcomes, and retain 95%+ gross margin.',
+      });
       setSaveBanner(
-        'Loaded & saved Example #3: Autism Parent Sleep Educational Platform across Steps 1, 2 & 3 — Check Step 3 to see 5-Min Audio & Printables vs. Refused €25k Custom App!'
+        'Loaded sample Digital Program / Service V1 Scope Filter into Step 3 (Steps 1 & 2 untouched). Review and click Save Step 3 to persist.'
       );
     }
   };
@@ -5134,7 +5453,7 @@ export function ModuleDWorkspace({
         setActiveTab('STEP_3');
         setOpenStep(3);
         setTimeout(() => {
-          const el = document.getElementById('module-d-step-2');
+          const el = document.getElementById('module-d-step-3');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 50);
         setSaveBanner(
@@ -6359,6 +6678,10 @@ export function ModuleDWorkspace({
   const step4SecretSauceCount = step4Data.items.filter(
     (i) => i.tier === 'BUILD_IN_HOUSE'
   ).length;
+  const deduplicatedModDCosts = computeDeduplicatedModuleDCosts(
+    step4Data.items,
+    step5Data.workPackages
+  );
 
   const selectedTrackMeta =
     PRODUCT_TRACK_OPTIONS.find((t) => t.value === step1Data.productTrack) ||
@@ -6401,9 +6724,9 @@ export function ModuleDWorkspace({
       (i) => i.bucket !== 'MUST_HAVE_V1'
     ).length;
     const blendedFee = step2Data.estimatedBlendedFeePercent || 0;
-    const combinedPerUnitCogs = step4PerUnitTotal + step5PerUnitTotal;
-    const combinedMonthlyStack = step4MonthlyTotal + step5MonthlyTotal;
-    const combinedOneOffCapex = step4OneOffTotal + step5OneOffTotal;
+    const combinedPerUnitCogs = deduplicatedModDCosts.unitBuildCogs;
+    const combinedMonthlyStack = deduplicatedModDCosts.monthlyTechStackCost;
+    const combinedOneOffCapex = deduplicatedModDCosts.oneOffBuildCost;
     const isIe = plan.hqCountryCode === 'IE';
     const isUk = plan.hqCountryCode === 'GB';
 
@@ -6533,9 +6856,9 @@ export function ModuleDWorkspace({
         estimatedBlendedFeePercent: step2Data.estimatedBlendedFeePercent,
         v1MustHaveCount,
         v1HighEffortCount,
-        monthlyBurnTotal: step4MonthlyTotal + step5MonthlyTotal,
-        onceOffCapExTotal: step4OneOffTotal + step5OneOffTotal,
-        perUnitCogsTotal: step4PerUnitTotal + step5PerUnitTotal,
+        monthlyBurnTotal: deduplicatedModDCosts.monthlyTechStackCost,
+        onceOffCapExTotal: deduplicatedModDCosts.oneOffBuildCost,
+        perUnitCogsTotal: deduplicatedModDCosts.unitBuildCogs,
         workPackageCount: step5Data.workPackages.length,
         grantEligibleWpCount: step5GrantEligibleCount,
         currentBlindSpots: step6Data.blindSpots,
@@ -6596,9 +6919,9 @@ export function ModuleDWorkspace({
         estimatedBlendedFeePercent: step2Data.estimatedBlendedFeePercent,
         v1MustHaveCount,
         v1HighEffortCount,
-        monthlyBurnTotal: step4MonthlyTotal + step5MonthlyTotal,
-        onceOffCapExTotal: step4OneOffTotal + step5OneOffTotal,
-        perUnitCogsTotal: step4PerUnitTotal + step5PerUnitTotal,
+        monthlyBurnTotal: deduplicatedModDCosts.monthlyTechStackCost,
+        onceOffCapExTotal: deduplicatedModDCosts.oneOffBuildCost,
+        perUnitCogsTotal: deduplicatedModDCosts.unitBuildCogs,
         workPackageCount: step5Data.workPackages.length,
         grantEligibleWpCount: step5GrantEligibleCount,
         currentBlindSpots: step6Data.blindSpots,
@@ -7339,7 +7662,7 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  onClick={() => setActiveWhyStep((prev) => (prev === 1 ? null : 1))}
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
@@ -7349,7 +7672,7 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowExamples((prev) => !prev)}
+                  onClick={() => setActiveExampleStep((prev) => (prev === 1 ? null : 1))}
                   className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
                   <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
@@ -7370,7 +7693,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                       Auto-Draft V1 Narrative with AI
                     </>
                   )}
@@ -7383,7 +7706,7 @@ export function ModuleDWorkspace({
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
                 >
                   <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Park It
+                  Not Sure Yet? Park Question
                 </Button>
               </div>
             </div>
@@ -7406,8 +7729,52 @@ export function ModuleDWorkspace({
           </div>
 
 <div className="space-y-6">
+          {/* MODULE C VALIDATION SIGNAL BRIDGE (FINDING #23) */}
+          {(() => {
+            const allSurveys = plan.moduleCData?.surveys || [];
+            const allResponses = allSurveys.flatMap((s) => s.responses || []);
+            const realResponses = allResponses.filter((r) => !r.isSimulated);
+            const waitlistCount = realResponses.filter((r) => r.joinedWaitlist).length;
+            const interviewCount = plan.moduleCData?.interviewLogs?.length || 0;
+            if (realResponses.length === 0 && interviewCount === 0) return null;
+            return (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-2.5 text-xs text-emerald-950">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+                  <span>
+                    <strong>Customer Signal from Module C:</strong>{' '}
+                    <span className="font-mono tabular-nums font-bold">{realResponses.length}</span> survey{' '}
+                    {realResponses.length === 1 ? 'response' : 'responses'}
+                    {waitlistCount > 0 && (
+                      <>
+                        {' '}• <span className="font-mono tabular-nums font-bold">{waitlistCount}</span> early waitlist{' '}
+                        {waitlistCount === 1 ? 'lead' : 'leads'}
+                      </>
+                    )}
+                    {interviewCount > 0 && (
+                      <>
+                        {' '}• <span className="font-mono tabular-nums font-bold">{interviewCount}</span> customer{' '}
+                        {interviewCount === 1 ? 'interview' : 'interviews'}
+                      </>
+                    )}{' '}
+                    ready to keep Version 1 focused on what real buyers asked for.
+                  </span>
+                </div>
+                {onBackToModuleC && (
+                  <button
+                    type="button"
+                    onClick={onBackToModuleC}
+                    className="font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                  >
+                    Review Module C Insights &rarr;
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
           {/* LAYER 1: WHY ARE WE ASKING THIS? */}
-          {showWhyCard && (
+          {activeWhyStep === 1 && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-2xs">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
@@ -7433,11 +7800,49 @@ export function ModuleDWorkspace({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowWhyCard(false)}
+                  onClick={() => setActiveWhyStep(null)}
                   className="text-slate-400 hover:text-slate-600"
                 >
                   ✕
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* LAYER 1B: SHOW ME AN EXAMPLE (STEP 1) */}
+          {activeExampleStep === 1 && (
+            <div className="mt-3 space-y-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-bold text-emerald-950">
+                  Product Vehicle Examples Across 3 Business Types
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveExampleStep(null)}
+                  className="text-emerald-700 hover:text-emerald-950"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                  <div className="font-bold text-slate-900">1. Physical Brand / Food</div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    <strong>Core V1:</strong> 3 signature 250g coffee roasts sold via Shopify + wholesale 1kg bags for local cafés (deferring branded espresso pods &amp; custom tins to V2).
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                  <div className="font-bold text-slate-900">2. Local Service / Trade</div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    <strong>Core V1:</strong> Standardized 90-minute domestic heat-pump servicing visit booked online at a fixed €165 fee with an instant photo health-check report.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                  <div className="font-bold text-slate-900">3. B2B Software</div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    <strong>Core V1:</strong> Web dashboard that turns uploaded supplier PDFs into Xero-ready CSVs in 30 seconds (deferring native iOS/Android mobile apps to V2).
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -7469,7 +7874,7 @@ export function ModuleDWorkspace({
                     variant="outline"
                     className="border-slate-200 bg-emerald-50 text-[10px] text-emerald-800"
                   >
-                    <Sparkles className="mr-1 h-3 w-3" />
+                    <SlidersHorizontal className="mr-1 h-3 w-3" />
                     Auto-Matched from Modules A &amp; B
                   </Badge>
                 )}
@@ -7797,7 +8202,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       Draft Aha! Moment &amp; Rationale with AI
                     </>
                   )}
@@ -8205,11 +8610,21 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  onClick={() => setActiveWhyStep((prev) => (prev === 2 ? null : 2))}
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveExampleStep((prev) => (prev === 2 ? null : 2))}
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
                 </Button>
                 <Button
                   type="button"
@@ -8226,7 +8641,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                       Auto-Draft Rent-to-Own Bridge with AI
                     </>
                   )}
@@ -8239,7 +8654,7 @@ export function ModuleDWorkspace({
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
                 >
                   <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Park It
+                  Not Sure Yet? Park Question
                 </Button>
               </div>
             </div>
@@ -8263,7 +8678,7 @@ export function ModuleDWorkspace({
 
 <div className="space-y-6">
           {/* LAYER 1: WHY ARE WE ASKING THIS? (STEP 2) */}
-          {showWhyCard && (
+          {activeWhyStep === 2 && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-2xs">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
@@ -8292,11 +8707,49 @@ export function ModuleDWorkspace({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowWhyCard(false)}
+                  onClick={() => setActiveWhyStep(null)}
                   className="text-slate-400 hover:text-slate-600"
                 >
                   ✕
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* LAYER 1B: SHOW ME AN EXAMPLE (STEP 2) */}
+          {activeExampleStep === 2 && (
+            <div className="mt-3 space-y-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-bold text-emerald-950">
+                  Own vs. Rent Channel Examples (Protecting Your Margin)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveExampleStep(null)}
+                  className="text-emerald-700 hover:text-emerald-950"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                  <div className="font-bold text-slate-900">1. Physical Brand (70% Own / 30% Rent)</div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    70% Shopify + Farmers&apos; Markets (~2.5% fee) + 30% Etsy discovery (~10.5% fee). Every Etsy parcel includes a 15%-off QR card so reorder #2 happens directly on Shopify.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                  <div className="font-bold text-slate-900">2. Local Clinic / Café / Trade</div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    85% Google Business Profile direct online booking + tap-to-pay (~1.9% fee) + 15% local corporate/GP referrals (~0.5% fee) — avoiding 25% delivery/marketplace apps.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                  <div className="font-bold text-slate-900">3. B2B / Consumer Web SaaS</div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    80% Direct Web Stripe checkout (~2.9% fee) + 20% annual B2B invoices (~0.5% SEPA fee) — keeping 97%+ gross revenue instead of paying 30% mobile App Store fees.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -8831,7 +9284,7 @@ export function ModuleDWorkspace({
                         {showFeeExplainer && (
                           <div className="rounded-lg border border-slate-200 bg-white p-3 text-[11px] text-slate-700 space-y-1.5 shadow-2xs">
                             <div className="font-bold text-slate-950 flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                              <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
                               Why do we calculate an average &ldquo;Blended&rdquo; Fee?
                             </div>
                             <p className="text-slate-600 leading-relaxed">
@@ -9100,7 +9553,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       Draft Channel &amp; Bridge Strategy with AI
                     </>
                   )}
@@ -9164,7 +9617,13 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_1')}
+                    onClick={() => {
+                      setActiveTab('STEP_1');
+                      setOpenStep(1);
+                      setTimeout(() => {
+                        document.getElementById('module-d-step-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="border-slate-300 bg-white text-xs text-slate-700"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
@@ -9453,7 +9912,7 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  onClick={() => setActiveWhyStep((prev) => (prev === 3 ? null : 3))}
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
@@ -9463,7 +9922,7 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowExamples((prev) => !prev)}
+                  onClick={() => setActiveExampleStep((prev) => (prev === 3 ? null : 3))}
                   className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
                   <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
@@ -9484,7 +9943,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                       Auto-Calibrate Scope with AI
                     </>
                   )}
@@ -9497,7 +9956,7 @@ export function ModuleDWorkspace({
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
                 >
                   <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Park It
+                  Not Sure Yet? Park Question
                 </Button>
               </div>
             </div>
@@ -9537,13 +9996,13 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showWhyCard && (
+              {activeWhyStep === 3 && (
                 <div className="mt-3 rounded-xl border border-slate-100 bg-white/95 p-3.5 text-xs text-slate-700">
                   <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2 mb-2">
                     <span className="font-bold text-slate-950">💡 Scope Coaching &amp; Track Alignment</span>
                     <button
                       type="button"
-                      onClick={() => setShowWhyCard(false)}
+                      onClick={() => setActiveWhyStep(null)}
                       className="text-slate-400 hover:text-slate-600"
                     >
                       ✕
@@ -9568,6 +10027,8 @@ export function ModuleDWorkspace({
                       <p className="mt-1 leading-relaxed text-slate-600">
                         {step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM'
                           ? 'Because you selected Physical Product / Maker, Step 3 filters Hero SKUs, repeatable workshop jigs, and <2kg courier boxes—and blocks custom one-off dimensions that destroy batch margins.'
+                          : step1Data.productTrack === 'LOCAL_SERVICE_BRICK_MORTAR'
+                            ? 'Because you selected Local Service / Venue / Trade, Step 3 locks V1 to your flagship appointments or tight menu + online booking deposits—and parks heavy leases or menu bloat in V2.'
                           : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT'
                             ? 'Because you selected Education / Parent Support, Step 3 locks V1 to bite-sized 5-minute audio/video guides and printable routines—and parks €25,000 custom mobile apps in the V2 Icebox.'
                             : 'Because you selected Software / SaaS, Step 3 locks V1 to your 60-second browser Aha! workflow and Stripe checkout—and parks native mobile apps and enterprise SSO in the V2 Icebox.'}
@@ -9592,54 +10053,78 @@ export function ModuleDWorkspace({
                 </div>
               )}
 
-              {showExamples && (
-                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+              {activeExampleStep === 3 && (
+                <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-slate-800">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-emerald-950">
-                      🧪 1-Click Interactive Tester: Load Any of Our 3 Scenarios
-                      Into Step 3
+                    <span className="font-bold text-emerald-950">
+                      How 3 Different Founders Ruthlessly Cut Version 1 Scope
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleLoadScenarioPreset('BMU_SAAS')}
-                          className="h-7 border-emerald-300 bg-white text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
-                        >
-                          1. Load SaaS (Startup Preflight)
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleLoadScenarioPreset('WOODWORKER_AMAZON_ETSY')
-                          }
-                          className="h-7 border-amber-300 bg-white text-[11px] font-semibold text-amber-900 hover:bg-amber-50"
-                        >
-                          2. Load Woodworker (Amazon &amp; Etsy)
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleLoadScenarioPreset('AUTISM_SLEEP_EDUCATION')
-                          }
-                          className="h-7 border-emerald-400 bg-white text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
-                        >
-                          3. Load Autism Sleep Platform
-                        </Button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveExampleStep(null)}
+                      className="text-slate-500 hover:text-slate-800"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                    <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
+                      <div className="font-bold text-slate-900">
+                        1. B2B Web SaaS
                       </div>
-                      <button
+                      <p className="mt-1 text-[11px] text-slate-600">
+                        <strong>Must-Have V1:</strong> Web login, CSV import &amp; core compliance dashboard.{' '}
+                        <strong>Parked for V2:</strong> Native iOS/Android app &amp; custom ERP sync.
+                      </p>
+                      <Button
                         type="button"
-                        onClick={() => setShowExamples(false)}
-                        className="ml-1 text-slate-400 hover:text-slate-600"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleLoadScenarioPreset('BMU_SAAS')}
+                        className="mt-2 h-7 w-full border-emerald-200 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
                       >
-                        ✕
-                      </button>
+                        Try Sample SaaS Scope Items
+                      </Button>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
+                      <div className="font-bold text-slate-900">
+                        2. Physical Product / Maker
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-600">
+                        <strong>Must-Have V1:</strong> 2 Hero SKUs on standard jigs + 1 shipping box size.{' '}
+                        <strong>Parked for V2:</strong> Custom dimensions &amp; 10+ finishes.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleLoadScenarioPreset('WOODWORKER_AMAZON_ETSY')
+                        }
+                        className="mt-2 h-7 w-full border-emerald-200 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
+                      >
+                        Try Sample Physical SKU Items
+                      </Button>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200/80 bg-white p-3">
+                      <div className="font-bold text-slate-900">
+                        3. Digital Program / Service
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-600">
+                        <strong>Must-Have V1:</strong> Mobile web portal + 5-min guides &amp; weekly Q&amp;A.{' '}
+                        <strong>Parked for V2:</strong> €25k custom native app.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleLoadScenarioPreset('AUTISM_SLEEP_EDUCATION')
+                        }
+                        className="mt-2 h-7 w-full border-emerald-200 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
+                      >
+                        Try Sample Service Scope Items
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -10381,7 +10866,7 @@ export function ModuleDWorkspace({
               {showGuardrailWhyCard && (
                 <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/40 p-4 text-xs text-slate-700 shadow-2xs">
                   <div className="flex items-center gap-2 font-bold text-slate-950">
-                    <Sparkles className="h-4 w-4 text-emerald-700" />
+                    <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                     <span>Why Choose a Version 1 Scope Guardrail?</span>
                   </div>
                   <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
@@ -10524,7 +11009,7 @@ export function ModuleDWorkspace({
                       </>
                     ) : (
                       <>
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Draft Charter &amp; Grant Justification with AI
                       </>
                     )}
@@ -10584,7 +11069,13 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_2')}
+                    onClick={() => {
+                      setActiveTab('STEP_2');
+                      setOpenStep(2);
+                      setTimeout(() => {
+                        document.getElementById('module-d-step-2')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="border-slate-300 bg-white text-xs text-slate-700"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
@@ -10890,11 +11381,21 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  onClick={() => setActiveWhyStep((prev) => (prev === 4 ? null : 4))}
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveExampleStep((prev) => (prev === 4 ? null : 4))}
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
                 </Button>
                 <Button
                   type="button"
@@ -10911,8 +11412,8 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                      Auto-Draft Tech Stack with AI
+                      <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                      Auto-Draft Stack with AI
                     </>
                   )}
                 </Button>
@@ -10924,7 +11425,7 @@ export function ModuleDWorkspace({
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
                 >
                   <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Park It
+                  Not Sure Yet? Park Question
                 </Button>
               </div>
             </div>
@@ -10983,16 +11484,16 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowWhyCard((prev) => !prev)}
+                    onClick={() => setActiveWhyStep((prev) => (prev === 4 ? null : 4))}
                     className="border-slate-200 bg-slate-50 text-xs text-emerald-900 hover:bg-slate-100"
                   >
                     <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
-                    {showWhyCard ? 'Hide Why' : 'Why Ask This?'}
+                    {activeWhyStep === 4 ? 'Hide Why' : 'Why Ask This?'}
                   </Button>
                 </div>
               </div>
 
-              {showWhyCard && (
+              {activeWhyStep === 4 && (
                 <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs leading-relaxed text-slate-700">
                   <div className="flex items-start justify-between gap-2 border-b border-slate-100/70 pb-2 mb-2">
                     <span className="font-semibold text-slate-900">
@@ -11000,13 +11501,50 @@ export function ModuleDWorkspace({
                     </span>
                     <button
                       type="button"
-                      onClick={() => setShowWhyCard(false)}
+                      onClick={() => setActiveWhyStep(null)}
                       className="text-slate-400 hover:text-slate-600"
                     >
                       ✕
                     </button>
                   </div>
                   {activeStep4TrackConfig.whyAskingText}
+                </div>
+              )}
+
+              {activeExampleStep === 4 && (
+                <div className="mt-3 space-y-2.5 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-bold text-emerald-950">
+                      3-Tier Make/Build vs. Buy Examples
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveExampleStep(null)}
+                      className="text-emerald-700 hover:text-emerald-950"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                    <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                      <div className="font-bold text-slate-900">1. Physical Food / Maker</div>
+                      <p className="mt-1 text-[11px] leading-relaxed">
+                        <strong>Tier 1 (In-House):</strong> Signature recipe &amp; batch QA (€0 sweat equity). <strong>Tier 2 (Buy):</strong> Stock pouches + Shopify (€29/mo + €450 batch). <strong>Tier 3 (Partner):</strong> Shelf-life lab test (€350 once-off).
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                      <div className="font-bold text-slate-900">2. Local Clinic / Café / Trade</div>
+                      <p className="mt-1 text-[11px] leading-relaxed">
+                        <strong>Tier 1 (In-House):</strong> Clinical/trade SOPs &amp; client care. <strong>Tier 2 (Buy):</strong> Square/Cliniko booking + diagnostic kit (€35/mo + €1,800 kit). <strong>Tier 3 (Partner):</strong> Safety &amp; insurance sign-off.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200/80 bg-white p-3 text-slate-700">
+                      <div className="font-bold text-slate-900">3. B2B Web Software</div>
+                      <p className="mt-1 text-[11px] leading-relaxed">
+                        <strong>Tier 1 (In-House):</strong> Domain parser &amp; workflow UX (€0 sweat equity). <strong>Tier 2 (Buy):</strong> Vercel, Postgres &amp; Stripe (€45/mo). <strong>Tier 3 (Partner):</strong> GDPR pen-test review (€600 once-off).
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -11065,7 +11603,7 @@ export function ModuleDWorkspace({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                         Populate Board with AI
                       </>
                     )}
@@ -11464,7 +12002,7 @@ export function ModuleDWorkspace({
                       onClick={handleAiPopulateStep4Board}
                       className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                     >
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       Populate Build-vs-Buy Board with AI
                     </Button>
                   </div>
@@ -11736,9 +12274,27 @@ export function ModuleDWorkspace({
           <PlanQuotesTrackerCard
             planId={plan.id}
             baseCurrency={plan.baseCurrency}
-            categoryFilter="DEV_AGENCY"
+            categoryFilter={
+              step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+              step1Data.productTrack === 'LOCAL_SERVICE_BRICK_MORTAR' ||
+              step1Data.productTrack === 'HYBRID_HARDWARE_SOFTWARE'
+                ? 'EQUIPMENT_SUPPLIER'
+                : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT' ||
+                    step1Data.productTrack === 'PRODUCTIZED_SERVICE_AGENCY'
+                  ? 'NO_CODE_STUDIO'
+                  : 'DEV_AGENCY'
+            }
             onRequestNewQuotes={() => {
-              setQuoteModalCategory('DEV_AGENCY');
+              setQuoteModalCategory(
+                step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+                  step1Data.productTrack === 'LOCAL_SERVICE_BRICK_MORTAR' ||
+                  step1Data.productTrack === 'HYBRID_HARDWARE_SOFTWARE'
+                  ? 'EQUIPMENT_SUPPLIER'
+                  : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT' ||
+                      step1Data.productTrack === 'PRODUCTIZED_SERVICE_AGENCY'
+                    ? 'NO_CODE_STUDIO'
+                    : 'DEV_AGENCY'
+              );
               setIsQuoteModalOpen(true);
             }}
           />
@@ -11776,7 +12332,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-800" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-800" />
                       Draft IP &amp; Build-vs-Buy Charter with AI
                     </>
                   )}
@@ -11914,7 +12470,13 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_3')}
+                    onClick={() => {
+                      setActiveTab('STEP_3');
+                      setOpenStep(3);
+                      setTimeout(() => {
+                        document.getElementById('module-d-step-3')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="border-slate-300 bg-white text-xs text-slate-700"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
@@ -12181,8 +12743,11 @@ export function ModuleDWorkspace({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
-                    Step 5: Work Packages (WP1–WP4) & System Flow
+                    Step 5: 4-Step Launch Roadmap &amp; How Your Product Works
                   </h2>
+                  <Badge variant="outline" className="shrink-0 text-[10px] border-emerald-200 bg-emerald-50/70 text-emerald-800">
+                    Grant Work Packages (WP1–WP4)
+                  </Badge>
                   {moduleDReadinessSteps[4]?.isComplete ? (
                     <Badge variant="success" className="shrink-0 text-[10px]">
                       Completed
@@ -12229,10 +12794,10 @@ export function ModuleDWorkspace({
                   )}
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
-                  Step 5: Build Phases &amp; Milestones (Work Packages WP1–WP4) &amp; System Flow
+                  Step 5: 4-Step Launch Roadmap &amp; How Your Product Works
                 </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
-                  Step 5 of 6
+                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-emerald-200 bg-emerald-50">
+                  Grant Work Packages (WP1–WP4)
                 </Badge>
                 {moduleDReadinessSteps[4]?.isComplete ? (
                   <Badge variant="success" className="shrink-0 text-[10px]">
@@ -12245,7 +12810,7 @@ export function ModuleDWorkspace({
                 )}
               </div>
               <p className="mt-1 text-xs text-slate-600">
-                Grants like Innovate UK and LEO ask you to group your build plan into numbered &quot;Work Packages&quot; (e.g. Phase 1: Recipe/Prototype, Phase 2: Safety Testing, Phase 3: Launch).
+                Break your launch plan into 4 practical build phases (&quot;Work Packages&quot; for Innovate UK &amp; LEO grants) and map how an order or user flows from start to finish.
               </p>
 
               {/* Dedicated 4-Layer Support Strip */}
@@ -12254,7 +12819,7 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowWhyCard((prev) => !prev)}
+                  onClick={() => setActiveWhyStep((prev) => (prev === 5 ? null : 5))}
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
@@ -12264,7 +12829,7 @@ export function ModuleDWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowExamples((prev) => !prev)}
+                  onClick={() => setActiveExampleStep((prev) => (prev === 5 ? null : 5))}
                   className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
                   <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
@@ -12285,8 +12850,8 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                      Auto-Draft Work Packages with AI
+                      <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                      Calibrate 4-Phase Roadmap
                     </>
                   )}
                 </Button>
@@ -12298,7 +12863,7 @@ export function ModuleDWorkspace({
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
                 >
                   <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Park It
+                  Not Sure Yet? Park Question
                 </Button>
               </div>
             </div>
@@ -12328,8 +12893,7 @@ export function ModuleDWorkspace({
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="bg-emerald-700 text-[10px] text-white">
-                      Step 5 of 6 • Grant-Ready Work Packages (WP1–WP4) &amp;
-                      System Flow
+                      Step 5 of 6 • 4-Step Launch Roadmap (Grant Work Packages WP1–WP4)
                     </Badge>
                     <Badge
                       variant="outline"
@@ -12344,10 +12908,13 @@ export function ModuleDWorkspace({
                   <p className="text-xs leading-relaxed text-slate-700">
                     {activeStep5TrackConfig.whyThisMattersText}
                   </p>
+                  <p className="text-[11px] font-medium text-emerald-800">
+                    Zero Double-Counting Guardrail: Any build or tool budget carried over from Step 4 is automatically deduplicated when syncing into Module H, Module J, and Module L.
+                  </p>
                 </div>
               </div>
 
-              {showWhyCard && (
+              {activeWhyStep === 5 && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
                   <div className="flex items-start justify-between gap-2 border-b border-slate-100/70 pb-2 mb-2">
                     <span className="font-semibold text-slate-900">
@@ -12355,7 +12922,7 @@ export function ModuleDWorkspace({
                     </span>
                     <button
                       type="button"
-                      onClick={() => setShowWhyCard(false)}
+                      onClick={() => setActiveWhyStep(null)}
                       className="text-slate-400 hover:text-slate-600"
                     >
                       ✕
@@ -12367,7 +12934,7 @@ export function ModuleDWorkspace({
                 </div>
               )}
 
-              {showExamples && (
+              {activeExampleStep === 5 && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
                   <div className="flex items-start justify-between gap-2 border-b border-slate-100/70 pb-2 mb-2">
                     <span className="font-semibold text-slate-900">
@@ -12375,7 +12942,7 @@ export function ModuleDWorkspace({
                     </span>
                     <button
                       type="button"
-                      onClick={() => setShowExamples(false)}
+                      onClick={() => setActiveExampleStep(null)}
                       className="text-slate-400 hover:text-slate-600"
                     >
                       ✕
@@ -12442,7 +13009,7 @@ export function ModuleDWorkspace({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                         Populate Work Packages &amp; Flow with AI
                       </>
                     )}
@@ -12806,7 +13373,7 @@ export function ModuleDWorkspace({
                       onClick={handleAiPopulateStep5Board}
                       className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
                     >
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       Populate Work Packages &amp; Flow with AI
                     </Button>
                   </div>
@@ -13279,7 +13846,7 @@ export function ModuleDWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       Draft Technical Merit &amp; De-Risking Charter with AI
                     </>
                   )}
@@ -13408,9 +13975,27 @@ export function ModuleDWorkspace({
                 <PlanQuotesTrackerCard
                   planId={plan.id}
                   baseCurrency={plan.baseCurrency}
-                  categoryFilter="DEV_AGENCY"
+                  categoryFilter={
+                    step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+                    step1Data.productTrack === 'LOCAL_SERVICE_BRICK_MORTAR' ||
+                    step1Data.productTrack === 'HYBRID_HARDWARE_SOFTWARE'
+                      ? 'EQUIPMENT_SUPPLIER'
+                      : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT' ||
+                          step1Data.productTrack === 'PRODUCTIZED_SERVICE_AGENCY'
+                        ? 'NO_CODE_STUDIO'
+                        : 'DEV_AGENCY'
+                  }
                   onRequestNewQuotes={() => {
-                    setQuoteModalCategory('DEV_AGENCY');
+                    setQuoteModalCategory(
+                      step1Data.productTrack === 'PHYSICAL_PRODUCT_ECOM' ||
+                        step1Data.productTrack === 'LOCAL_SERVICE_BRICK_MORTAR' ||
+                        step1Data.productTrack === 'HYBRID_HARDWARE_SOFTWARE'
+                        ? 'EQUIPMENT_SUPPLIER'
+                        : step1Data.productTrack === 'EDUCATION_PROGRAM_COHORT' ||
+                            step1Data.productTrack === 'PRODUCTIZED_SERVICE_AGENCY'
+                          ? 'NO_CODE_STUDIO'
+                          : 'DEV_AGENCY'
+                    );
                     setIsQuoteModalOpen(true);
                   }}
                 />
@@ -13423,7 +14008,13 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_4')}
+                    onClick={() => {
+                      setActiveTab('STEP_4');
+                      setOpenStep(4);
+                      setTimeout(() => {
+                        document.getElementById('module-d-step-4')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="text-xs"
                   >
                     &larr; Back to Step 4
@@ -13808,7 +14399,7 @@ export function ModuleDWorkspace({
                         variant="outline"
                         className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
                       >
-                        <Sparkles className="mr-1 h-3 w-3" />
+                        <SlidersHorizontal className="mr-1 h-3 w-3" />
                         {step6Data.aiEngineUsed === 'gemini-2.5-flash'
                           ? 'Gemini 2.5 Flash'
                           : 'Smart Synthesizer'}
@@ -13838,7 +14429,7 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowWhyCard(!showWhyCard)}
+                    onClick={() => setActiveWhyStep((prev) => (prev === 6 ? null : 6))}
                     className="h-8 border-slate-200 bg-white text-xs text-emerald-800 hover:bg-emerald-50"
                   >
                     <HelpCircle className="mr-1 h-3.5 w-3.5" />
@@ -13848,7 +14439,7 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowExamples(!showExamples)}
+                    onClick={() => setActiveExampleStep((prev) => (prev === 6 ? null : 6))}
                     className="h-8 border-emerald-200 bg-white text-xs text-emerald-700 hover:bg-emerald-50"
                   >
                     <Lightbulb className="mr-1 h-3.5 w-3.5" />
@@ -13857,7 +14448,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showWhyCard && (
+              {activeWhyStep === 6 && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
                   <div className="font-bold text-slate-900">
                     💡 Why Step 6 Matters (Supportive Co-Founder Blind-Spot
@@ -13880,7 +14471,7 @@ export function ModuleDWorkspace({
                 </div>
               )}
 
-              {showExamples && (
+              {activeExampleStep === 6 && (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
                   <div className="font-bold text-emerald-900">
                     ✨ Example Constructive Blind-Spot &amp; Mitigation ({selectedTrackMeta.label})
@@ -13888,7 +14479,7 @@ export function ModuleDWorkspace({
                   <p className="mt-1 leading-relaxed text-emerald-900/90">
                     <strong>Heads-Up:</strong> &ldquo;Blended Channel Fee (
                     {step2Data.estimatedBlendedFeePercent}%) + Unit Delivery
-                    COGS ({formatPlanCurrency(step4PerUnitTotal + step5PerUnitTotal, plan.baseCurrency)}
+                    COGS ({formatPlanCurrency(deduplicatedModDCosts.unitBuildCogs, plan.baseCurrency)}
                     /unit) Margin Check.&rdquo; <br />
                     <strong>Founder Mitigation Note:</strong> &ldquo;We will
                     price our entry tier in Module H to maintain &gt;68% gross
@@ -13945,8 +14536,8 @@ export function ModuleDWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                          Audit Steps 1–5 &amp; Draft Brief with AI
+                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                          Audit Steps 1–5 &amp; Draft Brief
                         </>
                       )}
                     </Button>
@@ -13959,8 +14550,8 @@ export function ModuleDWorkspace({
                       onClick={handleAiDraftStep6SummaryOnly}
                       className="border-emerald-300 bg-emerald-50/80 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
                     >
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                      Draft Executive Summary Only with AI
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      Draft Executive Summary Only
                     </Button>
 
                     {(step6Data.blindSpots.length > 0 ||
@@ -14051,25 +14642,25 @@ export function ModuleDWorkspace({
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Step 4–5 • Build &amp; Unit Cost Roll-Up
+                    Step 4–5 • Deduplicated Build &amp; Unit Cost
                   </div>
-                  <div className="mt-1 text-xs font-bold text-slate-900">
+                  <div className="mt-1 font-mono tabular-nums text-xs font-bold text-slate-900">
                     {formatPlanCurrency(
-                      step4OneOffTotal + step5OneOffTotal,
+                      deduplicatedModDCosts.oneOffBuildCost,
                       plan.baseCurrency
                     )}{' '}
                     once-off •{' '}
                     {formatPlanCurrency(
-                      step4MonthlyTotal + step5MonthlyTotal,
+                      deduplicatedModDCosts.monthlyTechStackCost,
                       plan.baseCurrency
                     )}
                     /mo
                   </div>
-                  <div className="mt-0.5 text-[11px] text-emerald-700">
+                  <div className="mt-0.5 font-mono tabular-nums text-[11px] text-emerald-700">
                     Direct Unit COGS:{' '}
                     <strong>
                       {formatPlanCurrency(
-                        step4PerUnitTotal + step5PerUnitTotal,
+                        deduplicatedModDCosts.unitBuildCogs,
                         plan.baseCurrency
                       )}
                       /unit
@@ -14530,7 +15121,13 @@ export function ModuleDWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_5')}
+                    onClick={() => {
+                      setActiveTab('STEP_5');
+                      setOpenStep(5);
+                      setTimeout(() => {
+                        document.getElementById('module-d-step-5')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="text-xs"
                   >
                     &larr; Back to Step 5
@@ -14835,24 +15432,24 @@ export function ModuleDWorkspace({
 
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Steps 4–5 • Build &amp; Unit Cost Roll-Up
+                      Steps 4–5 • Deduplicated Build &amp; Unit Cost
                     </div>
-                    <div className="mt-1 text-xs font-bold text-slate-900">
+                    <div className="mt-1 font-mono tabular-nums text-xs font-bold text-slate-900">
                       {formatPlanCurrency(
-                        step4OneOffTotal + step5OneOffTotal,
+                        deduplicatedModDCosts.oneOffBuildCost,
                         plan.baseCurrency
                       )}{' '}
                       once-off •{' '}
                       {formatPlanCurrency(
-                        step4MonthlyTotal + step5MonthlyTotal,
+                        deduplicatedModDCosts.monthlyTechStackCost,
                         plan.baseCurrency
                       )}
                       /mo
                     </div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-emerald-700">
+                    <div className="mt-0.5 font-mono tabular-nums text-[11px] font-semibold text-emerald-700">
                       Direct Cost to Make &amp; Deliver 1 Sale (COGS):{' '}
                       {formatPlanCurrency(
-                        step4PerUnitTotal + step5PerUnitTotal,
+                        deduplicatedModDCosts.unitBuildCogs,
                         plan.baseCurrency
                       )}
                       /unit

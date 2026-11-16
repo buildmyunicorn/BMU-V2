@@ -38,6 +38,7 @@ import {
   ClipboardCheck,
   Layers,
   MessageSquareWarning,
+  SlidersHorizontal,
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ import {
   type SupportedCountryCode,
 } from '@/lib/localization';
 import { detectRecommendedProductTrack } from '@/components/workspace/module-d-workspace';
+import { extractModuleDCosts } from '@/lib/finance/cross-module-normalizer';
 import type {
   ActiveStartupPlan,
   ProductTrackType,
@@ -324,7 +326,7 @@ const FULFILLMENT_MODE_OPTIONS: Array<{
     value: 'HYBRID_AUTOMATED_PLUS_HUMAN',
     label: 'Hybrid: Automated Core + Human / Partner Concierge Step',
     subtitle:
-      'Core product is automated (e.g., Startup Preflight SaaS or digital portal), paired with a human/partner step like 3-Quote Concierge or group Q&A.',
+      'Core product is automated (e.g., cloud software or digital portal), paired with a lightweight human step like onboarding review or live Q&A.',
     badge: 'Hybrid Leverage',
   },
   {
@@ -435,10 +437,14 @@ const STAGE_OWNER_OPTIONS: Array<{
 
 function buildDefaultStep1DataForPlan(
   plan: ActiveStartupPlan,
-  selectedCountry: SupportedCountryCode
+  _selectedCountry: SupportedCountryCode
 ): OperationsBlueprintStep1Data {
   const saved = plan.moduleEData?.operationsBlueprint;
-  if (saved && saved.orderLifecycleStages && saved.orderLifecycleStages.length > 0) {
+  if (
+    saved &&
+    (saved.lastSavedAt ||
+      (saved.orderLifecycleStages && saved.orderLifecycleStages.length > 0))
+  ) {
     return {
       fulfillmentMode: saved.fulfillmentMode || 'HYBRID_AUTOMATED_PLUS_HUMAN',
       otherFulfillmentModeText: saved.otherFulfillmentModeText || '',
@@ -460,170 +466,84 @@ function buildDefaultStep1DataForPlan(
   const track =
     plan.moduleDData?.productVehicle?.productTrack ||
     detectRecommendedProductTrack(plan);
+  const isPhysical =
+    track === 'PHYSICAL_PRODUCT_ECOM' || track === 'HYBRID_HARDWARE_SOFTWARE';
+  const isService = track === 'PRODUCTIZED_SERVICE_AGENCY';
 
-  const combined = [
-    plan.title,
-    plan.oneLinerSummary,
-    plan.brainDumpText,
-    plan.conceptCanvas?.proposedSolution,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  const isWoodworker =
-    /wood|chopping board|cutting board|timber|joinery|carpenter|furniture|craft|artisan/.test(
-      combined
-    );
-  const isIE = selectedCountry === 'IE';
-  const courierLabel = isIE
-    ? 'An Post Advantage / DPD Ireland Tracked'
-    : 'Royal Mail Tracked 48 / DPD UK';
-
-  if (isWoodworker || track === 'PHYSICAL_PRODUCT_ECOM') {
-    return {
-      fulfillmentMode: 'IN_HOUSE_WORKSHOP_BATCH',
-      otherFulfillmentModeText: '',
-      turnaroundSla: 'STANDARD_CRAFT_CYCLE_3_7_DAYS',
-      otherTurnaroundSlaText: '',
-      capacityConstraint: 'EQUIPMENT_OR_CURE_BATCH_LIMIT',
-      otherCapacityConstraintText: '',
-      weeklyOpsHoursAllocated: 35,
-      orderLifecycleStages: [
-        {
-          id: 'stage-1',
-          stageNumber: 1,
-          stageTitle: '1. Order Trigger & Kiln-Dried Timber Selection',
-          ownerType: 'FOUNDER_MAKER',
-          whatHappensStepByStep:
-            'Shopify D2C or Craft Market order arrives; select kiln-dried hardwood (Walnut, Ash, Beech at 8%–10% moisture content) and rip-saw strips.',
-          toolsEquipmentOrSupplier:
-            'Shopify Webhook + Table Saw + Planer-Thicknesser (Kiln-Dried Timber Supplier)',
-          activeMinutesPerOrder: 15,
-          directVariableCostPerOrder: 18.5,
-        },
-        {
-          id: 'stage-2',
-          stageNumber: 2,
-          stageTitle: '2. Food-Safe Glue-Up & Parallel Clamp Curing',
-          ownerType: 'FOUNDER_MAKER',
-          whatHappensStepByStep:
-            'Assemble edge/end-grain board pattern with FDA food-safe waterproof glue (Titebond III) in parallel clamp rack (24hr passive cure).',
-          toolsEquipmentOrSupplier:
-            'Parallel Clamp Rack + Titebond III Food-Safe Waterproof Glue',
-          activeMinutesPerOrder: 15,
-          directVariableCostPerOrder: 1.8,
-        },
-        {
-          id: 'stage-3',
-          stageNumber: 3,
-          stageTitle: '3. Drum Sanding, CNC Juice Groove & Laser Engraving',
-          ownerType: 'FOUNDER_MAKER',
-          whatHappensStepByStep:
-            'Flatten board through dual-drum sander, CNC rout juice groove & handles, laser-engrave custom name/logo, and sand to 240-grit.',
-          toolsEquipmentOrSupplier:
-            'Dual-Drum Sander + CNC Router + Diode Laser + ATEX Dust Extractor',
-          activeMinutesPerOrder: 25,
-          directVariableCostPerOrder: 2.2,
-        },
-        {
-          id: 'stage-4',
-          stageNumber: 4,
-          stageTitle: '4. Food-Grade Mineral Oil Bath & Beeswax Buffing',
-          ownerType: 'FOUNDER_MAKER',
-          whatHappensStepByStep:
-            'Soak in USP food-grade mineral oil tank, drain, and hand-buff with local beeswax & carnauba board butter.',
-          toolsEquipmentOrSupplier:
-            'Stainless Dipping Tank + USP Mineral Oil + Beeswax Board Butter',
-          activeMinutesPerOrder: 10,
-          directVariableCostPerOrder: 2.5,
-        },
-        {
-          id: 'stage-5',
-          stageNumber: 5,
-          stageTitle: '5. 5-Point QC Check, Eco-Packaging & Tracked Courier',
-          ownerType: 'FOUNDER_MAKER',
-          whatHappensStepByStep:
-            'Verify flatness & engraving spelling, wrap in honeycomb kraft paper with care card & wax tin, and dispatch via tracked courier.',
-          toolsEquipmentOrSupplier: `Branded Kraft Box + ${courierLabel}`,
-          activeMinutesPerOrder: 8,
-          directVariableCostPerOrder: 9.5,
-        },
-      ],
-      endToEndFulfillmentNarrative: '',
-      scalingAndBottleneckDeRiskingNarrative: '',
-    };
-  }
-
-  // Default SaaS / Digital / Hybrid (Startup Preflight style)
   return {
-    fulfillmentMode: 'HYBRID_AUTOMATED_PLUS_HUMAN',
+    fulfillmentMode: isPhysical
+      ? 'IN_HOUSE_WORKSHOP_BATCH'
+      : isService
+        ? 'FOUNDER_LED_CONCIERGE_COHORT'
+        : 'HYBRID_AUTOMATED_PLUS_HUMAN',
     otherFulfillmentModeText: '',
-    turnaroundSla: 'INSTANT_UNDER_5_MINS',
+    turnaroundSla: isPhysical
+      ? 'STANDARD_CRAFT_CYCLE_3_7_DAYS'
+      : isService
+        ? 'BESPOKE_OR_SPRINT_2_4_WEEKS'
+        : 'INSTANT_UNDER_5_MINS',
     otherTurnaroundSlaText: '',
-    capacityConstraint: 'CLOUD_API_RATE_OR_INFRA_GUARDRAIL',
+    capacityConstraint: isPhysical
+      ? 'EQUIPMENT_OR_CURE_BATCH_LIMIT'
+      : 'FOUNDER_MANUAL_HOURS',
     otherCapacityConstraintText: '',
     weeklyOpsHoursAllocated: 25,
     orderLifecycleStages: [
       {
         id: 'stage-1',
         stageNumber: 1,
-        stageTitle: '1. Checkout / Voucher Redemption & Account Provisioning',
-        ownerType: 'AUTOMATED_SYSTEM',
-        whatHappensStepByStep:
-          'Founder completes Stripe checkout or redeems pass/cohort code; webhook updates user_entitlements and unlocks Modules A–K in <5 seconds.',
-        toolsEquipmentOrSupplier:
-          'Stripe Checkout + Better-Auth + PostgreSQL (Drizzle ORM)',
+        stageTitle: isPhysical
+          ? '1. Order Received & Material Preparation'
+          : isService
+            ? '1. Client Booking, Scope Sign-Off & Intake'
+            : '1. Customer Sign-Up, Checkout & Account Access',
+        ownerType: isPhysical || isService ? 'FOUNDER_MAKER' : 'AUTOMATED_SYSTEM',
+        whatHappensStepByStep: '',
+        toolsEquipmentOrSupplier: '',
         activeMinutesPerOrder: 0,
-        directVariableCostPerOrder: 2.05,
+        directVariableCostPerOrder: 0,
       },
       {
         id: 'stage-2',
         stageNumber: 2,
-        stageTitle: '2. Edge Geo-IP Localization & Guided Onboarding',
-        ownerType: 'AUTOMATED_SYSTEM',
-        whatHappensStepByStep:
-          'Next.js Edge Middleware pre-selects IE/GB country rules and currency; founder completes Module A Brain Dump & Concept Canvas.',
-        toolsEquipmentOrSupplier:
-          'Next.js Edge Middleware + Google Cloud Run + Cloud SQL',
+        stageTitle: isPhysical
+          ? '2. Core Production / Assembly Step'
+          : isService
+            ? '2. Discovery / Setup & Initial Build'
+            : '2. Workspace Setup & Guided Onboarding',
+        ownerType: isPhysical || isService ? 'FOUNDER_MAKER' : 'AUTOMATED_SYSTEM',
+        whatHappensStepByStep: '',
+        toolsEquipmentOrSupplier: '',
         activeMinutesPerOrder: 0,
-        directVariableCostPerOrder: 0.05,
+        directVariableCostPerOrder: 0,
       },
       {
         id: 'stage-3',
         stageNumber: 3,
-        stageTitle: '3. AI Co-Founder Synthesis & Hosted Validation Survey',
-        ownerType: 'AUTOMATED_SYSTEM',
-        whatHappensStepByStep:
-          'Founder builds Modules B–K with rate-limited Gemini 2.5 Flash/Pro synthesis and publishes live Mom-Test customer surveys.',
-        toolsEquipmentOrSupplier:
-          'Google GenAI SDK (router.ts 500/day guardrail) + Public Survey Engine',
+        stageTitle: isPhysical
+          ? '3. Finishing, Personalization & Quality Check'
+          : isService
+            ? '3. Core Deliverable Execution & Internal QA'
+            : '3. Core Product Value Delivery',
+        ownerType: isPhysical || isService ? 'FOUNDER_MAKER' : 'AUTOMATED_SYSTEM',
+        whatHappensStepByStep: '',
+        toolsEquipmentOrSupplier: '',
         activeMinutesPerOrder: 0,
-        directVariableCostPerOrder: 0.85,
+        directVariableCostPerOrder: 0,
       },
       {
         id: 'stage-4',
         stageNumber: 4,
-        stageTitle: '4. 3-Quote Concierge & Partner Marketplace Routing',
-        ownerType: 'PARTNER_CONCIERGE',
-        whatHappensStepByStep:
-          'When founder clicks "Request 3 LEO-Compliant Quotes", standardized RFP routes to vetted IE/UK partner agencies/suppliers within 48h SLA.',
-        toolsEquipmentOrSupplier:
-          'Startup Preflight 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
-        activeMinutesPerOrder: 5,
-        directVariableCostPerOrder: 0.0,
-      },
-      {
-        id: 'stage-5',
-        stageNumber: 5,
-        stageTitle: '5. Grant Pre-Flight Audit, Export & Living Vault Renewal',
-        ownerType: 'AUTOMATED_SYSTEM',
-        whatHappensStepByStep:
-          'Founder exports LEO / Innovate UK / Start Up Loans pack in Module K; Month-6 lifecycle check prompts €9/mo Grant Radar & Living Vault renewal.',
-        toolsEquipmentOrSupplier:
-          'Module K Grant Compiler + Resend Lifecycle Emails',
-        activeMinutesPerOrder: 2,
-        directVariableCostPerOrder: 0.05,
+        stageTitle: isPhysical
+          ? '4. Protective Packaging & Tracked Dispatch'
+          : isService
+            ? '4. Client Handover, Sign-Off & Follow-Up'
+            : '4. Customer Support, Check-In & Renewal',
+        ownerType: 'FOUNDER_MAKER',
+        whatHappensStepByStep: '',
+        toolsEquipmentOrSupplier: '',
+        activeMinutesPerOrder: 0,
+        directVariableCostPerOrder: 0,
       },
     ],
     endToEndFulfillmentNarrative: '',
@@ -871,22 +791,26 @@ function checkIsMobileOrLaptopAsset(
 
 function buildDefaultStep2DataForPlan(
   plan: ActiveStartupPlan,
-  selectedCountry: SupportedCountryCode
+  _selectedCountry: SupportedCountryCode
 ): PremisesAndEquipmentStep2Data {
   const saved = plan.moduleEData?.premisesAndEquipment;
-  if (saved && saved.equipmentItems && saved.equipmentItems.length > 0) {
+  if (
+    saved &&
+    (saved.lastSavedAt ||
+      (saved.equipmentItems && saved.equipmentItems.length > 0))
+  ) {
     return {
       premisesSetupMode:
         saved.premisesSetupMode || 'REMOTE_CLOUD_HOME_OFFICE',
       otherPremisesSetupModeText: saved.otherPremisesSetupModeText || '',
       premisesLocationSummary: saved.premisesLocationSummary || '',
       monthlyPremisesAndUtilitiesCost:
-        saved.monthlyPremisesAndUtilitiesCost ?? 95,
+        saved.monthlyPremisesAndUtilitiesCost ?? 0,
       premisesComplianceStatus:
         saved.premisesComplianceStatus || 'NO_PERMIT_REQUIRED_REMOTE',
       otherPremisesComplianceStatusText:
         saved.otherPremisesComplianceStatusText || '',
-      equipmentItems: saved.equipmentItems,
+      equipmentItems: saved.equipmentItems || [],
       premisesAndLocationJustificationNarrative:
         saved.premisesAndLocationJustificationNarrative || '',
       equipmentRoiAndGrantComplianceNarrative:
@@ -899,202 +823,21 @@ function buildDefaultStep2DataForPlan(
   const track =
     plan.moduleDData?.productVehicle?.productTrack ||
     detectRecommendedProductTrack(plan);
-
-  const combined = [
-    plan.title,
-    plan.oneLinerSummary,
-    plan.brainDumpText,
-    plan.conceptCanvas?.proposedSolution,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  const isWoodworker =
-    /wood|chopping board|cutting board|timber|joinery|carpenter|furniture|craft|artisan/.test(
-      combined
-    );
-  const isIE = selectedCountry === 'IE';
-  const isUK = selectedCountry === 'GB';
-
-  if (isWoodworker || track === 'PHYSICAL_PRODUCT_ECOM') {
-    return {
-      premisesSetupMode: 'HOME_GARAGE_GARDEN_WORKSHOP',
-      otherPremisesSetupModeText: '',
-      premisesLocationSummary:
-        '32m² Insulated Timber Workshop (Domestic Garage Conversion with 32A 230V Dedicated Breaker, Acoustic Insulation & ATEX Fine-Dust Extraction)',
-      monthlyPremisesAndUtilitiesCost: 185,
-      premisesComplianceStatus: 'EXEMPT_DOMESTIC_GARAGE_SHED',
-      otherPremisesComplianceStatusText: '',
-      equipmentItems: [
-        {
-          id: 'eq-wood-1',
-          assetName:
-            'Dual-Drum Thickness Sander (Jet JWDS-2244 / Laguna SuperMax)',
-          assetCategory: 'PRODUCTION_MACHINERY_TOOLS',
-          acquisitionMode: 'BUY_NEW_OUTRIGHT',
-          preferredSuppliersOrSpecs: isIE
-            ? '3 Quotes: McQuillan Tools (IE), Caulfield Industrial (IE), WH Raitt & Son (IE)'
-            : isUK
-              ? '3 Quotes: Axminster Tools (UK), Scott+Sargeant (UK), Charnwood Machinery (UK)'
-              : '3 Independent Written Machinery Supplier Quotes',
-          quantity: 1,
-          unitCostExVat: 2400,
-          totalCostExVat: 2400,
-          fundingSource: 'GRANT_50_MATCH',
-          quoteComplianceStatus: 'NEEDS_3_QUOTES_CONCIERGE',
-          conciergeQuotesRequested: false,
-          usefulLifeMonths: 60,
-          projectUsagePercent: 100,
-          isMobileOrLaptopIneligibleForLeoGrant: false,
-        },
-        {
-          id: 'eq-wood-2',
-          assetName:
-            'Desktop CNC Router + 20W Optical Diode Laser Engraver Module',
-          assetCategory: 'PRODUCTION_MACHINERY_TOOLS',
-          acquisitionMode: 'BUY_NEW_OUTRIGHT',
-          preferredSuppliersOrSpecs:
-            'Shapeoko 5 Pro / Onefinity Woodworker 4x2ft + JTech 20W Laser Module (3 Written Quotes >= 1,000)',
-          quantity: 1,
-          unitCostExVat: 3200,
-          totalCostExVat: 3200,
-          fundingSource: 'GRANT_50_MATCH',
-          quoteComplianceStatus: 'NEEDS_3_QUOTES_CONCIERGE',
-          conciergeQuotesRequested: false,
-          usefulLifeMonths: 48,
-          projectUsagePercent: 100,
-          isMobileOrLaptopIneligibleForLeoGrant: false,
-        },
-        {
-          id: 'eq-wood-3',
-          assetName:
-            'HEPA Cyclone Fine-Dust Extractor & Stainless Oil Dipping Tank',
-          assetCategory: 'SAFETY_EXTRACTION_FOOD_HYGIENE',
-          acquisitionMode: 'BUY_NEW_OUTRIGHT',
-          preferredSuppliersOrSpecs:
-            'CamVac / Record Power HPLV Sub-0.5 Micron HEPA Extractor + 304 Food-Grade Dipping Tank (< 1k Single Quote)',
-          quantity: 1,
-          unitCostExVat: 850,
-          totalCostExVat: 850,
-          fundingSource: 'GRANT_50_MATCH',
-          quoteComplianceStatus: 'UNDER_1K_SINGLE_QUOTE_OK',
-          conciergeQuotesRequested: false,
-          usefulLifeMonths: 60,
-          projectUsagePercent: 100,
-          isMobileOrLaptopIneligibleForLeoGrant: false,
-        },
-        {
-          id: 'eq-wood-4',
-          assetName:
-            'Heavy-Duty Parallel Clamp Rack (16 × Bessey K-Body Revo + Wall Rack)',
-          assetCategory: 'PACKAGING_BENCH_FIXTURES',
-          acquisitionMode: 'BUY_NEW_OUTRIGHT',
-          preferredSuppliersOrSpecs:
-            '16 × 1000mm Parallel Clamps enabling 12-board simultaneous 24h glue-ups (< 1k Single Quote)',
-          quantity: 1,
-          unitCostExVat: 640,
-          totalCostExVat: 640,
-          fundingSource: 'OWN_FUNDS_100',
-          quoteComplianceStatus: 'UNDER_1K_SINGLE_QUOTE_OK',
-          conciergeQuotesRequested: false,
-          usefulLifeMonths: 60,
-          projectUsagePercent: 100,
-          isMobileOrLaptopIneligibleForLeoGrant: false,
-        },
-        {
-          id: 'eq-wood-5',
-          assetName:
-            'Founder Laptop (MacBook Air — CAD Design & Shopify Admin)',
-          assetCategory: 'IT_LAPTOP_MOBILE_DEVICE',
-          acquisitionMode: 'ALREADY_OWNED_BYOD',
-          preferredSuppliersOrSpecs: isIE
-            ? 'Ring-fenced under 100% Own Funds / BYOD (excluded from IE LEO capital grant claim per Mobile Asset Ban)'
-            : 'Ring-fenced under 100% Own Funds / BYOD (0 new cash outlay)',
-          quantity: 1,
-          unitCostExVat: 1100,
-          totalCostExVat: 1100,
-          fundingSource: 'OWN_FUNDS_100',
-          quoteComplianceStatus: 'ALREADY_OWNED_EXEMPT',
-          conciergeQuotesRequested: false,
-          usefulLifeMonths: 36,
-          projectUsagePercent: 100,
-          isMobileOrLaptopIneligibleForLeoGrant: true,
-        },
-      ],
-      premisesAndLocationJustificationNarrative: '',
-      equipmentRoiAndGrantComplianceNarrative: '',
-    };
-  }
+  const isPhysical =
+    track === 'PHYSICAL_PRODUCT_ECOM' || track === 'HYBRID_HARDWARE_SOFTWARE';
 
   return {
-    premisesSetupMode: 'REMOTE_CLOUD_HOME_OFFICE',
+    premisesSetupMode: isPhysical
+      ? 'HOME_GARAGE_GARDEN_WORKSHOP'
+      : 'REMOTE_CLOUD_HOME_OFFICE',
     otherPremisesSetupModeText: '',
-    premisesLocationSummary: isIE
-      ? '100% Cloud-Native & Remote Home Office (Dublin, Ireland) — Hosted on Google Cloud Run & Cloud SQL (EU-West)'
-      : isUK
-        ? '100% Cloud-Native & Remote Home Office (London, UK) — Hosted on Google Cloud Run & Cloud SQL (UK/Europe)'
-        : '100% Cloud-Native & Remote Home Office — Hosted on Managed Cloud Run & Cloud SQL',
-    monthlyPremisesAndUtilitiesCost: 95,
-    premisesComplianceStatus: 'NO_PERMIT_REQUIRED_REMOTE',
+    premisesLocationSummary: '',
+    monthlyPremisesAndUtilitiesCost: 0,
+    premisesComplianceStatus: isPhysical
+      ? 'EXEMPT_DOMESTIC_GARAGE_SHED'
+      : 'NO_PERMIT_REQUIRED_REMOTE',
     otherPremisesComplianceStatusText: '',
-    equipmentItems: [
-      {
-        id: 'eq-bmu-1',
-        assetName:
-          'Founder Development Workstations (2 × MacBook Pro M3 — BYOD / Ring-Fenced)',
-        assetCategory: 'IT_LAPTOP_MOBILE_DEVICE',
-        acquisitionMode: 'ALREADY_OWNED_BYOD',
-        preferredSuppliersOrSpecs: isIE
-          ? 'Founder-owned laptops ring-fenced at 100% Own Funds (excluded from IE LEO capital grant claim per Mobile Asset Ban)'
-          : 'Founder-owned laptops ring-fenced at 100% Own Funds / BYOD (zero grant CapEx claimed)',
-        quantity: 2,
-        unitCostExVat: 1800,
-        totalCostExVat: 3600,
-        fundingSource: 'OWN_FUNDS_100',
-        quoteComplianceStatus: 'ALREADY_OWNED_EXEMPT',
-        conciergeQuotesRequested: false,
-        usefulLifeMonths: 36,
-        projectUsagePercent: 100,
-        isMobileOrLaptopIneligibleForLeoGrant: true,
-      },
-      {
-        id: 'eq-bmu-2',
-        assetName:
-          'Cross-Device Mobile QA & iOS Safari Viewport Test Rig (iPhone SE / iPad / Android)',
-        assetCategory: 'SPECIALIST_RND_TEST_RIG',
-        acquisitionMode: 'BUY_NEW_OUTRIGHT',
-        preferredSuppliersOrSpecs:
-          'Dedicated physical test bench for verifying 375px mobile survey & zero-zoom input compliance (< 1k Single Quote)',
-        quantity: 1,
-        unitCostExVat: 920,
-        totalCostExVat: 920,
-        fundingSource: 'OWN_FUNDS_100',
-        quoteComplianceStatus: 'UNDER_1K_SINGLE_QUOTE_OK',
-        conciergeQuotesRequested: false,
-        usefulLifeMonths: 36,
-        projectUsagePercent: 100,
-        isMobileOrLaptopIneligibleForLeoGrant: false,
-      },
-      {
-        id: 'eq-bmu-3',
-        assetName:
-          'Hardware Security Keys (YubiKey 5C NFC Pair) & Acoustic Demo Setup',
-        assetCategory: 'PACKAGING_BENCH_FIXTURES',
-        acquisitionMode: 'BUY_NEW_OUTRIGHT',
-        preferredSuppliersOrSpecs:
-          'FIDO2 Hardware MFA for Super-Admin / Cloud SQL production keys + Shure MV7 partner onboarding mic (< 1k Single Quote)',
-        quantity: 1,
-        unitCostExVat: 340,
-        totalCostExVat: 340,
-        fundingSource: 'OWN_FUNDS_100',
-        quoteComplianceStatus: 'UNDER_1K_SINGLE_QUOTE_OK',
-        conciergeQuotesRequested: false,
-        usefulLifeMonths: 36,
-        projectUsagePercent: 100,
-        isMobileOrLaptopIneligibleForLeoGrant: false,
-      },
-    ],
+    equipmentItems: [],
     premisesAndLocationJustificationNarrative: '',
     equipmentRoiAndGrantComplianceNarrative: '',
   };
@@ -1945,7 +1688,7 @@ function buildDefaultStep5DataForPlan(
         id: 'comp-1',
         category: 'CORPORATE_TAX_GRANT_CLEARANCE',
         requirementTitle: isIE
-          ? 'CRO Incorporation & Revenue eTax Clearance Certificate (TC2 via ROS)'
+          ? 'CRO Incorporation & Revenue Online Tax Clearance (TC2 via ROS.ie)'
           : isGB
             ? 'Companies House Incorporation & HMRC Corporation Tax UTR Registration'
             : 'Corporate Registration & Tax Clearance Certificate',
@@ -1966,7 +1709,7 @@ function buildDefaultStep5DataForPlan(
         id: 'comp-2',
         category: 'DATA_PRIVACY_GDPR_SECURITY',
         requirementTitle: isIE
-          ? 'EU GDPR Privacy Notice, ROPA & Data Processing Agreements (Irish Data Protection Act 2018)'
+          ? 'EU GDPR Privacy Notice, Data List (ROPA) & Data Processing Agreements'
           : isGB
             ? 'UK GDPR Compliance, Privacy Notice & Annual ICO Data Protection Fee Registration'
             : 'GDPR / Data Privacy Policy, Cookie Consent & Data Processing Agreements',
@@ -2315,12 +2058,17 @@ export function ModuleEWorkspace({
     return 'STEP_1';
   });
 
-  // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
+  // Step Accordion View State: auto-open active/first incomplete step on entry
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       return initialStep;
     }
-    return 0;
+    if (plan.currentModuleStep === 'MOD_E_STEP_6') return 6;
+    if (plan.currentModuleStep === 'MOD_E_STEP_5') return 5;
+    if (plan.currentModuleStep === 'MOD_E_STEP_4') return 4;
+    if (plan.currentModuleStep === 'MOD_E_STEP_3') return 3;
+    if (plan.currentModuleStep === 'MOD_E_STEP_2') return 2;
+    return 1;
   });
 
   // Handle deep-link scrolling and highlight
@@ -2450,6 +2198,10 @@ export function ModuleEWorkspace({
   const isFirstRenderStep3Ref = useRef(true);
   const isFirstRenderStep4Ref = useRef(true);
   const isFirstRenderStep5Ref = useRef(true);
+  const [openDepreciationIds, setOpenDepreciationIds] = useState<
+    Record<string, boolean>
+  >({});
+  const syncedModuleDCosts = extractModuleDCosts(plan.moduleDData);
 
   // Live computed Unit Operations & Weekly Capacity Metrics (Step 1)
   const totalActiveMinutesPerOrder = step1Data.orderLifecycleStages.reduce(
@@ -2527,6 +2279,18 @@ export function ModuleEWorkspace({
 
   function handleLoadPresetPersona(persona: 'BMU_SAAS' | 'WOODWORKER_BOARDS') {
     if (isVaultReadonly) return;
+    const hasExistingStep1Content = step1Data.orderLifecycleStages.some(
+      (st) => (st.whatHappensStepByStep || '').trim().length > 0
+    );
+    if (
+      hasExistingStep1Content &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Replace your current Step 1 order stages with this sample template?'
+      )
+    ) {
+      return;
+    }
     const isIE = selectedCountry === 'IE';
     const courierLabel = isIE
       ? 'An Post Advantage / DPD Ireland Tracked'
@@ -2608,7 +2372,7 @@ export function ModuleEWorkspace({
         aiEngineUsed: 'smart-synthesizer',
       });
       setSaveBanner(
-        '🪵 Loaded Artisan Woodworker (Chopping Boards) 5-stage operations blueprint! Click Save Step 1 below to persist.'
+        'Loaded Artisan Woodworker sample 5-stage operations blueprint! Edit to match your product, then click Save Step 1.'
       );
       return;
     }
@@ -2624,72 +2388,72 @@ export function ModuleEWorkspace({
       weeklyOpsHoursAllocated: 25,
       orderLifecycleStages: [
         {
-          id: `bmu-1-${Date.now()}`,
+          id: `saas-1-${Date.now()}`,
           stageNumber: 1,
-          stageTitle: '1. Checkout / Voucher Redemption & Account Provisioning',
+          stageTitle: '1. Online Subscription Checkout & Workspace Provisioning',
           ownerType: 'AUTOMATED_SYSTEM',
           whatHappensStepByStep:
-            'Founder purchases 6-Month Pass or redeems an Institutional Cohort code; Stripe webhook updates user_entitlements and unlocks Modules A–L in <5 seconds.',
+            'Customer completes online card checkout; billing webhook creates their isolated company workspace and sends instant login link in <10 seconds.',
           toolsEquipmentOrSupplier:
-            'Stripe Checkout + Better-Auth + PostgreSQL (Drizzle ORM)',
+            'Stripe Billing + Cloud Auth + Managed Database',
           activeMinutesPerOrder: 0,
-          directVariableCostPerOrder: 2.05,
+          directVariableCostPerOrder: 1.95,
         },
         {
-          id: `bmu-2-${Date.now()}`,
+          id: `saas-2-${Date.now()}`,
           stageNumber: 2,
-          stageTitle: '2. Edge Geo-IP Localization & Guided Onboarding',
+          stageTitle: '2. Self-Serve Data Import & Guided Setup Checklist',
           ownerType: 'AUTOMATED_SYSTEM',
           whatHappensStepByStep:
-            'Next.js Edge Middleware detects IE/GB region and pre-selects grant rules & currency; founder captures Module A Brain Dump & Concept Canvas.',
+            'Customer imports team roster / CSV records or connects calendar integration via a 3-step onboarding checklist.',
           toolsEquipmentOrSupplier:
-            'Next.js Edge Middleware + Google Cloud Run + Cloud SQL',
+            'Guided Onboarding Flow + Cloud Hosting',
           activeMinutesPerOrder: 0,
-          directVariableCostPerOrder: 0.05,
+          directVariableCostPerOrder: 0.15,
         },
         {
-          id: `bmu-3-${Date.now()}`,
+          id: `saas-3-${Date.now()}`,
           stageNumber: 3,
-          stageTitle: '3. AI Co-Founder Synthesis & Hosted Validation Survey',
+          stageTitle: '3. Automated Daily Workflow & Compliance Alerts',
           ownerType: 'AUTOMATED_SYSTEM',
           whatHappensStepByStep:
-            'Founder progresses through Modules B–K using rate-limited Gemini 2.5 Flash/Pro synthesis and hosts live Mom-Test validation surveys.',
+            'Platform runs automated scheduling/reporting rules and delivers email or mobile notifications to staff.',
           toolsEquipmentOrSupplier:
-            'Google GenAI SDK (router.ts 500/day ceiling) + Public Survey Engine',
+            'Cloud Worker Queue + Transactional Email / SMS API',
           activeMinutesPerOrder: 0,
-          directVariableCostPerOrder: 0.85,
+          directVariableCostPerOrder: 0.65,
         },
         {
-          id: `bmu-4-${Date.now()}`,
+          id: `saas-4-${Date.now()}`,
           stageNumber: 4,
-          stageTitle: '4. 3-Quote Concierge & Partner Marketplace Hand-Off',
-          ownerType: 'PARTNER_CONCIERGE',
+          stageTitle: '4. Optional 15-Minute Founder Onboarding Check-In',
+          ownerType: 'FOUNDER_MAKER',
           whatHappensStepByStep:
-            'Founder clicks "Request 3 LEO-Compliant Quotes"; standardized RFP specs route to vetted IE/UK partner agencies & equipment suppliers within 48h.',
+            'For annual B2B accounts, founder reviews initial setup on a 15-minute screen-share to ensure day-1 team adoption.',
           toolsEquipmentOrSupplier:
-            'Startup Preflight 3-Quote Concierge Engine + Vetted IE/UK Partner Network',
-          activeMinutesPerOrder: 5,
+            'Calendly + Video Call + Help Center Templates',
+          activeMinutesPerOrder: 8,
           directVariableCostPerOrder: 0.0,
         },
         {
-          id: `bmu-5-${Date.now()}`,
+          id: `saas-5-${Date.now()}`,
           stageNumber: 5,
-          stageTitle: '5. Grant Pre-Flight Audit, Export & Living Vault Renewal',
+          stageTitle: '5. Monthly Usage Digest, Support Triage & Renewal',
           ownerType: 'AUTOMATED_SYSTEM',
           whatHappensStepByStep:
-            'Founder compiles LEO / Innovate UK / Start Up Loans pack in Module K; Month-6 check prompts €9/mo Grant Radar & Living Vault subscription.',
+            'Automated monthly ROI summary email, self-serve invoice receipts, and proactive renewal health check.',
           toolsEquipmentOrSupplier:
-            'Module K Grant Compiler + Resend Lifecycle Emails',
+            'Stripe Customer Portal + Lifecycle Email Automation',
           activeMinutesPerOrder: 2,
-          directVariableCostPerOrder: 0.05,
+          directVariableCostPerOrder: 0.1,
         },
       ],
-      endToEndFulfillmentNarrative: `Startup Preflight operates an instant (<60 second) cloud fulfillment pipeline requiring only ${currencySymbol}3.00 in direct variable payment processing and AI token costs (COGS) per pass sold (~97.7% gross margin). Core onboarding, geo-localized grant matching, and 11-module synthesis are 100% automated on Google Cloud Run and PostgreSQL, reserving human operations strictly for 3-Quote Concierge RFP partner matching (7 mins average ops time per founder).`,
-      scalingAndBottleneckDeRiskingNarrative: `We scale from 100 to 5,000+ active founders without operational bottlenecks via three mechanisms: (1) a hard 500-call/day platform AI circuit breaker and deterministic smart-synthesizer fallback in router.ts, (2) 4-layer built-in self-serve coaching ('Why Are We Asking This?', industry examples, and 'Ask Preflight AI') keeping human support tickets below 5%, and (3) pre-contracted 48-hour quote turnaround SLAs across our vetted IE/UK supplier marketplace.`,
+      endToEndFulfillmentNarrative: `Our cloud platform operates an instant (<60 second) self-serve provisioning pipeline requiring ${currencySymbol}2.85 in direct payment processing, cloud hosting, and notification costs per active customer (~94% gross margin). Core workspace setup and daily workflow automation run autonomously in the cloud, reserving founder time strictly for optional 15-minute onboarding check-ins on annual B2B accounts.`,
+      scalingAndBottleneckDeRiskingNarrative: `We scale from 50 to 1,500+ customer accounts without linear headcount growth through self-serve CSV/integration onboarding, an inline searchable help center that resolves routine setup questions automatically, and automated usage alerts that flag accounts needing proactive customer-success outreach.`,
       aiEngineUsed: 'smart-synthesizer',
     });
     setSaveBanner(
-      '🚀 Loaded Startup Preflight (Cloud AI SaaS) 5-stage operations blueprint! Click Save Step 1 below to persist.'
+      'Loaded Cloud B2B SaaS sample 5-stage operations blueprint! Edit to match your workflow, then click Save Step 1.'
     );
   }
 
@@ -2833,6 +2597,15 @@ export function ModuleEWorkspace({
     persona: 'BMU_SAAS' | 'WOODWORKER_BOARDS'
   ) {
     if (isVaultReadonly) return;
+    if (
+      step2Data.equipmentItems.length > 0 &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Replace your current Step 2 premises & equipment items with this sample schedule?'
+      )
+    ) {
+      return;
+    }
     const isIE = selectedCountry === 'IE';
     const isUK = selectedCountry === 'GB';
     const currencySymbol = plan.baseCurrency === 'GBP' ? '£' : '€';
@@ -2951,7 +2724,7 @@ export function ModuleEWorkspace({
         aiEngineUsed: 'smart-synthesizer',
       });
       setSaveBanner(
-        '🪵 Loaded Artisan Woodworker (Chopping Boards) Premises & Grant-Ready Equipment Schedule! Click Save Step 2 below to persist.'
+        'Loaded Artisan Woodworker sample premises & equipment schedule! Edit to match your workshop, then click Save Step 2.'
       );
       return;
     }
@@ -2960,26 +2733,26 @@ export function ModuleEWorkspace({
       premisesSetupMode: 'REMOTE_CLOUD_HOME_OFFICE',
       otherPremisesSetupModeText: '',
       premisesLocationSummary: isIE
-        ? '100% Cloud-Native & Remote Home Office (Dublin, Ireland) — Hosted on Google Cloud Run & Cloud SQL (EU-West)'
+        ? '100% Remote Home Office & EU-West Managed Cloud Infrastructure (Ireland)'
         : isUK
-          ? '100% Cloud-Native & Remote Home Office (London, UK) — Hosted on Google Cloud Run & Cloud SQL (UK/Europe)'
-          : '100% Cloud-Native & Remote Home Office — Hosted on Managed Cloud Run & Cloud SQL',
+          ? '100% Remote Home Office & UK/EU Managed Cloud Infrastructure (UK)'
+          : '100% Remote Home Office & Managed Cloud Infrastructure',
       monthlyPremisesAndUtilitiesCost: 95,
       premisesComplianceStatus: 'NO_PERMIT_REQUIRED_REMOTE',
       otherPremisesComplianceStatusText: '',
       equipmentItems: [
         {
-          id: `eq-bmu-1-${Date.now()}`,
+          id: `eq-saas-1-${Date.now()}`,
           assetName:
-            'Founder Development Workstations (2 × MacBook Pro M3 — BYOD / Ring-Fenced)',
+            'Founder Laptops (2 × Development Workstations — BYOD / Ring-Fenced)',
           assetCategory: 'IT_LAPTOP_MOBILE_DEVICE',
           acquisitionMode: 'ALREADY_OWNED_BYOD',
           preferredSuppliersOrSpecs: isIE
             ? 'Founder-owned laptops ring-fenced at 100% Own Funds (excluded from IE LEO capital grant claim per Mobile Asset Ban)'
             : 'Founder-owned laptops ring-fenced at 100% Own Funds / BYOD (zero grant CapEx claimed)',
           quantity: 2,
-          unitCostExVat: 1800,
-          totalCostExVat: 3600,
+          unitCostExVat: 1500,
+          totalCostExVat: 3000,
           fundingSource: 'OWN_FUNDS_100',
           quoteComplianceStatus: 'ALREADY_OWNED_EXEMPT',
           conciergeQuotesRequested: false,
@@ -2988,34 +2761,16 @@ export function ModuleEWorkspace({
           isMobileOrLaptopIneligibleForLeoGrant: true,
         },
         {
-          id: `eq-bmu-2-${Date.now()}`,
+          id: `eq-saas-2-${Date.now()}`,
           assetName:
-            'Cross-Device Mobile QA & iOS Safari Viewport Test Rig (iPhone SE / iPad / Android)',
-          assetCategory: 'SPECIALIST_RND_TEST_RIG',
-          acquisitionMode: 'BUY_NEW_OUTRIGHT',
-          preferredSuppliersOrSpecs:
-            'Dedicated physical test bench for verifying 375px mobile survey (/v/[slug]) & zero-zoom input compliance (< 1k Single Quote)',
-          quantity: 1,
-          unitCostExVat: 920,
-          totalCostExVat: 920,
-          fundingSource: 'OWN_FUNDS_100',
-          quoteComplianceStatus: 'UNDER_1K_SINGLE_QUOTE_OK',
-          conciergeQuotesRequested: false,
-          usefulLifeMonths: 36,
-          projectUsagePercent: 100,
-          isMobileOrLaptopIneligibleForLeoGrant: false,
-        },
-        {
-          id: `eq-bmu-3-${Date.now()}`,
-          assetName:
-            'Hardware Security Keys (YubiKey 5C NFC Pair) & Acoustic Demo Setup',
+            'Customer Demo & Onboarding Audio/Display Kit (4K Monitor + USB Mic)',
           assetCategory: 'PACKAGING_BENCH_FIXTURES',
           acquisitionMode: 'BUY_NEW_OUTRIGHT',
           preferredSuppliersOrSpecs:
-            'FIDO2 Hardware MFA for Super-Admin / Cloud SQL production keys + Shure MV7 partner onboarding mic (< 1k Single Quote)',
+            'External 27" monitor and broadcast USB microphone for B2B product demos (< 1k Single Quote)',
           quantity: 1,
-          unitCostExVat: 340,
-          totalCostExVat: 340,
+          unitCostExVat: 580,
+          totalCostExVat: 580,
           fundingSource: 'OWN_FUNDS_100',
           quoteComplianceStatus: 'UNDER_1K_SINGLE_QUOTE_OK',
           conciergeQuotesRequested: false,
@@ -3024,20 +2779,14 @@ export function ModuleEWorkspace({
           isMobileOrLaptopIneligibleForLeoGrant: false,
         },
       ],
-      premisesAndLocationJustificationNarrative: isIE
-        ? `Startup Preflight operates a 100% cloud-native, remote-first architecture from Dublin with ${currencySymbol}95/month in utility and cloud-staging overhead. By avoiding fixed commercial office leases during Year 1, 100% of working capital is directed into product engineering, vetted Irish partner onboarding, and founder customer acquisition.`
-        : isUK
-          ? `Startup Preflight operates a 100% cloud-native, remote-first architecture from London with ${currencySymbol}95/month in utility and cloud-staging overhead. By avoiding fixed commercial office leases during Year 1, 100% of working capital is directed into product engineering, vetted UK partner onboarding, and founder customer acquisition.`
-          : `Startup Preflight operates a 100% cloud-native, remote-first architecture with ${currencySymbol}95/month in utility and cloud-staging overhead, avoiding fixed commercial office lease liabilities during Year 1.`,
+      premisesAndLocationJustificationNarrative: `We operate a 100% remote-first home-office setup with ${currencySymbol}95/month in broadband and utility contribution, avoiding fixed commercial office lease commitments in Year 1 so working capital stays focused on product delivery and customer acquisition.`,
       equipmentRoiAndGrantComplianceNarrative: isIE
-        ? `Our ${currencySymbol}4,860 equipment schedule (${currencySymbol}1,260 in new cash outlay) is 100% self-funded and compliant with IE LEO capital rules. Both founder MacBook Pro development workstations (${currencySymbol}3,600 BYOD) are explicitly ring-fenced under 100% Own Funds so zero general-purpose laptops are claimed against IE LEO capital grants, while our ${currencySymbol}920 cross-device mobile QA rig and ${currencySymbol}340 FIDO2 hardware security keys fall below the ${currencySymbol}1,000 3-quote threshold.`
-        : isUK
-          ? `Our ${currencySymbol}4,860 equipment schedule (${currencySymbol}1,260 in new cash outlay) is 100% self-funded and compliant with UK Innovate UK and British Business Bank Start Up Loan capital rules. Both founder MacBook Pro development workstations (${currencySymbol}3,600 BYOD) are ring-fenced under 100% Own Funds with zero grant claim, while our ${currencySymbol}920 cross-device mobile QA rig and ${currencySymbol}340 FIDO2 hardware security keys fall below the ${currencySymbol}1,000 3-quote threshold.`
-          : `Our ${currencySymbol}4,860 equipment schedule (${currencySymbol}1,260 in new cash outlay) is 100% self-funded under 100% Own Funds, with both founder development workstations contributed as BYOD equity assets.`,
+        ? `Our ${currencySymbol}3,580 equipment schedule (${currencySymbol}580 in new cash outlay) is 100% self-funded and compliant with IE LEO capital rules. Both founder laptops (${currencySymbol}3,000 BYOD) are explicitly ring-fenced under 100% Own Funds so zero general-purpose laptops are claimed against IE LEO capital grants.`
+        : `Our ${currencySymbol}3,580 equipment schedule (${currencySymbol}580 in new cash outlay) is 100% self-funded under Own Funds, with existing founder laptops contributed as BYOD assets at zero new cash cost.`,
       aiEngineUsed: 'smart-synthesizer',
     });
     setSaveBanner(
-      '🚀 Loaded Startup Preflight (Cloud AI SaaS) Premises & Ring-Fenced Equipment Schedule! Click Save Step 2 below to persist.'
+      'Loaded Cloud B2B SaaS sample premises & ring-fenced IT schedule! Edit to match your setup, then click Save Step 2.'
     );
   }
 
@@ -3106,13 +2855,10 @@ export function ModuleEWorkspace({
 
   function handleRemoveEquipmentItem(itemId: string) {
     if (isVaultReadonly) return;
-    setStep2Data((prev) => {
-      if (prev.equipmentItems.length <= 1) return prev;
-      return {
-        ...prev,
-        equipmentItems: prev.equipmentItems.filter((i) => i.id !== itemId),
-      };
-    });
+    setStep2Data((prev) => ({
+      ...prev,
+      equipmentItems: prev.equipmentItems.filter((i) => i.id !== itemId),
+    }));
   }
 
   function handleRingFenceMobileAssetsForLeo() {
@@ -4652,96 +4398,71 @@ export function ModuleEWorkspace({
         </div>
       ) : (
         <div id="module-e-step-1" className="scroll-mt-24 space-y-4">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    moduleEReadinessSteps[0]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {moduleEReadinessSteps[0]?.isComplete ? (
-                    <Check className="h-4 w-4 stroke-[3]" />
-                  ) : (
-                    '1'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 1: Day in the Life of an Order
-                </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
-                  Step 1 of 6
-                </Badge>
-                {moduleEReadinessSteps[0]?.isComplete ? (
-                  <Badge variant="success" className="shrink-0 text-[10px]">
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                    In Progress
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Walk through what happens the moment a customer clicks "Buy"—who does what, which tools/machines are used, hands-on maker minutes, and unit delivery COGS.
-              </p>
-            </div>
-
-            {openStep !== 'ALL' && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenStep(0);
-                }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
-              >
-                <span>Collapse Step</span>
-                <ChevronUp className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
           <div className="space-y-5">
           {/* Top Context & 4-Layer Support Toolbar */}
           <Card className="border-slate-200 bg-white shadow-xs">
-            <CardHeader className="border-b border-slate-100 pb-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-slate-100 text-emerald-900">
-                    Step 1 of 6
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-slate-300 bg-slate-50 text-[11px] text-slate-700"
-                  >
-                    Synced from Module D:{' '}
-                    {inheritedTrack === 'OTHER' && inheritedOtherTrackText
-                      ? inheritedOtherTrackText
-                      : inheritedTrack.replace(/_/g, ' ')}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-800"
-                  >
-                    Auto-Feeds Module G Unit Economics (COGS &amp; Mins/Order)
-                  </Badge>
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                        moduleEReadinessSteps[0]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-900 text-white'
+                      }`}
+                    >
+                      {moduleEReadinessSteps[0]?.isComplete ? (
+                        <Check className="h-4 w-4 stroke-[3]" />
+                      ) : (
+                        '1'
+                      )}
+                    </span>
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Step 1: &ldquo;A Day in the Life of an Order&rdquo;
+                    </CardTitle>
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
+                      Step 1 of 6
+                    </Badge>
+                    {moduleEReadinessSteps[0]?.isComplete ? (
+                      <Badge variant="success" className="shrink-0 text-[10px]">
+                        Completed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                        In Progress
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800"
+                    >
+                      Auto-Feeds Module H Unit Economics (COGS &amp; Mins/Order)
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-xs text-slate-600">
+                    Walk through what happens the moment a customer clicks &ldquo;Buy&rdquo; or books—who does what, which tools or machines are used, how many hands-on minutes it takes, and what each order costs to deliver.
+                  </CardDescription>
                 </div>
-                <CardTitle className="mt-1.5 text-base font-bold text-slate-900 sm:text-lg">
-                  1. &ldquo;A Day in the Life of an Order&rdquo; — End-to-End
-                  Fulfillment Blueprint
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-600">
-                  Walk through what happens the moment a customer clicks
-                  &ldquo;Buy&rdquo;—who does what, which tools or machines are
-                  used, how many hands-on minutes it takes, and what each
-                  order costs to deliver.
-                </CardDescription>
 
+                {openStep !== 'ALL' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenStep(0);
+                    }}
+                    className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    <span>Collapse Step</span>
+                    <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div>
                 {/* Dedicated 4-Layer Support Strip directly under title/description */}
                 <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                   <Button
@@ -4854,7 +4575,7 @@ export function ModuleEWorkspace({
                               : 'bg-white text-slate-900 border border-emerald-300'
                           }`}
                         >
-                          🚀 Startup Preflight (Cloud AI SaaS)
+                          💻 Cloud B2B SaaS Platform
                         </button>
                       </div>
                       <Button
@@ -4896,27 +4617,25 @@ export function ModuleEWorkspace({
                   ) : (
                     <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-slate-700">
                       <div className="font-bold text-slate-900">
-                        Startup Preflight — Cloud AI Co-Founder &amp;
-                        Grant Platform
+                        ShiftPulse — B2B Staff Scheduling &amp; Compliance SaaS
                       </div>
                       <p>
-                        <strong>Operating Mode:</strong> Hybrid Automated Cloud +
-                        3-Quote Partner Concierge •{' '}
+                        <strong>Operating Mode:</strong> Automated Cloud
+                        Provisioning + 15-Min Annual B2B Check-In •{' '}
                         <strong>Turnaround SLA:</strong> Instant (&lt; 60s
-                        Workspace Unlock; &lt; 48h Partner Quotes) •{' '}
-                        <strong>Bottleneck:</strong> 500 Calls/Day Gemini Ceiling
-                        &amp; Partner Quote SLA
+                        Workspace Provisioning) •{' '}
+                        <strong>Bottleneck:</strong> Annual B2B Onboarding
+                        Check-In Hours
                       </p>
                       <p>
-                        <strong>5 Stages:</strong> (1) Stripe / Voucher checkout
-                        unlocks `user_entitlements` (`0m`, `€2.05`) &rarr; (2)
-                        Edge Geo-IP localization &amp; Module A (`0m`, `€0.05`)
-                        &rarr; (3) AI-guided Modules B–K + public survey
-                        hosting (`0m`, `€0.85`) &rarr; (4) 3-Quote Concierge RFP
-                        routing to IE/UK partners (`5m`, `€0.00`) &rarr; (5)
-                        Module K Grant Audit &amp; Month-6 Vault renewal (`2m`,
-                        `€0.05`).{' '}
-                        <strong>Total: 7 mins/customer &amp; €3.00 COGS.</strong>
+                        <strong>5 Stages:</strong> (1) Stripe checkout creates
+                        company workspace (`0m`, `€1.95`) &rarr; (2) Self-serve
+                        CSV team import &amp; setup checklist (`0m`, `€0.15`)
+                        &rarr; (3) Automated daily rota &amp; compliance alerts
+                        (`0m`, `€0.65`) &rarr; (4) Optional 15-min onboarding
+                        screen-share (`8m`, `€0.00`) &rarr; (5) Monthly ROI
+                        digest &amp; self-serve billing (`2m`, `€0.10`).{' '}
+                        <strong>Total: 10 mins/customer &amp; €2.85 COGS.</strong>
                       </p>
                     </div>
                   )}
@@ -5166,9 +4885,23 @@ export function ModuleEWorkspace({
                     </h3>
                     <p className="text-[11px] text-slate-500">
                       Edit each operational step below. Hands-on minutes and
-                      direct variable costs (COGS) automatically total at the
-                      bottom and feed into Module G.
+                      incremental order fulfillment costs automatically total at the
+                      bottom and feed into Module H.
                     </p>
+                    {syncedModuleDCosts.unitBuildCogs > 0 && (
+                      <p className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50/80 px-2 py-0.5 text-[11px] font-medium text-emerald-900">
+                        <Info className="h-3 w-3 shrink-0 text-emerald-700" />
+                        Synced from Module D:{' '}
+                        <span className="font-mono tabular-nums font-bold">
+                          {formatPlanCurrency(
+                            syncedModuleDCosts.unitBuildCogs,
+                            plan.baseCurrency
+                          )}
+                          /unit
+                        </span>{' '}
+                        build COGS. Enter ONLY extra packing, postage, or order-fulfillment costs below so unit costs aren&apos;t counted twice.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -5189,8 +4922,8 @@ export function ModuleEWorkspace({
                         </>
                       ) : (
                         <>
-                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                          AI Generate 5-Stage Blueprint
+                          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                          Calibrate 5-Stage Blueprint
                         </>
                       )}
                     </Button>
@@ -5356,7 +5089,7 @@ export function ModuleEWorkspace({
 
                           <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                             <label className="block text-[10px] font-bold uppercase text-slate-600">
-                              💶 Direct Variable Cost ({plan.baseCurrency})
+                              Extra Fulfillment Cost ({plan.baseCurrency})
                             </label>
                             <div className="mt-1 flex items-center gap-1.5">
                               <input
@@ -5399,7 +5132,7 @@ export function ModuleEWorkspace({
                       variant="outline"
                       className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-900"
                     >
-                      Synced to Module G Unit Economics &amp; Module I Cashflow
+                      Synced to Module H Unit Economics &amp; Module J Cashflow
                     </Badge>
                   </div>
 
@@ -5503,7 +5236,7 @@ export function ModuleEWorkspace({
                     onClick={() => handleRunAiStep1('NARRATIVES_ONLY')}
                     className="border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Synthesize Narratives from My Stages
                   </Button>
                 </div>
@@ -5798,83 +5531,68 @@ export function ModuleEWorkspace({
         </div>
       ) : (
         <div id="module-e-step-2" className="scroll-mt-24 space-y-4">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    moduleEReadinessSteps[1]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {moduleEReadinessSteps[1]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
-                  ) : (
-                    '2'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 2: Premises, Equipment & 3 Quotes
-                </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
-                  Step 2 of 6
-                </Badge>
-                {moduleEReadinessSteps[1]?.isComplete ? (
-                  <Badge variant="success" className="shrink-0 text-[10px]">
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                    In Progress
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Define your operating premises, schedule capital equipment items, and enforce IE LEO 3-quote rules and mobile asset/laptop ban guardrails.
-              </p>
-            </div>
-
-            {openStep !== 'ALL' && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenStep(0);
-                }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
-              >
-                <span>Collapse Step</span>
-                <ChevronUp className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
           <div className="space-y-5">
           {/* Top Context & 4-Layer Built-In Support Card */}
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
               <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-emerald-700 text-white">
-                    Step 2 of 6 • Premises, Equipment &amp; 3-Quote Schedule
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
-                  >
-                    {selectedCountry === 'IE'
-                      ? '🇮🇪 IE LEO 3-Quote (>= €1,000) & Mobile Asset / Laptop Ban Guardrails Active'
-                      : selectedCountry === 'GB'
-                        ? '🇬🇧 UK Innovate UK Capital Usage Depreciation & Start Up Loan Rules Active'
-                        : '🌍 Capex, 3-Quote Procurement & Grant Eligibility Guardrails Active'}
-                  </Badge>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                        moduleEReadinessSteps[1]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-900 text-white'
+                      }`}
+                    >
+                      {moduleEReadinessSteps[1]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5 stroke-[3]" />
+                      ) : (
+                        '2'
+                      )}
+                    </span>
+                    <Badge className="bg-emerald-700 text-white">
+                      Step 2 of 6 • Premises, Equipment &amp; 3-Quote Schedule
+                    </Badge>
+                    {moduleEReadinessSteps[1]?.isComplete ? (
+                      <Badge variant="success" className="shrink-0 text-[10px]">
+                        Completed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                        In Progress
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
+                    >
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪 IE LEO 3-Quote (>= €1,000) & Mobile Asset / Laptop Ban Guardrails Active'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧 UK Innovate UK Capital Usage Depreciation & Start Up Loan Rules Active'
+                          : '🌍 Capex, 3-Quote Procurement & Grant Eligibility Guardrails Active'}
+                    </Badge>
+                  </div>
+
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenStep(0);
+                      }}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                    >
+                      <span>Collapse Step</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-                <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
-                  Where Do You Work &amp; What Machinery / Equipment Powers Your
-                  Output?
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Step 2: Where Do You Work &amp; What Equipment Powers Your Output?
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-600">
                   {selectedCountry === 'IE' ? (
@@ -6124,7 +5842,7 @@ export function ModuleEWorkspace({
                     <div className="flex items-center gap-2 font-bold text-emerald-950">
                       <Lightbulb className="h-4 w-4 text-emerald-700" />
                       Side-by-Side Example: Artisan Woodworker Workshop vs.
-                      Startup Preflight Cloud SaaS
+                      Cloud B2B SaaS Setup
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5">
@@ -6148,7 +5866,7 @@ export function ModuleEWorkspace({
                               : 'bg-white text-slate-700 ring-1 ring-slate-200'
                           }`}
                         >
-                          🚀 Startup Preflight (SaaS)
+                          💻 Cloud B2B SaaS
                         </button>
                       </div>
                       <Button
@@ -6235,8 +5953,8 @@ export function ModuleEWorkspace({
                     <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-bold text-slate-950">
-                          🚀 Startup Preflight — 100% Cloud-Native Remote Setup +
-                          Ring-Fenced QA Hardware
+                          💻 Cloud B2B SaaS — 100% Remote Home Office +
+                          Ring-Fenced BYOD Laptops
                         </span>
                         <Button
                           type="button"
@@ -6245,7 +5963,7 @@ export function ModuleEWorkspace({
                           onClick={() => handleLoadStep2PresetPersona('BMU_SAAS')}
                           className="h-7 bg-emerald-700 px-2.5 text-[11px] text-white hover:bg-emerald-800"
                         >
-                          Load This SaaS Schedule into Step 2
+                          Load Sample SaaS Schedule into Step 2
                         </Button>
                       </div>
                       <ul className="list-disc space-y-1 pl-4 text-[11px] text-slate-700">
@@ -6264,8 +5982,8 @@ export function ModuleEWorkspace({
                         </li>
                         <li>
                           <strong>
-                            2 &times; Founder MacBook Pros (
-                            {formatPlanCurrency(3600, plan.baseCurrency)} BYOD):
+                            2 &times; Founder Laptops (
+                            {formatPlanCurrency(3000, plan.baseCurrency)} BYOD):
                           </strong>{' '}
                           Ring-fenced under 100% Own Funds (
                           {selectedCountry === 'IE'
@@ -6276,12 +5994,10 @@ export function ModuleEWorkspace({
                         </li>
                         <li>
                           <strong>
-                            Mobile Safari QA Test Rig (
-                            {formatPlanCurrency(920, plan.baseCurrency)}) &amp;
-                            YubiKey Security Keys (
-                            {formatPlanCurrency(340, plan.baseCurrency)}):
+                            Demo &amp; Onboarding Display/Audio Kit (
+                            {formatPlanCurrency(580, plan.baseCurrency)}):
                           </strong>{' '}
-                          Both &lt;{' '}
+                          &lt;{' '}
                           {formatPlanCurrency(1000, plan.baseCurrency)} (single
                           quote sufficient), funded via 100% Own Funds.
                         </li>
@@ -6504,25 +6220,22 @@ export function ModuleEWorkspace({
                 </div>
               </div>
 
-              {/* LIVE MOBILE ASSET / LAPTOP BAN GUARDRAIL ALERT */}
-              {itemsViolatingLeoLaptopBan.length > 0 && (
-                <div className="flex flex-col justify-between gap-3 rounded-xl border-2 border-red-300 bg-red-50 p-4 sm:flex-row sm:items-center">
-                  <div className="space-y-1 text-xs text-red-950">
-                    <div className="flex items-center gap-2 font-bold text-red-800">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+              {/* LIVE MOBILE ASSET / LAPTOP GRANT FUNDING TIP (SHOWN ONLY FOR GRANT-TRACK PLANS) */}
+              {isGrantsEnabled && itemsViolatingLeoLaptopBan.length > 0 && (
+                <div className="flex flex-col justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50/90 p-4 sm:flex-row sm:items-center">
+                  <div className="space-y-1 text-xs text-amber-950">
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <Info className="h-4 w-4 shrink-0 text-amber-700" />
                       {selectedCountry === 'IE'
-                        ? '🇮🇪 IE LEO Mobile Asset & Laptop Ban Warning'
-                        : selectedCountry === 'GB'
-                          ? '🇬🇧 UK Grant Mobile IT & Laptop Ring-Fence Warning'
-                          : 'Mobile Asset & Laptop Grant Warning'}{' '}
+                        ? '🇮🇪 Helpful Grant Tip: Keep Laptops Listed as "Self-Funded / Own Funds"'
+                        : '🇬🇧 Helpful Grant Tip: Tag Standard Laptops under "100% Own Funds"'}{' '}
                       ({itemsViolatingLeoLaptopBan.length} Item
-                      {itemsViolatingLeoLaptopBan.length > 1 ? 's' : ''}{' '}
-                      Flagged)
+                      {itemsViolatingLeoLaptopBan.length > 1 ? 's' : ''})
                     </div>
-                    <p className="leading-relaxed text-red-900">
+                    <p className="leading-relaxed text-amber-900">
                       {selectedCountry === 'IE'
-                        ? 'Local Enterprise Office (LEO) Priming & Feasibility grants strictly exclude general-purpose laptops, MacBooks, smartphones, tablets, and road vehicles from capital grant reimbursement. Click the button on the right to automatically ring-fence these items under 100% Own Funds so your IE LEO grant application passes pre-flight audit.'
-                        : 'General-purpose laptops, MacBooks, smartphones, and tablets are routinely rejected from capital grant claims unless ring-fenced under 100% Own Funds. Click the button on the right to automatically ring-fence these items under 100% Own Funds.'}
+                        ? 'You definitely need a laptop or phone to run your business—keep it on your list! However, Irish LEO Priming & Feasibility grants only co-fund specialist machinery and software, not standard laptops, MacBooks, phones, or road vans. Click the button on the right to tag these items as "100% Own Funds" so they stay in your budget without triggering a grant deduction.'
+                        : 'You need a laptop or phone to run your business—keep it on your list! Because grant assessors usually only co-fund specialist equipment, click the button on the right to tag standard laptops/phones under "100% Own Funds".'}
                     </p>
                   </div>
                   <Button
@@ -6530,10 +6243,10 @@ export function ModuleEWorkspace({
                     size="sm"
                     disabled={isVaultReadonly}
                     onClick={handleRingFenceMobileAssetsForLeo}
-                    className="shrink-0 bg-red-600 text-xs font-bold text-white hover:bg-red-700"
+                    className="shrink-0 bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
                   >
                     <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-                    Ring-Fence as 100% Own Funds
+                    Tag as 100% Own Funds
                   </Button>
                 </div>
               )}
@@ -6760,6 +6473,17 @@ export function ModuleEWorkspace({
                 </div>
 
                 <div className="space-y-3">
+                  {step2Data.equipmentItems.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-center">
+                      <p className="text-xs font-semibold text-slate-800">
+                        No capital equipment or machinery listed yet ({formatPlanCurrency(0, plan.baseCurrency)} new CapEx)
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-600">
+                        If you operate from a home laptop or cloud setup with zero new equipment spend, you can leave this empty and save Step 2—or click{' '}
+                        <strong>Add Equipment / Asset Row</strong> above to log machinery, fit-out, or BYOD assets.
+                      </p>
+                    </div>
+                  )}
                   {step2Data.equipmentItems.map((item, idx) => {
                     const isLaptopMobile = checkIsMobileOrLaptopAsset(
                       item.assetName,
@@ -7057,51 +6781,105 @@ export function ModuleEWorkspace({
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 md:col-span-3">
-                            <div>
-                              <label className="mb-1 block text-[11px] font-bold text-slate-700">
-                                Useful Life (Mo)
-                              </label>
-                              <input
-                                type="number"
-                                min={12}
-                                max={120}
-                                step={12}
-                                disabled={isVaultReadonly}
-                                value={item.usefulLifeMonths}
-                                onChange={(e) =>
-                                  handleUpdateEquipmentItem(item.id, {
-                                    usefulLifeMonths: Math.max(
-                                      12,
-                                      Number(e.target.value) || 36
-                                    ),
-                                  })
-                                }
-                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base text-slate-900 sm:text-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[11px] font-bold text-slate-700">
-                                Project Use %
-                              </label>
-                              <input
-                                type="number"
-                                min={10}
-                                max={100}
-                                step={5}
-                                disabled={isVaultReadonly}
-                                value={item.projectUsagePercent}
-                                onChange={(e) =>
-                                  handleUpdateEquipmentItem(item.id, {
-                                    projectUsagePercent: Math.min(
-                                      100,
-                                      Math.max(10, Number(e.target.value) || 100)
-                                    ),
-                                  })
-                                }
-                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base text-slate-900 sm:text-xs"
-                              />
-                            </div>
+                          <div className="md:col-span-3">
+                            {openDepreciationIds[item.id] ||
+                            (selectedCountry === 'GB' &&
+                              (item.fundingSource === 'GRANT_CO_FUNDED' ||
+                                item.fundingSource === 'GRANT_50_MATCH')) ||
+                            item.usefulLifeMonths !== 36 ||
+                            item.projectUsagePercent !== 100 ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                    R&amp;D / Grant Depreciation
+                                  </span>
+                                  {item.usefulLifeMonths === 36 &&
+                                    item.projectUsagePercent === 100 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setOpenDepreciationIds((prev) => ({
+                                            ...prev,
+                                            [item.id]: false,
+                                          }))
+                                        }
+                                        className="text-[10px] font-medium text-slate-400 hover:text-slate-700"
+                                      >
+                                        Hide
+                                      </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                                      Useful Life (Mo)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={12}
+                                      max={120}
+                                      step={12}
+                                      disabled={isVaultReadonly}
+                                      value={item.usefulLifeMonths}
+                                      onChange={(e) =>
+                                        handleUpdateEquipmentItem(item.id, {
+                                          usefulLifeMonths: Math.max(
+                                            12,
+                                            Number(e.target.value) || 36
+                                          ),
+                                        })
+                                      }
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base text-slate-900 sm:text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-bold text-slate-700">
+                                      Project Use %
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={10}
+                                      max={100}
+                                      step={5}
+                                      disabled={isVaultReadonly}
+                                      value={item.projectUsagePercent}
+                                      onChange={(e) =>
+                                        handleUpdateEquipmentItem(item.id, {
+                                          projectUsagePercent: Math.min(
+                                            100,
+                                            Math.max(
+                                              10,
+                                              Number(e.target.value) || 100
+                                            )
+                                          ),
+                                        })
+                                      }
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base text-slate-900 sm:text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex h-full flex-col justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOpenDepreciationIds((prev) => ({
+                                      ...prev,
+                                      [item.id]: true,
+                                    }))
+                                  }
+                                  className="rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-2.5 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50/40 hover:text-emerald-900"
+                                >
+                                  <span className="block font-semibold text-slate-800">
+                                    Standard 3-Yr Asset (100% Use)
+                                  </span>
+                                  <span className="text-[10px] text-emerald-700 underline">
+                                    Customize R&amp;D / Innovate UK Depreciation
+                                  </span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -7296,7 +7074,7 @@ export function ModuleEWorkspace({
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Wand2 className="h-4 w-4 text-emerald-700" />
+                      <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                       <h3 className="text-sm font-bold text-slate-900">
                         3. Grant-Ready Premises &amp; Capital Equipment ROI
                         Narratives
@@ -7321,7 +7099,7 @@ export function ModuleEWorkspace({
                       {isGeneratingAiStep2 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       )}
                       Synthesize Narratives from My Schedule
                     </Button>
@@ -7337,7 +7115,7 @@ export function ModuleEWorkspace({
                       {isGeneratingAiStep2 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       )}
                       Auto-Draft Full Schedule &amp; Narratives
                     </Button>
@@ -7399,7 +7177,13 @@ export function ModuleEWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_1')}
+                    onClick={() => {
+                      setActiveTab('STEP_1');
+                      setOpenStep(1);
+                      setTimeout(() => {
+                        document.getElementById('module-e-step-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="text-xs"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
@@ -7770,83 +7554,68 @@ export function ModuleEWorkspace({
         </div>
       ) : (
         <div id="module-e-step-3" className="scroll-mt-24 space-y-4">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    moduleEReadinessSteps[2]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {moduleEReadinessSteps[2]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
-                  ) : (
-                    '3'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 3: 4-Category Risk Register
-                </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
-                  Step 3 of 6
-                </Badge>
-                {moduleEReadinessSteps[2]?.isComplete ? (
-                  <Badge variant="success" className="shrink-0 text-[10px]">
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                    In Progress
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Map critical project risks across Operational, Supply Chain, Financial, and Regulatory/Legal with mitigation actions.
-              </p>
-            </div>
-
-            {openStep !== 'ALL' && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenStep(0);
-                }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
-              >
-                <span>Collapse Step</span>
-                <ChevronUp className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
           <div className="space-y-5">
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
               <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-emerald-700 text-white">
-                    Step 3 of 6 • Supply-Chain Resilience &amp; 4-Category
-                    Risk Register
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
-                  >
-                    {selectedCountry === 'IE'
-                      ? '🇮🇪 IE LEO Project Risk Table & Enterprise Ireland Supply-Chain Audit Ready'
-                      : selectedCountry === 'GB'
-                        ? '🇬🇧 UK Innovate UK Q9 Risk Register Appendix & Start Up Loan Ready'
-                        : '🌍 4-Category Project Risk Register & Supply-Chain Audit Ready'}
-                  </Badge>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                        moduleEReadinessSteps[2]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-900 text-white'
+                      }`}
+                    >
+                      {moduleEReadinessSteps[2]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5 stroke-[3]" />
+                      ) : (
+                        '3'
+                      )}
+                    </span>
+                    <Badge className="bg-emerald-700 text-white">
+                      Step 3 of 6 • Supply-Chain Resilience &amp; 4-Category
+                      Risk Register
+                    </Badge>
+                    {moduleEReadinessSteps[2]?.isComplete ? (
+                      <Badge variant="success" className="shrink-0 text-[10px]">
+                        Completed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                        In Progress
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-[11px] text-emerald-900"
+                    >
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪 IE LEO Project Risk Table & Enterprise Ireland Supply-Chain Audit Ready'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧 UK Innovate UK Q9 Risk Register Appendix & Start Up Loan Ready'
+                          : '🌍 4-Category Project Risk Register & Supply-Chain Audit Ready'}
+                    </Badge>
+                  </div>
+
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenStep(0);
+                      }}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                    >
+                      <span>Collapse Step</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-                <CardTitle className="text-base font-bold text-slate-900 sm:text-lg">
-                  How Do You Prevent Single Points of Failure &amp; De-Risk
-                  Execution?
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Step 3: How Do You Prevent Single Points of Failure &amp; De-Risk Execution?
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-600">
                   {selectedCountry === 'IE' ? (
@@ -8421,7 +8190,7 @@ export function ModuleEWorkspace({
                         </>
                       ) : (
                         <>
-                          <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Draft 4-Category Risk Register
                         </>
                       )}
@@ -8719,7 +8488,7 @@ export function ModuleEWorkspace({
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Wand2 className="h-4 w-4 text-emerald-700" />
+                      <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                       <h3 className="text-sm font-bold text-slate-900">
                         3. Supply-Chain Resilience &amp; Risk Management
                         Governance Narratives
@@ -8746,7 +8515,7 @@ export function ModuleEWorkspace({
                       {isGeneratingAiStep3 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       )}
                       Synthesize Narratives from My Register
                     </Button>
@@ -8762,7 +8531,7 @@ export function ModuleEWorkspace({
                       {isGeneratingAiStep3 ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       )}
                       Auto-Draft Full Register &amp; Narratives
                     </Button>
@@ -8821,7 +8590,13 @@ export function ModuleEWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab('STEP_2')}
+                    onClick={() => {
+                      setActiveTab('STEP_2');
+                      setOpenStep(2);
+                      setTimeout(() => {
+                        document.getElementById('module-e-step-2')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="text-xs"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
@@ -9085,108 +8860,86 @@ export function ModuleEWorkspace({
         </div>
       ) : (
         <div id="module-e-step-4" className="scroll-mt-24 space-y-4">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    moduleEReadinessSteps[3]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {moduleEReadinessSteps[3]?.isComplete ? (
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
-                  ) : (
-                    '4'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 4: Support, Returns, Warranty & QC SOP
-                </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
-                  Step 4 of 6
-                </Badge>
-                {moduleEReadinessSteps[3]?.isComplete ? (
-                  <Badge variant="success" className="shrink-0 text-[10px]">
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                    In Progress
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Define customer support response SLAs, return/warranty policies, and quality control inspection checkpoints.
-              </p>
-            </div>
-
-            {openStep !== 'ALL' && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenStep(0);
-                }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
-              >
-                <span>Collapse Step</span>
-                <ChevronUp className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
           <div className="space-y-6">
           {/* 4-Layer Support & Action Bar (No Presets — Pure Plan-Driven) */}
-          <Card className="border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-emerald-50/50 shadow-xs">
+          <Card className="border-slate-200/80 bg-white shadow-xs">
             <CardContent className="p-4">
               <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-emerald-700 text-white">
-                    Step 4 of 6 • Support, Returns, Warranty &amp; QC SOP
-                  </Badge>
-                  {selectedCountry === 'IE' ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-emerald-900"
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                        moduleEReadinessSteps[3]?.isComplete
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-900 text-white'
+                      }`}
                     >
-                      🇮🇪 Ireland Consumer Rights Act 2022 (CRAA) &amp; CCPC
-                      Mode
+                      {moduleEReadinessSteps[3]?.isComplete ? (
+                        <Check className="h-3.5 w-3.5 stroke-[3]" />
+                      ) : (
+                        '4'
+                      )}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Step 4: Support, Returns, Warranty &amp; QC SOP
+                    </h2>
+                    <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
+                      Step 4 of 6
                     </Badge>
-                  ) : selectedCountry === 'GB' ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-slate-900"
+                    {moduleEReadinessSteps[3]?.isComplete ? (
+                      <Badge variant="success" className="shrink-0 text-[10px]">
+                        Completed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                        In Progress
+                      </Badge>
+                    )}
+                    {selectedCountry === 'IE' ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 bg-emerald-50 text-emerald-900"
+                      >
+                        🇮🇪 Ireland Consumer Rights Act 2022 (CRAA) &amp; CCPC Mode
+                      </Badge>
+                    ) : selectedCountry === 'GB' ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 bg-emerald-50 text-slate-900"
+                      >
+                        🇬🇧 UK Consumer Rights Act 2015 &amp; Consumer Contracts Mode
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-slate-300 bg-white text-slate-700"
+                      >
+                        🌍 {countryPack.countryName} Consumer Protection &amp; QC Mode
+                      </Badge>
+                    )}
+                  </div>
+
+                  {openStep !== 'ALL' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenStep(0);
+                      }}
+                      className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
                     >
-                      🇬🇧 UK Consumer Rights Act 2015 &amp; Consumer Contracts
-                      Mode
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-slate-300 bg-white text-slate-700"
-                    >
-                      🌍 {countryPack.countryName} Consumer Protection &amp;
-                      QC Mode
-                    </Badge>
-                  )}
-                  {step4Data.aiEngineUsed && (
-                    <Badge
-                      variant="outline"
-                      className="border-slate-200 bg-slate-50 text-[11px] text-emerald-900"
-                    >
-                      Engine: {step4Data.aiEngineUsed}
-                    </Badge>
+                      <span>Collapse Step</span>
+                      <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
                 <p className="text-xs text-slate-600">
-                  Define how your business handles customer support SLAs,
+                  Define how your business handles customer support response times,
                   returns/remakes, statutory warranties, and 3-gate Quality
                   Control (QC) checkpoints so defect/refund friction never
-                  quietly erodes your Module G unit economics.
+                  quietly erodes your Module H unit economics.
                 </p>
 
                 {/* Dedicated 4-Layer Support Strip */}
@@ -10136,7 +9889,7 @@ export function ModuleEWorkspace({
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <Sparkles className="h-4 w-4 text-emerald-700" />
+                    <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                     Part D: Quality Assurance &amp; Customer Support Narratives
                     (Module K Compiler Feed)
                   </CardTitle>
@@ -10158,7 +9911,7 @@ export function ModuleEWorkspace({
                     onClick={() => handleRunAiStep4('NARRATIVES_ONLY')}
                     className="h-8 border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-900 hover:bg-slate-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     {isGeneratingAiStep4
                       ? 'Synthesizing...'
                       : 'Synthesize Narratives Only'}
@@ -10172,7 +9925,7 @@ export function ModuleEWorkspace({
                     }
                     className="h-8 bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                     {isGeneratingAiStep4
                       ? 'Generating QC & Narratives...'
                       : 'AI Generate Full QC SOP & Narratives'}
@@ -10299,7 +10052,13 @@ export function ModuleEWorkspace({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setActiveTab('STEP_3')}
+                    onClick={() => {
+                      setActiveTab('STEP_3');
+                      setOpenStep(3);
+                      setTimeout(() => {
+                        document.getElementById('module-e-step-3')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 50);
+                    }}
                     className="text-xs"
                   >
                     &larr; Back to Step 3 (4-Category Risk Register)
@@ -10415,92 +10174,77 @@ export function ModuleEWorkspace({
         </div>
       ) : (
         <div id="module-e-step-5" className="scroll-mt-24 space-y-4">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 rounded-xl border shadow-xs">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                    moduleEReadinessSteps[4]?.isComplete
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {moduleEReadinessSteps[4]?.isComplete ? (
-                    <Check className="h-4 w-4 stroke-[3]" />
-                  ) : (
-                    '5'
-                  )}
-                </span>
-                <h2 className="text-base font-bold text-slate-900">
-                  Step 5: Permits, Compliance & Insurance Matcher
-                </h2>
-                <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
-                  Step 5 of 6
-                </Badge>
-                {moduleEReadinessSteps[4]?.isComplete ? (
-                  <Badge variant="success" className="shrink-0 text-[10px]">
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
-                    In Progress
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Verify regulatory requirements, health and safety obligations, GDPR data privacy posture, and commercial startup insurance bundle.
-              </p>
-            </div>
-
-            {openStep !== 'ALL' && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenStep(0);
-                }}
-                className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
-              >
-                <span>Collapse Step</span>
-                <ChevronUp className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
           <div className="space-y-5">
           {/* 1. Top Header & 4-Layer Built-In Support Bar (Zero Presets) */}
           <Card className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-3">
                 <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-slate-950 text-white hover:bg-slate-900">
-                      Step 5 of 6
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 bg-emerald-50 text-emerald-900"
-                    >
-                      {selectedCountry === 'IE'
-                        ? '🇮🇪'
-                        : selectedCountry === 'GB'
-                          ? '🇬🇧'
-                          : '🌍'}{' '}
-                      {countryPack.countryName} Statutory Compliance &amp;
-                      Insurance Engine
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="border-slate-200 bg-emerald-50 text-slate-900"
-                    >
-                      Synced to Module I Overheads &amp; Module K Legal
-                      Governance
-                    </Badge>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                          moduleEReadinessSteps[4]?.isComplete
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-900 text-white'
+                        }`}
+                      >
+                        {moduleEReadinessSteps[4]?.isComplete ? (
+                          <Check className="h-4 w-4 stroke-[3]" />
+                        ) : (
+                          '5'
+                        )}
+                      </span>
+                      <Badge variant="outline" className="shrink-0 text-[10px] text-emerald-800 border-slate-200 bg-emerald-50">
+                        Step 5 of 6
+                      </Badge>
+                      {moduleEReadinessSteps[4]?.isComplete ? (
+                        <Badge variant="success" className="shrink-0 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="shrink-0 text-[10px] text-slate-600">
+                          In Progress
+                        </Badge>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 bg-emerald-50 text-emerald-900"
+                      >
+                        {selectedCountry === 'IE'
+                          ? '🇮🇪'
+                          : selectedCountry === 'GB'
+                            ? '🇬🇧'
+                            : '🌍'}{' '}
+                        {countryPack.countryName} Statutory Compliance &amp;
+                        Insurance Engine
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="border-slate-200 bg-emerald-50 text-slate-900"
+                      >
+                        Synced to Module J Overheads &amp; Module L Legal Governance
+                      </Badge>
+                    </div>
+
+                    {openStep !== 'ALL' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenStep(0);
+                        }}
+                        className="h-8 shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                      >
+                        <span>Collapse Step</span>
+                        <ChevronUp className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                   <CardTitle className="text-base font-bold text-slate-900">
-                    Permits, Health &amp; Safety, GDPR &amp; Instant Startup
+                    Step 5: Permits, Health &amp; Safety, GDPR &amp; Instant Startup
                     Insurance Matcher
                   </CardTitle>
                   <CardDescription className="text-xs leading-relaxed text-slate-600">
@@ -10548,7 +10292,7 @@ export function ModuleEWorkspace({
                     onClick={handleApplyStep5IndustryBenchmark}
                     className="h-7 border-emerald-300 bg-emerald-50 text-[11px] font-medium text-emerald-900 hover:bg-emerald-100"
                   >
-                    <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Use Industry Benchmark
                   </Button>
                   <Button
@@ -10610,11 +10354,11 @@ export function ModuleEWorkspace({
                       </li>
                       <li>
                         <strong>
-                          💰 Indicative Insurance Overhead Sync to Module I:
+                          💰 Indicative Insurance Overhead Sync to Module J:
                         </strong>{' '}
                         Founders frequently forget commercial insurance in their
                         financial forecasts. Your indicative estimated annual
-                        premium here automatically divides by 12 into Module I
+                        premium here automatically divides by 12 into Module J
                         monthly overheads so your cashflow is realistic (actual
                         coverage &amp; premiums may vary upon insurer
                         underwriting).
@@ -11611,7 +11355,7 @@ export function ModuleEWorkspace({
                     }
                     className="h-8 border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     {isGeneratingAiStep5
                       ? 'Drafting with AI...'
                       : 'AI Tailor Checklist & Narratives'}
@@ -11840,7 +11584,7 @@ export function ModuleEWorkspace({
                   onClick={() => handleRunAiStep5('NARRATIVES_ONLY')}
                   className="h-8 border-emerald-300 bg-emerald-50 text-xs font-semibold text-slate-900 hover:bg-slate-100"
                 >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep5
                     ? 'Synthesizing...'
                     : 'AI Polish Both Narratives'}
@@ -11990,7 +11734,13 @@ export function ModuleEWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setActiveTab('STEP_4')}
+                  onClick={() => {
+                    setActiveTab('STEP_4');
+                    setOpenStep(4);
+                    setTimeout(() => {
+                      document.getElementById('module-e-step-4')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+                  }}
                   className="w-full text-xs sm:w-auto"
                 >
                   &larr; Back to Step 4 (Support, Returns &amp; QC SOP)
@@ -12209,8 +11959,8 @@ export function ModuleEWorkspace({
                   <CardDescription className="text-xs leading-relaxed text-slate-600">
                     Review your constructive operational blind spots across
                     Steps 1–5, verify the unit-economics and monthly overhead
-                    numbers syncing into Module G &amp; Module I, and sign off
-                    on your Executive Operations Brief for Module K.
+                    numbers syncing into Module H &amp; Module J, and sign off
+                    on your Executive Operations Brief for Module L.
                   </CardDescription>
                 </div>
 
@@ -12244,7 +11994,7 @@ export function ModuleEWorkspace({
                     onClick={handleApplyStep6IndustryBenchmark}
                     className="h-8 border-emerald-200 bg-emerald-50/70 px-2.5 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100"
                   >
-                    <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Use Industry Benchmark
                   </Button>
                   <Button
@@ -12403,8 +12153,8 @@ export function ModuleEWorkspace({
                     </p>
                     <p className="text-[11px] text-slate-600">
                       These four live operational metrics feed directly into
-                      Module F (Hiring Triggers), Module G (Unit Economics),
-                      Module I (36-Month Cashflow), and Module K (Grant Plan).
+                      Module F (Hiring Triggers), Module H (Unit Economics),
+                      Module J (36-Month Cashflow), and Module L (Grant Plan).
                     </p>
                   </div>
                   <Badge
@@ -12706,7 +12456,7 @@ export function ModuleEWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Run Blind-Spot Audit &amp; Brief
                         </>
                       )}
@@ -12958,7 +12708,7 @@ export function ModuleEWorkspace({
                       </>
                     ) : (
                       <>
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         AI Draft Executive Narratives Only
                       </>
                     )}
@@ -13072,7 +12822,7 @@ export function ModuleEWorkspace({
                           orders/wk
                         </td>
                         <td className="px-3 py-2 text-slate-600">
-                          Module G (Unit COGS) &amp; Module F (Ops Hiring Trigger)
+                          Module H (Unit COGS) &amp; Module F (Ops Hiring Trigger)
                         </td>
                       </tr>
                       <tr>
@@ -13099,7 +12849,7 @@ export function ModuleEWorkspace({
                           ex-VAT
                         </td>
                         <td className="px-3 py-2 text-slate-600">
-                          Module I (Overheads &amp; CapEx) &amp; Module J (Grants)
+                          Module J (Overheads &amp; CapEx) &amp; Module K (Grants)
                         </td>
                       </tr>
                       <tr>
@@ -13120,7 +12870,7 @@ export function ModuleEWorkspace({
                           {step3Data.leadTimeBufferDays}d Lead-Time Buffer
                         </td>
                         <td className="px-3 py-2 text-slate-600">
-                          Module K (Risk Register Appendix)
+                          Module L (Risk Register Appendix)
                         </td>
                       </tr>
                       <tr>
@@ -13146,7 +12896,7 @@ export function ModuleEWorkspace({
                           /order Return Buffer
                         </td>
                         <td className="px-3 py-2 text-slate-600">
-                          Module G (Pocket Profit Margin Protection)
+                          Module H (Pocket Profit Margin Protection)
                         </td>
                       </tr>
                       <tr>
@@ -13177,7 +12927,7 @@ export function ModuleEWorkspace({
                           </span>
                         </td>
                         <td className="px-3 py-2 text-slate-600">
-                          Module I (Monthly Overheads) &amp; Module K (Compliance)
+                          Module J (Monthly Overheads) &amp; Module L (Compliance)
                         </td>
                       </tr>
                     </tbody>
@@ -13193,7 +12943,13 @@ export function ModuleEWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setActiveTab('STEP_5')}
+                  onClick={() => {
+                    setActiveTab('STEP_5');
+                    setOpenStep(5);
+                    setTimeout(() => {
+                      document.getElementById('module-e-step-5')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+                  }}
                   className="w-full text-xs sm:w-auto"
                 >
                   &larr; Back to Step 5 (Permits, Compliance &amp; Insurance)
@@ -13212,22 +12968,6 @@ export function ModuleEWorkspace({
                       ? 'Saving Step 6...'
                       : 'Save Step 6 (Complete Module E)'}
                   </Button>
-
-                  {onContinueToModuleF && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={isVaultReadonly || isSavingStep6}
-                      onClick={async () => {
-                        await handleSaveStep6();
-                        onContinueToModuleF();
-                      }}
-                      className="w-full bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 sm:w-auto"
-                    >
-                      Save &amp; Continue to Module F (Co-Founder &amp; Team)
-                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                    </Button>
-                  )}
                 </div>
               </div>
             </CardContent>

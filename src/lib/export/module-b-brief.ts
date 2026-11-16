@@ -536,9 +536,9 @@ export function buildModuleBStandaloneHtmlDocument(
                 <strong>${escapeHtml(name)}</strong>
                 <div style="font-size: 11px; color: #64748b;">${escapeHtml(cadence)}</div>
               </td>
-              <td>${rawPrice > 0 ? `${escapeHtml(formatPlanCurrency(rawPrice, currency))}${isMonthly ? '/mo' : '/yr'}<div style="font-size: 11px; color: #4f46e5; font-weight: 600;">(${escapeHtml(formatPlanCurrency(annualRevPerCust, currency))}/yr)</div>` : '—'}</td>
+              <td>${rawPrice > 0 ? `${escapeHtml(formatPlanCurrency(rawPrice, currency))}${isMonthly ? '/mo' : '/yr'}<div style="font-size: 11px; color: #047857; font-weight: 600;">(${escapeHtml(formatPlanCurrency(annualRevPerCust, currency))}/yr)</div>` : '—'}</td>
               <td>${y1y2Count > 0 ? `<strong>${y1y2Count.toLocaleString()}</strong> cust.<div style="font-size: 11px; color: #059669; font-weight: 600;">${escapeHtml(formatPlanCurrency(y1y2Rev, currency))}/yr</div>` : '—'}</td>
-              <td>${reachableCount > 0 ? `<strong>${reachableCount.toLocaleString()}</strong> cust.<div style="font-size: 11px; color: #4f46e5; font-weight: 600;">${escapeHtml(formatPlanCurrency(reachRev, currency))}/yr</div>` : '—'}</td>
+              <td>${reachableCount > 0 ? `<strong>${reachableCount.toLocaleString()}</strong> cust.<div style="font-size: 11px; color: #047857; font-weight: 600;">${escapeHtml(formatPlanCurrency(reachRev, currency))}/yr</div>` : '—'}</td>
             </tr>`;
           })
           .join('')
@@ -627,7 +627,7 @@ export function buildModuleBStandaloneHtmlDocument(
           <div class="card-label">3. User vs. Paying Buyer &amp; Sign-Off</div>
           <div class="card-value">
             <div style="margin-bottom: 5px;">
-              <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe;">
+              <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;">
                 ${escapeHtml(decisionMakerSetupBadge)}
               </span>
             </div>
@@ -762,7 +762,7 @@ export function buildModuleBStandaloneHtmlDocument(
                     <td><strong>Combined Across ${segments.length} Customer Groups</strong></td>
                     <td>—</td>
                     <td><strong>${(data.totalYear1To2Customers || 0).toLocaleString()} cust.</strong><div style="font-size: 11px; color: #059669; font-weight: 700;">${escapeHtml(formatPlanCurrency(data.totalYear1To2RevenueSom, currency))}/yr</div></td>
-                    <td><strong>${(data.totalReachableCustomers || 0).toLocaleString()} cust.</strong><div style="font-size: 11px; color: #4f46e5; font-weight: 700;">${escapeHtml(formatPlanCurrency(data.totalReachableMarketSam, currency))}/yr</div></td>
+                    <td><strong>${(data.totalReachableCustomers || 0).toLocaleString()} cust.</strong><div style="font-size: 11px; color: #047857; font-weight: 700;">${escapeHtml(formatPlanCurrency(data.totalReachableMarketSam, currency))}/yr</div></td>
                   </tr>`
                 : ''
             }
@@ -786,7 +786,7 @@ export function buildModuleBStandaloneHtmlDocument(
               ${
                 data.marketSizing.widerMarketMultiplier === 'OTHER' &&
                 data.marketSizing.otherWiderMarketScaleText?.trim()
-                  ? `<div style="margin-top: 6px; font-size: 12px; color: #4338ca;"><strong>Expansion Scale Note:</strong> ${escapeHtml(data.marketSizing.otherWiderMarketScaleText.trim())}</div>`
+                  ? `<div style="margin-top: 6px; font-size: 12px; color: #065f46;"><strong>Expansion Scale Note:</strong> ${escapeHtml(data.marketSizing.otherWiderMarketScaleText.trim())}</div>`
                   : ''
               }
             </div>`
@@ -835,13 +835,13 @@ export function buildModuleBStandaloneHtmlDocument(
           .map(
             (item) => `
           <div class="card ${item.severity === 'WARNING' ? 'card-warning' : ''}">
-            <div class="card-label" style="color: ${item.severity === 'WARNING' ? '#b45309' : '#4f46e5'};">
+            <div class="card-label" style="color: ${item.severity === 'WARNING' ? '#b45309' : '#047857'};">
               ${escapeHtml(item.title)}
             </div>
             <div class="card-value" style="margin-bottom: 6px;">${escapeHtml(item.explanation)}</div>
             ${
               item.suggestedAction
-                ? `<div style="font-size: 12px; color: #312e81; background: #eef2ff; padding: 6px 8px; border-radius: 6px;"><strong>Action Step:</strong> ${escapeHtml(item.suggestedAction)}</div>`
+                ? `<div style="font-size: 12px; color: #0f172a; background: #ecfdf5; padding: 6px 8px; border-radius: 6px;"><strong>Action Step:</strong> ${escapeHtml(item.suggestedAction)}</div>`
                 : ''
             }
           </div>`

@@ -35,6 +35,15 @@ import {
   evaluateModuleAGrantEligibility,
   getDefaultGrantEligibilityCheck,
 } from '@/lib/grants/module-a-grant-checker';
+import {
+  formatGrantSchemeLabel,
+  formatTaxReliefSchemeLabel,
+  formatBridgeStrategyLabel,
+  formatAdvanceAssuranceStatusLabel,
+  formatCompilerModeLabel,
+  formatSubmissionObjectiveLabel,
+  humanizeEnumFallback,
+} from '@/lib/export/enum-labels';
 import type {
   ActiveStartupPlan,
   SavedConceptCanvas,
@@ -67,6 +76,7 @@ export function sanitizeSurveyTerminologyForReader(text: string): string {
 export const PRODUCT_TRACK_READER_LABELS: Record<ProductTrackType, string> = {
   SAAS_SOFTWARE_AI: 'SaaS / Web / AI Software',
   PHYSICAL_PRODUCT_ECOM: 'Physical Product / Craft / E-Commerce',
+  LOCAL_SERVICE_BRICK_MORTAR: 'Local Service, Hospitality, Clinic or Trade',
   MARKETPLACE_PLATFORM: 'Two-Sided Marketplace / Booking Platform',
   EDUCATION_PROGRAM_COHORT: 'Digital Curriculum / Guided Support / Cohort',
   PRODUCTIZED_SERVICE_AGENCY: 'Productized Service / B2B Consultancy',
@@ -496,8 +506,46 @@ export function computeModuleBMarketTotals(plan: ActiveStartupPlan): {
  * from the founder's saved plan state.
  */
 export function extractMasterDocumentVerifiedFacts(
-  params: MasterDocumentInputParams
+  paramsOrPlan: MasterDocumentInputParams | ActiveStartupPlan
 ): MasterDocumentVerifiedFacts {
+  const normalized: MasterDocumentInputParams =
+    'plan' in paramsOrPlan
+      ? paramsOrPlan
+      : {
+          plan: paramsOrPlan,
+          founderName:
+            paramsOrPlan.moduleFData?.promoterProfiles?.teamMembers?.[0]?.fullName?.trim() ||
+            'Founder',
+          brainDumpText: paramsOrPlan.brainDumpText || '',
+          conceptCanvas: paramsOrPlan.conceptCanvas || {
+            coreProblem: '',
+            targetCustomer: '',
+            proposedSolution: '',
+            unfairAdvantage: '',
+            revenueAndGrantFit: '',
+          },
+          founderMotivation: paramsOrPlan.founderMotivation || {
+            primaryMotivation: 'SCALE_STARTUP',
+            weeklyHoursAvailable: '15_TO_25_HRS',
+            twelveMonthSuccessVision: '',
+          },
+          teamAndBudget: paramsOrPlan.teamAndBudget || {
+            teamStructureType: 'SOLO_FOUNDER',
+            skillCoverage: 'PARTIAL_SKILLS',
+            startingBudgetBracket: '1K_TO_5K',
+            teamAndFundingNotes: '',
+          },
+          founderRealityCheck: paramsOrPlan.founderRealityCheck || {
+            industryConnection: 'WARM_CONNECTIONS',
+            personalIncomeUrgency: 'MEDIUM_6_TO_12M',
+            dealbreakers: [],
+            growthTradeoff: 'NON_DILUTIVE_GRANTS',
+            biggestWorryPreset: 'WILL_THEY_PAY',
+            biggestWorryNotes: '',
+          },
+          moduleABlindSpots: paramsOrPlan.thingsToConsider || [],
+        };
+
   const {
     plan,
     founderName,
@@ -506,7 +554,7 @@ export function extractMasterDocumentVerifiedFacts(
     founderMotivation,
     teamAndBudget,
     founderRealityCheck,
-  } = params;
+  } = normalized;
 
   const countryPack = getCountryRulePack(plan.hqCountryCode);
   const currency = plan.baseCurrency || countryPack.defaultCurrency;
@@ -1372,20 +1420,20 @@ export function extractMasterDocumentVerifiedFacts(
     ),
 
     // Module J Returned Facts
-    operatingCostPostureLabel: (
-      modJ?.step1OverheadsTax?.operatingCostPosture || ''
-    ).replace(/_/g, ' '),
+    operatingCostPostureLabel: humanizeEnumFallback(
+      modJ?.step1OverheadsTax?.operatingCostPosture
+    ),
     monthlyFixedOverheadsTotal,
     monthlyFounderDrawingsYear1:
       Number(modJ?.step1OverheadsTax?.monthlyFounderDrawingsYear1) || 0,
     monthlyTeamSalariesYear1:
       Number(modJ?.step1OverheadsTax?.monthlyTeamSalariesYear1) || 0,
-    customerCollectionTimingLabel: (
-      modJ?.step2WorkingCapital?.customerCollectionTiming || ''
-    ).replace(/_/g, ' '),
-    primaryFundingStrategyLabel: (
-      modJ?.step3CashflowGap?.primaryFundingStrategy || ''
-    ).replace(/_/g, ' '),
+    customerCollectionTimingLabel: humanizeEnumFallback(
+      modJ?.step2WorkingCapital?.customerCollectionTiming
+    ),
+    primaryFundingStrategyLabel: humanizeEnumFallback(
+      modJ?.step3CashflowGap?.primaryFundingStrategy
+    ),
     startingCashBalanceDay1:
       Number(modJ?.step3CashflowGap?.startingCashBalanceDay1) || 0,
     totalExternalFundingMapped,
@@ -1397,7 +1445,7 @@ export function extractMasterDocumentVerifiedFacts(
     ),
 
     // Module K Returned Facts
-    selectedGrantKey: modK?.step1Audit?.selectedGrantKey || '',
+    selectedGrantKey: formatGrantSchemeLabel(modK?.step1Audit?.selectedGrantKey),
     overallAssessorReadinessScore:
       Number(modK?.step1Audit?.overallAssessorReadinessScore) ||
       Number(modK?.step5FundingBrief?.assessorReadinessScore) ||
@@ -1417,18 +1465,22 @@ export function extractMasterDocumentVerifiedFacts(
       Number(modK?.step2CapitalStack?.projectedEquityDilutionPercent) || 0,
     grantReimbursementTurnaroundWeeks:
       Number(modK?.step3ReimbursementBridge?.estimatedClaimTurnaroundWeeks) || 0,
-    bridgeStrategyLabel: (
-      modK?.step3ReimbursementBridge?.bridgeStrategy || ''
-    ).replace(/_/g, ' '),
+    bridgeStrategyLabel: formatBridgeStrategyLabel(
+      modK?.step3ReimbursementBridge?.bridgeStrategy,
+      modK?.step3ReimbursementBridge?.otherBridgeStrategyText
+    ),
     isAssessorLiquidityCompliant: Boolean(
       modK?.step3ReimbursementBridge?.isAssessorLiquidityCompliant
     ),
-    primaryTaxScheme: modK?.step4TaxRelief?.primaryTaxScheme || '',
+    primaryTaxScheme: formatTaxReliefSchemeLabel(
+      modK?.step4TaxRelief?.primaryTaxScheme,
+      modK?.step4TaxRelief?.otherTaxSchemeText
+    ),
     targetReliefRaiseAmount:
       Number(modK?.step4TaxRelief?.targetReliefRaiseAmount) || 0,
-    advanceAssuranceStatus: (
-      modK?.step4TaxRelief?.advanceAssuranceStatus || ''
-    ).replace(/_/g, ' '),
+    advanceAssuranceStatus: formatAdvanceAssuranceStatusLabel(
+      modK?.step4TaxRelief?.advanceAssuranceStatus
+    ),
     executiveFundingSummaryNarrative: sanitizeSurveyTerminologyForReader(
       modK?.step5FundingBrief?.executiveSummary?.trim() ||
         modK?.step2CapitalStack?.fundingStrategyNarrative?.trim() ||
@@ -1436,8 +1488,14 @@ export function extractMasterDocumentVerifiedFacts(
     ),
 
     // Module L Returned Facts
-    compilerModeLabel: (modL?.step1Mode?.compilerMode || 'STANDARD_BUSINESS_PLAN').replace(/_/g, ' '),
-    submissionObjectiveLabel: (modL?.step1Mode?.submissionObjective || 'INVESTOR_AND_COMMERCIAL_FINANCING').replace(/_/g, ' '),
+    compilerModeLabel: formatCompilerModeLabel(
+      modL?.step1Mode?.compilerMode || 'STANDARD_COMMERCIAL_PLAN',
+      modL?.step1Mode?.otherCompilerModeText
+    ),
+    submissionObjectiveLabel: formatSubmissionObjectiveLabel(
+      modL?.step1Mode?.submissionObjective || 'INVESTOR_AND_COMMERCIAL_FINANCING',
+      modL?.step1Mode?.otherSubmissionObjectiveText
+    ),
     targetAgencyOrCommitteeName: modL?.step1Mode?.targetAgencyOrCommitteeName?.trim() || 'Assessor Committee',
     targetFundingAskAmount: Number(modL?.step1Mode?.targetFundingAskAmount) || 0,
     contradictionAuditScore: Number(modL?.step2Audit?.overallAuditScore) || (hasModuleL ? 85 : 0),
@@ -1471,6 +1529,108 @@ export function extractMasterDocumentVerifiedFacts(
 }
 
 /**
+ * Builds a structured, strictly grounded plain-English fact pack across Modules A–K
+ * for Module L Narrative Compiler and Business Plan Studio AI/fallback synthesis.
+ */
+export function buildGroundedPlanFactPackString(
+  plan: ActiveStartupPlan,
+  extraDefenseOrNotes?: string
+): string {
+  const f = extractMasterDocumentVerifiedFacts(plan);
+  const wps = plan.moduleDData?.workPackagesAndFlow?.workPackages || [];
+  const wpSummary =
+    wps.length > 0
+      ? wps
+          .slice(0, 5)
+          .map(
+            (w, idx) =>
+              `${w.wpCode || `WP${idx + 1}`}: ${w.title || 'Work Package'}${w.estimatedCostAmount ? ` (${formatPlanCurrency(Number(w.estimatedCostAmount) || 0, f.currency)})` : ''}`
+          )
+          .join('; ')
+      : '';
+
+  const lines: string[] = [
+    `PLAN_META: Title="${f.planTitle}" | Founder="${f.founderName}" | Country=${f.countryName} (${f.hqCountryCode}, ${f.currency}) | Sector=${f.industryCategory || 'Commercial Venture'} | Reach=${f.exportScopeLabel}`,
+  ];
+
+  if (plan.oneLinerSummary?.trim()) {
+    lines.push(`ONE_LINER: ${plan.oneLinerSummary.trim()}`);
+  }
+  if (f.hasModuleA) {
+    lines.push(
+      `CONCEPT: Problem="${f.coreProblem || 'Not yet entered'}" | TargetCustomer="${f.targetCustomer || 'Not yet entered'}" | Solution="${f.proposedSolution || 'Not yet entered'}" | UnfairAdvantage="${f.unfairAdvantage || 'Not yet entered'}"`
+    );
+  }
+  if (f.hasModuleB) {
+    lines.push(
+      `MARKET: Beachhead="${f.beachheadSegment || 'Not yet entered'}" (${f.buyerModelLabel || 'Direct'}) | SOM=${f.somFormatted || 'Unmodeled'}/yr | SAM=${f.samFormatted || 'Unmodeled'}/yr | TAM=${f.tamFormatted || 'Unmodeled'}/yr | Competitors=${f.competitorNames.slice(0, 4).join(', ') || 'None listed'} | WhySwitch="${f.whySwitchOneSentence || f.competitiveEdgeSummary || 'Not yet entered'}"`
+    );
+  }
+  if (f.hasModuleC && (f.realSurveyResponses > 0 || f.interviewsCount > 0)) {
+    lines.push(
+      `VALIDATION: ${f.realSurveyResponses} survey response(s) across ${f.surveysCount} survey(s), ${f.waitlistOptInsCount} waitlist opt-in(s), ${f.interviewsCount} customer interview(s)${f.surveyHeadlineInsight ? ` | Insight="${f.surveyHeadlineInsight}"` : ''}`
+    );
+  } else {
+    lines.push(`VALIDATION: 0 recorded survey responses or customer interviews yet.`);
+  }
+  if (f.hasModuleD) {
+    lines.push(
+      `PRODUCT_VEHICLE: ${f.formFactorLabel || f.productTrackLabel || 'Configured'} | V1MustHaves=${f.v1MustHaveTitles.slice(0, 5).join(', ') || 'Core V1 scope'} | WorkPackages=${f.workPackagesCount} (${formatPlanCurrency(f.totalWorkPackagesCost, f.currency)})${wpSummary ? ` [${wpSummary}]` : ''}`
+    );
+  }
+  if (f.hasModuleE) {
+    lines.push(
+      `OPERATIONS: Fulfillment="${f.fulfillmentModeLabel || 'Standard'}" (${f.totalActiveMinutesPerOrder} mins/order, ${formatPlanCurrency(f.totalDirectVariableCostPerOrder, f.currency)} direct cost/order) | Premises="${f.premisesModeLabel || 'Lean'}" (${formatPlanCurrency(f.monthlyPremisesCost, f.currency)}/mo) | Equipment=${f.equipmentItemsCount} item(s) (${formatPlanCurrency(f.totalEquipmentCapexExVat, f.currency)} ex-VAT) | Risks=${f.riskItemsCount} tracked${f.topRiskTitleAndMitigation ? ` (Top: ${f.topRiskTitleAndMitigation})` : ''}`
+    );
+  }
+  if (f.hasModuleF) {
+    const memberBios = f.teamMemberSummaries
+      .slice(0, 3)
+      .map((m) => `${m.name} (${m.roleTitle}, ${m.equityPercent}% equity)`)
+      .join('; ');
+    lines.push(
+      `TEAM_HEADCOUNT: ${f.teamStructurePostureLabel || `${f.teamMembersCount} promoter(s)`}${memberBios ? ` [${memberBios}]` : ''} | HatsAssigned=${f.hatsAssignedCount}/7 | NetSurvivalBudget=${formatPlanCurrency(f.monthlyNetSurvivalBurnTotal, f.currency)}/mo | PlannedHires=${f.plannedHiresCount}${f.plannedHiresSummaries.length > 0 ? ` (${f.plannedHiresSummaries.map((h) => `${h.roleTitle} ${h.targetQuarter} @ ${formatPlanCurrency(h.annualGrossSalary, f.currency)}/yr`).join(', ')})` : ' (Founder-led Year 1)'}`
+    );
+  }
+  if (f.hasModuleG) {
+    lines.push(
+      `CORPORATE_SETUP: Readiness=${f.opsReadinessPercent}% | Entity="${f.legalEntityStructureLabel || 'Pending'}"${f.registeredEntityName ? ` (${f.registeredEntityName})` : ''} | DedicatedIBAN=${f.hasDedicatedIban ? 'Yes' : 'Pending'} | Domain=${f.primaryDomain || 'Pending'}`
+    );
+  }
+  if (f.hasModuleH) {
+    lines.push(
+      `PRICING_BREAKEVEN: Model="${f.revenueModelVehicleLabel || 'Direct'}" | BlendedNetPrice=${formatPlanCurrency(f.blendedAveragePriceNet, f.currency)} | Y1BreakevenTarget=${f.year1TargetCustomers} customers (${formatPlanCurrency(f.year1ProjectedNetTurnover, f.currency)}/yr net turnover) | Y2Turnover=${formatPlanCurrency(f.year2ProjectedNetTurnover, f.currency)} | Y3Turnover=${formatPlanCurrency(f.year3ProjectedNetTurnover, f.currency)}`
+    );
+  }
+  if (f.hasModuleI) {
+    lines.push(
+      `MARKETING_GTM: Hook="${f.elevatorHook140 || f.positioningFormulaSummary || 'Defined'}" | First10Prospects=${f.first10ProspectsCount} (${f.committedOrPilotProspectsCount} pilot/paid) | MonthlyMarketing=${formatPlanCurrency(f.monthlyMarketingBudget, f.currency)}/mo | CashCAC=${formatPlanCurrency(f.calculatedCashCac, f.currency)}`
+    );
+  }
+  if (f.hasModuleJ) {
+    lines.push(
+      `FINANCE_36M: FixedOverheads=${formatPlanCurrency(f.monthlyFixedOverheadsTotal, f.currency)}/mo | Y1FounderDrawings=${formatPlanCurrency(f.monthlyFounderDrawingsYear1, f.currency)}/mo | Y1TeamPayroll=${formatPlanCurrency(f.monthlyTeamSalariesYear1, f.currency)}/mo | Day1Cash=${formatPlanCurrency(f.startingCashBalanceDay1, f.currency)} | ExternalFunding=${formatPlanCurrency(f.totalExternalFundingMapped, f.currency)}`
+    );
+  }
+  if (f.hasModuleK) {
+    lines.push(
+      `GRANTS_CAPITAL_STACK: TargetGrant="${f.selectedGrantKey || 'None selected'}" | TotalFundingNeed=${formatPlanCurrency(f.totalTargetFundingGap, f.currency)} | FounderCash=${formatPlanCurrency(f.skinInTheGameCash, f.currency)} (${f.skinInTheGamePercent}%) | Grants=${formatPlanCurrency(f.totalGrantsAllocated, f.currency)} | Loans=${formatPlanCurrency(f.totalLoansAllocated, f.currency)} | Equity=${formatPlanCurrency(f.totalAngelAllocated, f.currency)}${f.primaryTaxScheme && f.primaryTaxScheme !== 'None Selected' ? ` (${f.primaryTaxScheme})` : ''} | Bridge="${f.bridgeStrategyLabel || 'Unset'}"`
+    );
+  }
+  if (extraDefenseOrNotes?.trim()) {
+    lines.push(`DEFENSE_NOTES: ${extraDefenseOrNotes.trim()}`);
+  }
+
+  return lines.join('\n');
+}
+
+function ensureSentenceEnding(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  return /[.!?]["']?$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+/**
  * Builds the 3-Paragraph Cohesive Executive Story using 100% deterministic,
  * strictly grounded facts from the founder's saved inputs.
  * Never invents or extrapolates any fact that has not been entered.
@@ -1484,14 +1644,14 @@ export function buildDeterministicMasterStory(
 
   if (facts.hasModuleA) {
     const coreIntro = `${facts.planTitle} is a ${facts.countryName}-based (${facts.currency}) ${facts.industryCategory} venture${
-      facts.targetCustomer ? ` built for ${facts.targetCustomer}` : ''
+      facts.targetCustomer ? ` built for ${facts.targetCustomer.replace(/[.]+$/, '')}` : ''
     }.`;
     p1Parts.push(coreIntro);
     if (facts.coreProblem) {
-      p1Parts.push(`The core problem addressed is: ${facts.coreProblem}`);
+      p1Parts.push(ensureSentenceEnding(`The core problem addressed is: ${facts.coreProblem}`));
     }
     if (facts.proposedSolution) {
-      p1Parts.push(`Proposed solution: ${facts.proposedSolution}`);
+      p1Parts.push(ensureSentenceEnding(`Proposed solution: ${facts.proposedSolution}`));
     }
     p1Sources.push('Module A: Concept Canvas');
 
@@ -1506,7 +1666,7 @@ export function buildDeterministicMasterStory(
   if (facts.hasModuleB) {
     if (facts.beachheadSegment) {
       p1Parts.push(
-        `In Module B, the priority beachhead customer segment is defined as ${facts.beachheadSegment}${
+        `The priority beachhead customer segment is ${facts.beachheadSegment.replace(/[.]+$/, '')}${
           facts.buyerModelLabel ? ` (${facts.buyerModelLabel})` : ''
         }.`
       );
@@ -1514,11 +1674,13 @@ export function buildDeterministicMasterStory(
     }
     if (facts.whySwitchOneSentence) {
       p1Parts.push(
-        `Customers switch from existing alternatives${
-          facts.competitorNames.length > 0
-            ? ` (${facts.competitorNames.slice(0, 3).join(', ')})`
-            : ''
-        } because: ${facts.whySwitchOneSentence}`
+        ensureSentenceEnding(
+          `Customers switch from existing alternatives${
+            facts.competitorNames.length > 0
+              ? ` (${facts.competitorNames.slice(0, 3).join(', ')})`
+              : ''
+          } because ${facts.whySwitchOneSentence}`
+        )
       );
       p1Sources.push('Module B: Competitor Analysis');
     }
@@ -1533,9 +1695,9 @@ export function buildDeterministicMasterStory(
   if (facts.hasModuleI) {
     if (facts.elevatorHook140) {
       p1Parts.push(
-        `Brand positioning leads with: "${facts.elevatorHook140}"${
+        `Market positioning leads with "${facts.elevatorHook140.replace(/[.]+$/, '')}"${
           facts.first10ProspectsCount > 0
-            ? `, backed by a First-10 pipeline of ${facts.first10ProspectsCount} named prospect(s) (${facts.committedOrPilotProspectsCount} in active pilot/paid status)`
+            ? `, backed by an initial pipeline of ${facts.first10ProspectsCount} named prospect(s) (${facts.committedOrPilotProspectsCount} in active pilot or paid status)`
             : ''
         }.`
       );
@@ -1543,10 +1705,10 @@ export function buildDeterministicMasterStory(
     }
     if (facts.monthlyMarketingBudget > 0 || facts.calculatedCashCac > 0) {
       p1Parts.push(
-        `Growth economics allocate ${formatPlanCurrency(
+        `Acquisition economics allocate ${formatPlanCurrency(
           facts.monthlyMarketingBudget,
           facts.currency
-        )}/month in acquisition budget with a modeled cash CAC of ${formatPlanCurrency(
+        )}/month in marketing spend with a modeled cash CAC of ${formatPlanCurrency(
           facts.calculatedCashCac,
           facts.currency
         )}${
@@ -1562,7 +1724,7 @@ export function buildDeterministicMasterStory(
   const paragraph1OpportunityAndMarket =
     p1Parts.length > 0
       ? sanitizeSurveyTerminologyForReader(p1Parts.join(' '))
-      : `${facts.planTitle} (${facts.countryName} • ${facts.currency}) is currently capturing its initial concept, market, and positioning foundations across Modules A, B, and I.`;
+      : `${facts.planTitle} (${facts.countryName} • ${facts.currency}) is currently capturing its initial concept, market, and positioning foundations.`;
 
   // Paragraph 2: Customer Validation & Product Architecture (Modules C + D)
   const p2Parts: string[] = [];
@@ -1570,9 +1732,9 @@ export function buildDeterministicMasterStory(
 
   if (facts.hasModuleC) {
     const surveyPieces: string[] = [];
-    if (facts.surveysCount > 0) {
+    if (facts.surveysCount > 0 && facts.totalSurveyResponses > 0) {
       surveyPieces.push(
-        `${facts.totalSurveyResponses} response(s) across ${facts.surveysCount} public validation survey(s)${
+        `${facts.totalSurveyResponses} response(s) across ${facts.surveysCount} customer validation survey(s)${
           facts.waitlistOptInsCount > 0
             ? ` (with ${facts.waitlistOptInsCount} early waitlist signup(s))`
             : ''
@@ -1592,24 +1754,24 @@ export function buildDeterministicMasterStory(
     }
     if (surveyPieces.length > 0) {
       p2Parts.push(
-        `Customer validation to date encompasses ${surveyPieces.join(' and ')}.`
+        `Primary customer discovery to date encompasses ${surveyPieces.join(' and ')}.`
       );
     }
     if (facts.surveyHeadlineInsight) {
-      p2Parts.push(`Key validation signal: ${facts.surveyHeadlineInsight}`);
+      p2Parts.push(ensureSentenceEnding(`Key validation signal: ${facts.surveyHeadlineInsight}`));
     } else if (facts.sampleCustomerQuote) {
-      p2Parts.push(`Recorded customer takeaway: "${facts.sampleCustomerQuote}"`);
+      p2Parts.push(`Recorded customer quote: "${facts.sampleCustomerQuote.replace(/["]+$/g, '')}".`);
     }
   }
 
   if (facts.hasModuleD) {
     if (facts.formFactorLabel || facts.productTrackLabel) {
       p2Parts.push(
-        `On the product side, ${facts.planTitle} is building a ${
+        `${facts.planTitle} is delivering a ${
           facts.formFactorLabel || facts.productTrackLabel
         }${
           facts.launchTimelineLabel
-            ? ` targeting a V1 launch window of ${facts.launchTimelineLabel}`
+            ? ` targeting an initial launch window of ${facts.launchTimelineLabel}`
             : ''
         }.`
       );
@@ -1620,13 +1782,13 @@ export function buildDeterministicMasterStory(
       facts.rentedChannelsSharePercent > 0
     ) {
       p2Parts.push(
-        `Distribution is structured around ${facts.ownedChannelsSharePercent}% owned direct channels and ${facts.rentedChannelsSharePercent}% partner or marketplace channels.`
+        `Distribution balances ${facts.ownedChannelsSharePercent}% owned direct channels and ${facts.rentedChannelsSharePercent}% partner or marketplace channels.`
       );
       p2Sources.push('Module D: Own vs. Rent Channel Matrix');
     }
     if (facts.v1MustHaveTitles.length > 0) {
       p2Parts.push(
-        `V1 scope is strictly focused on ${facts.v1MustHaveTitles
+        `Initial V1 scope focuses on ${facts.v1MustHaveTitles
           .slice(0, 4)
           .join(', ')}${
           facts.deferredPostV1Titles.length > 0
@@ -1640,7 +1802,7 @@ export function buildDeterministicMasterStory(
     }
     if (facts.workPackagesCount > 0) {
       p2Parts.push(
-        `Execution is broken into ${facts.workPackagesCount} structured work package(s) with an estimated build budget of ${formatPlanCurrency(
+        `Product execution is organized into ${facts.workPackagesCount} structured work package(s) with an estimated build budget of ${formatPlanCurrency(
           facts.totalWorkPackagesCost,
           facts.currency
         )}.`
@@ -1654,16 +1816,16 @@ export function buildDeterministicMasterStory(
       p2Parts.push(
         `Commercial monetization operates via ${
           facts.revenueModelVehicleLabel || 'tiered pricing'
-        } across ${facts.pricingTiersCount} pricing tier(s) (blended net price: ${formatPlanCurrency(
+        } across ${facts.pricingTiersCount} pricing tier(s) at a blended net price of ${formatPlanCurrency(
           facts.blendedAveragePriceNet,
           facts.currency
-        )}${facts.valueMetric ? ` ${facts.valueMetric}` : ''}).`
+        )}${facts.valueMetric ? ` (${facts.valueMetric})` : ''}.`
       );
       p2Sources.push('Module H: Pricing Architect');
     }
     if (facts.year1ProjectedNetTurnover > 0) {
       p2Parts.push(
-        `The 3-Year Pocket Profit breakeven model targets ${
+        `Unit-economic breakeven targets ${
           facts.year1TargetCustomers
         } Year 1 customers generating ${formatPlanCurrency(
           facts.year1ProjectedNetTurnover,
@@ -1687,9 +1849,9 @@ export function buildDeterministicMasterStory(
   const paragraph2ValidationAndProduct =
     p2Parts.length > 0
       ? sanitizeSurveyTerminologyForReader(p2Parts.join(' '))
-      : 'Customer validation (Module C), Product Architecture (Module D), and Revenue & Pricing (Module H) have not yet been populated.';
+      : 'Primary customer validation, V1 product scope, and commercial pricing tiers are currently in progress.';
 
-  // Paragraph 3: Operations, Fulfillment, Equipment & Risk Posture (Module E)
+  // Paragraph 3: Operations, Team, Financials & Funding Stack (Modules E, F, G, J, K, L)
   const p3Parts: string[] = [];
   const p3Sources: string[] = [];
 
@@ -1704,14 +1866,14 @@ export function buildDeterministicMasterStory(
       );
       p3Sources.push('Module E: Fulfillment Blueprint');
     }
-    if (facts.orderStagesCount > 0) {
+    if (facts.orderStagesCount > 0 && facts.totalActiveMinutesPerOrder > 0) {
       p3Parts.push(
-        `Across ${facts.orderStagesCount} mapped order lifecycle stages, each order requires ${facts.totalActiveMinutesPerOrder} active minutes and ${formatPlanCurrency(
+        `Across ${facts.orderStagesCount} mapped fulfillment stages, each order requires ${facts.totalActiveMinutesPerOrder} active minutes and ${formatPlanCurrency(
           facts.totalDirectVariableCostPerOrder,
           facts.currency
-        )} in direct variable fulfillment cost${
+        )} in direct variable cost${
           facts.maxWeeklyOrdersCapacity > 0
-            ? ` (supporting up to ~${facts.maxWeeklyOrdersCapacity} orders/week within ${facts.weeklyOpsHoursAllocated} allocated weekly ops hours)`
+            ? ` (supporting up to ~${facts.maxWeeklyOrdersCapacity} orders/week within ${facts.weeklyOpsHoursAllocated} weekly operational hours)`
             : ''
         }.`
       );
@@ -1719,14 +1881,16 @@ export function buildDeterministicMasterStory(
     }
     if (facts.premisesModeLabel || facts.equipmentItemsCount > 0) {
       p3Parts.push(
-        `The business operates from a ${
+        `Operations run from a ${
           facts.premisesModeLabel || 'lean premises setup'
-        } (${formatPlanCurrency(facts.monthlyPremisesCost, facts.currency)}/month overhead) with ${
-          facts.equipmentItemsCount
-        } scheduled equipment asset(s) totaling ${formatPlanCurrency(
-          facts.totalEquipmentCapexExVat,
-          facts.currency
-        )} ex-VAT.`
+        } (${formatPlanCurrency(facts.monthlyPremisesCost, facts.currency)}/month overhead)${
+          facts.equipmentItemsCount > 0
+            ? ` with ${facts.equipmentItemsCount} scheduled equipment asset(s) totaling ${formatPlanCurrency(
+                facts.totalEquipmentCapexExVat,
+                facts.currency
+              )} ex-VAT`
+            : ''
+        }.`
       );
       p3Sources.push('Module E: Premises & Equipment Schedule');
     }
@@ -1738,7 +1902,7 @@ export function buildDeterministicMasterStory(
             : ''
         }${
           facts.topRiskTitleAndMitigation
-            ? `, led by mitigating "${facts.topRiskTitleAndMitigation}"`
+            ? `, led by mitigating "${facts.topRiskTitleAndMitigation.replace(/[.]+$/, '')}"`
             : ''
         }.`
       );
@@ -1746,11 +1910,11 @@ export function buildDeterministicMasterStory(
     }
   } else if (facts.hasModuleA && facts.dealbreakersList.length > 0) {
     p3Parts.push(
-      `Operational guardrails established in Module A enforce key founder non-negotiables (${facts.dealbreakersList.join(
+      `Operational guardrails enforce key founder boundaries (${facts.dealbreakersList.join(
         ', '
-      )}) and a ${
+      )}) alongside a ${
         facts.growthTradeoffLabel || 'disciplined'
-      } growth strategy.`
+      } growth posture.`
     );
     p3Sources.push('Module A: Founder Non-Negotiables');
   }
@@ -1759,13 +1923,13 @@ export function buildDeterministicMasterStory(
     p3Parts.push(
       `The founding team comprises ${facts.teamMembersCount} promoter profile(s) (${
         facts.hatsAssignedCount
-      }/7 functional startup hats assigned, ${formatPlanCurrency(
+      }/7 functional roles assigned, ${formatPlanCurrency(
         facts.monthlyNetSurvivalBurnTotal,
         facts.currency
-      )}/mo combined net personal survival budget${
+      )}/mo combined net household survival budget${
         facts.plannedHiresCount > 0
           ? `, and ${facts.plannedHiresCount} scheduled 3-year hire(s)`
-          : ''
+          : ', operating founder-led in Year 1'
       }).`
     );
     p3Sources.push('Module F: Team, Survival Budget & Hiring');
@@ -1773,8 +1937,8 @@ export function buildDeterministicMasterStory(
 
   if (facts.hasModuleG) {
     p3Parts.push(
-      `Launchpad operations readiness stands at ${facts.opsReadinessPercent}% (${
-        facts.legalEntityStructureLabel || 'Legal structure'
+      `Corporate & operational setup readiness stands at ${facts.opsReadinessPercent}% (${
+        facts.legalEntityStructureLabel || 'Legal structure pending'
       }${
         facts.registeredEntityName ? ` • ${facts.registeredEntityName}` : ''
       }${facts.primaryDomain ? ` • ${facts.primaryDomain}` : ''}).`
@@ -1784,23 +1948,23 @@ export function buildDeterministicMasterStory(
 
   if (facts.hasModuleJ) {
     p3Parts.push(
-      `In Module J, 36-month financials model ${formatPlanCurrency(
+      `The 36-month financial forecast models ${formatPlanCurrency(
         facts.monthlyFixedOverheadsTotal,
         facts.currency
       )}/mo in fixed overheads, ${formatPlanCurrency(
         facts.startingCashBalanceDay1,
         facts.currency
-      )} Day-1 cash, and ${formatPlanCurrency(
+      )} in Day-1 opening cash, and ${formatPlanCurrency(
         facts.totalExternalFundingMapped,
         facts.currency
-      )} in mapped external funding.`
+      )} in mapped external financing.`
     );
     p3Sources.push('Module J: 36-Month Financial Builder');
   }
 
   if (facts.hasModuleK) {
     p3Parts.push(
-      `Module K structures a ${formatPlanCurrency(
+      `The funding plan structures a ${formatPlanCurrency(
         facts.totalTargetFundingGap,
         facts.currency
       )} capital stack (${formatPlanCurrency(
@@ -1816,17 +1980,17 @@ export function buildDeterministicMasterStory(
         facts.totalAngelAllocated,
         facts.currency
       )} equity${
-        facts.primaryTaxScheme && facts.primaryTaxScheme !== 'NONE'
+        facts.primaryTaxScheme && facts.primaryTaxScheme !== 'None Selected'
           ? ` via ${facts.primaryTaxScheme}`
           : ''
-      }) with an assessor readiness score of ${facts.overallAssessorReadinessScore}/100.`
+      }).`
     );
     p3Sources.push('Module K: Grants, Capital Stack & Tax Relief');
   }
 
   if (facts.hasModuleL) {
     p3Parts.push(
-      `Module L compiles the dossier in ${facts.compilerModeLabel} mode for ${facts.targetAgencyOrCommitteeName} (targeting ${formatPlanCurrency(facts.targetFundingAskAmount, facts.currency)}), achieving an assessor pre-flight audit clearance of ${facts.contradictionAuditScore}/100 across ${facts.compiledSectionsCount} structured narrative questions and ${facts.appendicesReadyCount}/${facts.totalAppendicesCount} verified proof appendices.`
+      `The formal submission dossier is formatted as ${facts.compilerModeLabel} for ${facts.targetAgencyOrCommitteeName} (${formatPlanCurrency(facts.targetFundingAskAmount, facts.currency)} target ask), with ${facts.compiledSectionsCount} compiled narrative sections and ${facts.appendicesReadyCount}/${facts.totalAppendicesCount} verified supporting appendices.`
     );
     p3Sources.push('Module L: Official Grant & Business Plan Compiler');
   }
@@ -1834,7 +1998,7 @@ export function buildDeterministicMasterStory(
   const paragraph3OperationsAndExecution =
     p3Parts.length > 0
       ? sanitizeSurveyTerminologyForReader(p3Parts.join(' '))
-      : 'Operations (Module E), Team & Launchpad (Modules F–G), 36-Month Financials (Module J), and Non-Dilutive Capital Stack (Module K) have not yet been populated.';
+      : 'Operational fulfillment, team roles, 36-month financial forecasts, and capital stack details are currently in progress.';
 
   return {
     paragraph1OpportunityAndMarket,
@@ -2598,22 +2762,22 @@ export function buildMasterDocumentStandaloneHtml(
       <div class="box" style="margin-bottom: 10px;">
         <div class="box-label">Paragraph 1 • Opportunity, Customer Pain & Market Wedge</div>
         <div class="box-value">${escapeDocumentHtml(sanitizeSurveyTerminologyForReader(story.paragraph1OpportunityAndMarket))}</div>
-        <div style="margin-top: 6px; font-size: 11px; color: #4f46e5; font-weight: 600;">
-          🔒 Grounded strictly in: ${escapeDocumentHtml(story.paragraph1Sources.join(' • '))}
+        <div style="margin-top: 6px; font-size: 11px; color: #047857; font-weight: 600;">
+          Grounded in: ${escapeDocumentHtml(story.paragraph1Sources.join(' • '))}
         </div>
       </div>
       <div class="box" style="margin-bottom: 10px;">
         <div class="box-label">Paragraph 2 • Customer Validation & V1 Product Architecture</div>
         <div class="box-value">${escapeDocumentHtml(sanitizeSurveyTerminologyForReader(story.paragraph2ValidationAndProduct))}</div>
-        <div style="margin-top: 6px; font-size: 11px; color: #4f46e5; font-weight: 600;">
-          🔒 Grounded strictly in: ${escapeDocumentHtml(story.paragraph2Sources.join(' • '))}
+        <div style="margin-top: 6px; font-size: 11px; color: #047857; font-weight: 600;">
+          Grounded in: ${escapeDocumentHtml(story.paragraph2Sources.join(' • '))}
         </div>
       </div>
       <div class="box">
         <div class="box-label">Paragraph 3 • Operational Execution, Unit Delivery & De-Risking</div>
         <div class="box-value">${escapeDocumentHtml(sanitizeSurveyTerminologyForReader(story.paragraph3OperationsAndExecution))}</div>
-        <div style="margin-top: 6px; font-size: 11px; color: #4f46e5; font-weight: 600;">
-          🔒 Grounded strictly in: ${escapeDocumentHtml(story.paragraph3Sources.join(' • '))}
+        <div style="margin-top: 6px; font-size: 11px; color: #047857; font-weight: 600;">
+          Grounded in: ${escapeDocumentHtml(story.paragraph3Sources.join(' • '))}
         </div>
       </div>
     </div>
@@ -2711,7 +2875,7 @@ export function buildMasterDocumentStandaloneHtml(
         <div class="grid-3" style="margin-bottom: 12px;">
           <div class="box">
             <div class="box-label">Year 1–2 Target (SOM)</div>
-            <div class="box-value" style="font-size: 16px; font-weight: 800; color: #312e81;">${escapeDocumentHtml(facts.somFormatted || '—')}/yr</div>
+            <div class="box-value" style="font-size: 16px; font-weight: 800; color: #047857;">${escapeDocumentHtml(facts.somFormatted || '—')}/yr</div>
           </div>
           <div class="box">
             <div class="box-label">Reachable Market (SAM)</div>

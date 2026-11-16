@@ -19,6 +19,7 @@ import {
   Loader2,
   BookmarkPlus,
   Sliders,
+  SlidersHorizontal,
   CheckCircle2,
   AlertTriangle,
   Info,
@@ -27,6 +28,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import {
   formatPlanCurrency,
   getPlanTrackCapabilities,
@@ -86,7 +88,7 @@ export const MODULE_L_COMPILER_MODES: CompilerModeCatalogItem[] = [
       '7. 36-Month Financial Projections & Vouched Grant Ask (Mod H, J & K)',
     ],
     underwriterFootNote:
-      'IE LEO Evaluation & Approvals Committees (EVAC) require proof of international export potential or import substitution, zero domestic displacement, and 3 independent supplier quotes for items ≥ €5,000.',
+      'IE LEO Evaluation & Approvals Committees (EVAC) require proof of international export potential or import substitution, zero domestic displacement, and 3 independent supplier quotes for items ≥ €1,000.',
   },
   {
     mode: 'UK_INNOVATE_UK_9Q',
@@ -124,7 +126,7 @@ export const MODULE_L_COMPILER_MODES: CompilerModeCatalogItem[] = [
     defaultObjective: 'GOVERNMENT_LOAN_APPROVAL',
     sectionStructureLabel: '4-Part Workbook + Survival Budget',
     wordLimitDisciplineLabel: '2,200w Credit Dossier',
-    passThresholdLabel: 'DSCR ≥ 1.25x & Household Surplus',
+    passThresholdLabel: 'Loan Cover (DSCR) ≥ 1.25x & Household Surplus',
     rubricWeightsSummary: 'Survival Budget & Affordability 35% • First 10 Customers 25% • Cashflow 40%',
     description:
       'Designed specifically for British Business Bank Start Up Loan underwriters (£500–£25,000 per founder at 6% fixed). Connects your Module F Personal Survival Budget directly to your Module J 36-Month Cashflow and repayment affordability.',
@@ -490,6 +492,7 @@ export function ModuleLModeSelectorStep({
 
   const [showWhyDrawer, setShowWhyDrawer] = useState(false);
   const [showExampleDrawer, setShowExampleDrawer] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -789,7 +792,7 @@ export function ModuleLModeSelectorStep({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
-                  1. Compiler Mode, Target Committee &amp; Scoring Rubric
+                  1. Who Are You Handing This Plan To?
                 </h2>
                 <Badge
                   variant={isStepComplete ? 'default' : 'outline'}
@@ -854,7 +857,7 @@ export function ModuleLModeSelectorStep({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <CardTitle className="text-base font-bold text-slate-900">
-                  1. Compiler Mode, Target Committee &amp; Scoring Rubric
+                  1. Who Are You Handing This Plan To?
                 </CardTitle>
                 <Badge
                   variant={isStepComplete ? 'default' : 'outline'}
@@ -874,7 +877,7 @@ export function ModuleLModeSelectorStep({
                 </Badge>
               </div>
               <CardDescription className="mt-1 text-xs text-slate-600">
-                Choose the official grant application form, loan workbook, or investor pack format so the compiler structures your answers from Modules A–K into the exact questions, word limits, and appendices your evaluator grades on.
+                Pick your audience below—we&apos;ll automatically set the right sections, tone, and word limits, and draft your full plan immediately.
               </CardDescription>
             </div>
           </div>
@@ -927,9 +930,9 @@ export function ModuleLModeSelectorStep({
             {isGeneratingAi ? (
               <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-emerald-700" />
             ) : (
-              <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+              <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             )}
-            Auto-Calibrate Mandate with AI
+            Calibrate with Evidence
           </Button>
         </div>
 
@@ -939,13 +942,13 @@ export function ModuleLModeSelectorStep({
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-1.5">
                 <p className="font-bold text-slate-950">
-                  Why the Compiler Mode changes your entire business plan output:
+                  Why choosing your audience changes your entire business plan output:
                 </p>
                 <p className="leading-relaxed">
                   A generic 30-page business plan will fail an <strong>Innovate UK 9-Question IFS</strong> panel (which enforces a strict 400-word limit per question) and will frustrate a <strong>UK Start Up Loans</strong> underwriter (who looks first at your Personal Survival Budget vs. Month 1–6 drawings). Conversely, an <strong>Irish LEO Evaluation Committee (EVAC)</strong> requires explicit proof of non-displacement (that you aren&apos;t simply taking market share from another local business in the same county) and 3 independent supplier quotes.
                 </p>
                 <p className="leading-relaxed">
-                  Selecting your primary target mode here configures the <strong>Step 2 Pre-Flight Contradiction Audit</strong>, the <strong>Step 3 Question-by-Question Narrative Compiler</strong>, and the <strong>Step 4 Appendices A–F Evidence Binder</strong> automatically.
+                  Selecting your primary reader here configures the <strong>Step 2 Question-by-Question Narrative Compiler</strong>, the <strong>Step 3 Pre-Flight Contradiction Audit</strong>, and the <strong>Step 4 Appendices A–F Evidence Binder</strong> automatically.
                 </p>
               </div>
               <button
@@ -1142,218 +1145,35 @@ export function ModuleLModeSelectorStep({
         </div>
 
         {/* =================================================================== */}
-        {/* SELECTED MODE STRUCTURE & RUBRIC PREVIEW CARD                       */}
+        {/* QUICK RECIPIENT & ASK SUMMARY + COMPACT SECTION PREVIEW             */}
         {/* =================================================================== */}
-        <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/40 p-4 sm:p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-emerald-700" />
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950">
-                  Compiler Blueprint Output Preview: {activeCatalogItem.title}
-                </h4>
-                <p className="text-[11px] text-slate-500">
-                  Format: <span className="font-semibold text-slate-700">{activeCatalogItem.sectionStructureLabel}</span> ({activeCatalogItem.wordLimitDisciplineLabel}) • Scoring Weights: <span className="font-semibold text-emerald-800">{activeCatalogItem.rubricWeightsSummary}</span>
-                </p>
-              </div>
-            </div>
-            {onJumpToCompilerStep3 && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveAndJumpToCompiler}
-                disabled={isSaving}
-                className="bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs"
-              >
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
-                ⚡ Auto-Compile This Blueprint Now (Step 3)
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-slate-100 bg-white/90 p-3">
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              The Compiler will automatically construct answers for these {activeCatalogItem.keySectionsPreview.length} questions from your 11 modules:
-            </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {activeCatalogItem.keySectionsPreview.map((sec, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-xs text-slate-800"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                  <span className="truncate font-medium">{sec}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-600 pt-1">
-            <p className="max-w-xl">
-              <strong className="text-slate-900">Evaluator Underwriting Note:</strong>{' '}
-              {activeCatalogItem.underwriterFootNote}
-            </p>
-            <div className="text-xs font-semibold text-emerald-800">
-              Ready to compile immediately or customize committee parameters below ▾
-            </div>
-          </div>
-        </div>
-
-        {/* =================================================================== */}
-        {/* 3. EVALUATOR TONE & PRIMARY OBJECTIVE SELECTORS (with "OTHER")      */}
-        {/* =================================================================== */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Tone Selector */}
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Evaluator Narrative Tone &amp; Voice
-            </label>
-            <div className="grid grid-cols-1 gap-2">
-              {NARRATIVE_TONE_OPTIONS.map((opt) => {
-                const active = narrativeTone === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    disabled={isVaultReadonly}
-                    onClick={() => setNarrativeTone(opt.value)}
-                    className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
-                      active
-                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700/20'
-                        : 'border-slate-200 bg-white hover:border-emerald-300'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">
-                        {opt.label}
-                      </div>
-                      <div className="mt-0.5 text-[11px] text-slate-500">
-                        {opt.subtitle}
-                      </div>
-                    </div>
-                    <div
-                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                        active
-                          ? 'border-emerald-700 bg-emerald-700 text-white'
-                          : 'border-slate-300'
-                      }`}
-                    >
-                      {active && <Check className="h-2.5 w-2.5" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {narrativeTone === 'OTHER' && (
-              <input
-                type="text"
-                disabled={isVaultReadonly}
-                value={otherNarrativeToneText}
-                onChange={(e) => setOtherNarrativeToneText(e.target.value)}
-                placeholder="Describe your custom evaluator tone (e.g., Academic Clinical Peer-Review, Social Enterprise Impact)..."
-                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
-              />
-            )}
-          </div>
-
-          {/* Primary Submission Objective Selector */}
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Primary Committee Approval Objective
-            </label>
-            <div className="grid grid-cols-1 gap-2">
-              {availableObjectiveOptions.map((opt) => {
-                const active = submissionObjective === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    disabled={isVaultReadonly}
-                    onClick={() => setSubmissionObjective(opt.value)}
-                    className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
-                      active
-                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700/20'
-                        : 'border-slate-200 bg-white hover:border-emerald-300'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">
-                        {opt.label}
-                      </div>
-                      <div className="mt-0.5 text-[11px] text-slate-500">
-                        {opt.subtitle}
-                      </div>
-                    </div>
-                    <div
-                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                        active
-                          ? 'border-emerald-700 bg-emerald-700 text-white'
-                          : 'border-slate-300'
-                      }`}
-                    >
-                      {active && <Check className="h-2.5 w-2.5" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {submissionObjective === 'OTHER' && (
-              <input
-                type="text"
-                disabled={isVaultReadonly}
-                value={otherSubmissionObjectiveText}
-                onChange={(e) => setOtherSubmissionObjectiveText(e.target.value)}
-                placeholder="Specify your custom submission objective..."
-                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
-              />
-            )}
-          </div>
-        </div>
-
-        {/* =================================================================== */}
-        {/* 4. TARGET COMMITTEE PARAMETERS, TIMELINE & MANDATE CALIBRATION      */}
-        {/* =================================================================== */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5 space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Target Committee Parameters &amp; Submission Window
+                Recipient &amp; Target Funding Ask
               </h4>
               <p className="text-xs text-slate-500">
-                Fine-tune the recipient agency name, grant/funding ask amount, and formatting guardrails.
+                Pre-filled from your plan — confirm who will read this document and how much you&apos;re asking for.
               </p>
             </div>
-            {/* Momentum Protection Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isVaultReadonly}
-                onClick={handleApplyIndustryBenchmark}
-                className="h-7 border-slate-300 bg-white text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-              >
-                <Sliders className="mr-1 h-3 w-3 text-emerald-700" />
-                Use Industry Benchmark
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleParkOpenQuestion}
-                className="h-7 border-amber-300 bg-amber-50/80 text-[11px] font-medium text-amber-900 hover:bg-amber-100"
-              >
-                <BookmarkPlus className="mr-1 h-3 w-3 text-amber-700" />
-                Park It in Open Questions
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isVaultReadonly}
+              onClick={handleApplyIndustryBenchmark}
+              className="h-7 border-slate-300 bg-white text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <Sliders className="mr-1 h-3 w-3 text-emerald-700" />
+              Use Industry Benchmark
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-700">
-                Target Agency, Underwriter, or Committee Name
+                Who Is Reading This? (Agency, Bank, or Investor Group)
               </label>
               <input
                 type="text"
@@ -1378,150 +1198,308 @@ export function ModuleLModeSelectorStep({
                 onChange={(e) =>
                   setTargetFundingAskAmount(Math.max(0, Number(e.target.value) || 0))
                 }
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs font-mono tabular-nums font-semibold text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Target Submission Window Pills (with "OTHER") */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-700">
-              Target Submission Window / Committee Intake
-            </label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
-              {SUBMISSION_WINDOW_OPTIONS.map((win) => {
-                const active = submissionWindow === win.value;
-                return (
-                  <button
-                    key={win.value}
-                    type="button"
-                    disabled={isVaultReadonly}
-                    onClick={() => setSubmissionWindow(win.value)}
-                    className={`rounded-xl border p-2.5 text-left transition-all ${
-                      active
-                        ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700/20'
-                        : 'border-slate-200 bg-white hover:border-emerald-300'
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-slate-900">
-                      {win.label}
-                    </div>
-                    <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-                      {win.subtitle}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {submissionWindow === 'OTHER' && (
-              <input
-                type="text"
-                disabled={isVaultReadonly}
-                value={otherSubmissionWindowText}
-                onChange={(e) => setOtherSubmissionWindowText(e.target.value)}
-                placeholder="Specify your exact committee deadline or cohort date..."
-                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
-              />
-            )}
-          </div>
-
-          {/* Compiler Guardrail Toggles */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1">
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3">
-              <input
-                type="checkbox"
-                disabled={isVaultReadonly}
-                checked={includeAppendicesBinder}
-                onChange={(e) => setIncludeAppendicesBinder(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
-              />
-              <div className="text-xs">
-                <div className="font-bold text-slate-900">
-                  Auto-Attach Mandatory Appendices A–F Binder
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Includes Promoter CVs, 36-Month Financials, 3-Quote Schedule, Mom-Test Survey Telemetry &amp; Risk Register
-                </div>
-              </div>
-            </label>
-
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3">
-              <input
-                type="checkbox"
-                disabled={isVaultReadonly}
-                checked={strictWordCountEnforcement}
-                onChange={(e) =>
-                  setStrictWordCountEnforcement(e.target.checked)
-                }
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
-              />
-              <div className="text-xs">
-                <div className="font-bold text-slate-900">
-                  Enforce Official Portal Word-Limit Gauges
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Displays live word/character meters (e.g., 400w cap for Innovate UK IFS or LEO section limits)
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {/* Compiler Mandate Instructions Textarea */}
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="text-xs font-semibold text-slate-700">
-                Compiler Mandate &amp; Committee Emphasis Notes
-              </label>
-              <span className="text-[11px] text-slate-500">
-                Guides Step 2 Contradiction Audit &amp; Step 3 Section Compiler
+          <div className="rounded-lg border border-slate-200/80 bg-white p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+              <span className="font-bold uppercase tracking-wider text-slate-600">
+                Sections We&apos;ll Draft Next ({activeCatalogItem.keySectionsPreview.length} Sections • {activeCatalogItem.wordLimitDisciplineLabel})
+              </span>
+              <span className="font-semibold text-emerald-800">
+                Scoring Focus: {activeCatalogItem.rubricWeightsSummary}
               </span>
             </div>
-            <textarea
-              rows={3}
-              disabled={isVaultReadonly}
-              value={compilerMandateNotes}
-              onChange={(e) => setCompilerMandateNotes(e.target.value)}
-              placeholder="Specify any special angles or evaluator priorities to emphasize across the compiled plan..."
-              className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-xs leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-none"
-            />
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {activeCatalogItem.keySectionsPreview.map((sec, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-800"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <span className="truncate font-medium">{sec}</span>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
 
-          {/* Assessor Strategy Tip Callout */}
-          {aiAssessorTip && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
-              <div className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                <div>
-                  <span className="font-bold">
-                    Committee Evaluator Insider Tip:
-                  </span>{' '}
-                  {aiAssessorTip}
+        {/* =================================================================== */}
+        {/* OPTIONAL DISCLOSURE: FINE-TUNE TONE & ADVANCED ASSESSOR SETTINGS    */}
+        {/* =================================================================== */}
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedSettings((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/80"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <SlidersHorizontal className="h-4 w-4 shrink-0 text-emerald-700" />
+              <div>
+                <div className="text-xs font-bold text-slate-900">
+                  Fine-Tune Tone &amp; Advanced Assessor Settings (Optional)
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Sensible defaults are already active ({NARRATIVE_TONE_OPTIONS.find((t) => t.value === narrativeTone)?.label || 'Assessor Tone'} • Appendices A–F {includeAppendicesBinder ? 'Attached' : 'Off'}). Expand only if you want custom rules.
                 </div>
               </div>
+            </div>
+            <Badge variant="outline" className="shrink-0 border-slate-300 text-[10px] text-slate-600">
+              {showAdvancedSettings ? 'Hide Settings' : 'Customize'}
+              {showAdvancedSettings ? (
+                <ChevronUp className="ml-1 h-3 w-3" />
+              ) : (
+                <ChevronDown className="ml-1 h-3 w-3" />
+              )}
+            </Badge>
+          </button>
+
+          {showAdvancedSettings && (
+            <div className="space-y-6 border-t border-slate-100 p-4 sm:p-5">
+              {/* Evaluator Tone & Primary Objective Selectors (with "OTHER") */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {/* Tone Selector */}
+                <div className="space-y-2.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Evaluator Narrative Tone &amp; Voice
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {NARRATIVE_TONE_OPTIONS.map((opt) => {
+                      const active = narrativeTone === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() => setNarrativeTone(opt.value)}
+                          className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
+                            active
+                              ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700/20'
+                              : 'border-slate-200 bg-white hover:border-emerald-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">
+                              {opt.label}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-slate-500">
+                              {opt.subtitle}
+                            </div>
+                          </div>
+                          <div
+                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                              active
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-slate-300'
+                            }`}
+                          >
+                            {active && <Check className="h-2.5 w-2.5" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {narrativeTone === 'OTHER' && (
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={otherNarrativeToneText}
+                      onChange={(e) => setOtherNarrativeToneText(e.target.value)}
+                      placeholder="Describe your custom evaluator tone (e.g., Academic Clinical Peer-Review, Social Enterprise Impact)..."
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                    />
+                  )}
+                </div>
+
+                {/* Primary Submission Objective Selector */}
+                <div className="space-y-2.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Primary Committee Approval Objective
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {availableObjectiveOptions.map((opt) => {
+                      const active = submissionObjective === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={isVaultReadonly}
+                          onClick={() => setSubmissionObjective(opt.value)}
+                          className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
+                            active
+                              ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700/20'
+                              : 'border-slate-200 bg-white hover:border-emerald-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">
+                              {opt.label}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-slate-500">
+                              {opt.subtitle}
+                            </div>
+                          </div>
+                          <div
+                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                              active
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-slate-300'
+                            }`}
+                          >
+                            {active && <Check className="h-2.5 w-2.5" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {submissionObjective === 'OTHER' && (
+                    <input
+                      type="text"
+                      disabled={isVaultReadonly}
+                      value={otherSubmissionObjectiveText}
+                      onChange={(e) => setOtherSubmissionObjectiveText(e.target.value)}
+                      placeholder="Specify your custom submission objective..."
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Target Submission Window Pills (with "OTHER") */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Target Submission Window / Committee Intake
+                </label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  {SUBMISSION_WINDOW_OPTIONS.map((win) => {
+                    const active = submissionWindow === win.value;
+                    return (
+                      <button
+                        key={win.value}
+                        type="button"
+                        disabled={isVaultReadonly}
+                        onClick={() => setSubmissionWindow(win.value)}
+                        className={`rounded-xl border p-2.5 text-left transition-all ${
+                          active
+                            ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700/20'
+                            : 'border-slate-200 bg-white hover:border-emerald-300'
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-slate-900">
+                          {win.label}
+                        </div>
+                        <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                          {win.subtitle}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {submissionWindow === 'OTHER' && (
+                  <input
+                    type="text"
+                    disabled={isVaultReadonly}
+                    value={otherSubmissionWindowText}
+                    onChange={(e) => setOtherSubmissionWindowText(e.target.value)}
+                    placeholder="Specify your exact committee deadline or cohort date..."
+                    className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                  />
+                )}
+              </div>
+
+              {/* Compiler Guardrail Toggles */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1">
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                  <input
+                    type="checkbox"
+                    disabled={isVaultReadonly}
+                    checked={includeAppendicesBinder}
+                    onChange={(e) => setIncludeAppendicesBinder(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                  />
+                  <div className="text-xs">
+                    <div className="font-bold text-slate-900">
+                      Auto-Attach Mandatory Appendices A–F Binder
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Includes Promoter CVs, 36-Month Financials, 3-Quote Schedule, Mom-Test Survey Telemetry &amp; Risk Register
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                  <input
+                    type="checkbox"
+                    disabled={isVaultReadonly}
+                    checked={strictWordCountEnforcement}
+                    onChange={(e) =>
+                      setStrictWordCountEnforcement(e.target.checked)
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                  />
+                  <div className="text-xs">
+                    <div className="font-bold text-slate-900">
+                      Enforce Official Portal Word-Limit Gauges
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Displays live word/character meters (e.g., 400w cap for Innovate UK IFS or LEO section limits)
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Compiler Mandate Instructions Textarea */}
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Special Instructions for Drafting Your Plan (Optional)
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    Guides Step 2 Narrative Compiler &amp; Step 3 Pre-Flight Audit
+                  </span>
+                </div>
+                <textarea
+                  rows={3}
+                  disabled={isVaultReadonly}
+                  value={compilerMandateNotes}
+                  onChange={(e) => setCompilerMandateNotes(e.target.value)}
+                  placeholder="Specify any special angles or evaluator priorities to emphasize across the compiled plan..."
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-xs leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-none"
+                />
+              </div>
+
+              {aiAssessorTip && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
+                  <div className="flex items-start gap-2">
+                    <Scale className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                    <div>
+                      <span className="font-bold">
+                        Committee Evaluator Insider Tip:
+                      </span>{' '}
+                      {aiAssessorTip}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* =================================================================== */}
-        {/* BOTTOM STEP TOOLBAR (Save & Advance to Step 2)                      */}
+        {/* BOTTOM STEP TOOLBAR (Single Primary CTA + Park Popover)             */}
         {/* =================================================================== */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={handleCalibrateWithAi}
-              disabled={isGeneratingAi || isVaultReadonly}
-              className="border-slate-200 bg-slate-50 text-xs font-medium text-emerald-800 hover:bg-slate-100"
-            >
-              {isGeneratingAi ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              Calibrate Mandate with AI
-            </Button>
+            <ParkOpenQuestionPopover
+              planId={plan.id}
+              moduleCode="MOD_L_BUSINESS_PLAN"
+              stepNumber={1}
+              suggestedQuestion={`Confirm exact submission window and committee ceiling for ${targetAgencyOrCommitteeName} (${formatPlanCurrency(targetFundingAskAmount, currency)} target).`}
+              onParkQuestion={onParkQuestionInSession}
+              disabled={isVaultReadonly}
+            />
             {!isVaultReadonly && (
               <Button
                 type="button"
@@ -1532,7 +1510,7 @@ export function ModuleLModeSelectorStep({
                 className="border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
               >
                 <Save className="mr-1.5 h-3.5 w-3.5" />
-                {isSaving ? 'Saving...' : 'Save Step 1'}
+                {isSaving ? 'Saving...' : 'Save Format'}
               </Button>
             )}
           </div>
@@ -1544,7 +1522,7 @@ export function ModuleLModeSelectorStep({
             disabled={isSaving}
             className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
           >
-            Save &amp; Continue to Step 2: Pre-Flight Audit
+            Save &amp; Draft My Business Plan
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         </div>

@@ -17,18 +17,24 @@ import {
   Check,
   Building2,
   RotateCcw,
+  BookmarkPlus,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import {
   type ActiveStartupPlan,
   type InvestorTaxReliefSchemeType,
   type ModuleKStep4TaxReliefSavedData,
 } from '@/lib/auth/session-store';
-import { generateModuleKStep4TaxReliefAction } from '@/app/actions/module-k';
+import {
+  generateModuleKStep4TaxReliefAction,
+  parkModuleKOpenQuestionAction,
+} from '@/app/actions/module-k';
 
 export interface ModuleKTaxReliefStepProps {
   plan: ActiveStartupPlan;
@@ -50,11 +56,16 @@ export function ModuleKTaxReliefStep({
 
   const existingStep4 = plan.moduleKData?.step4TaxRelief;
   const step2 = plan.moduleKData?.step2CapitalStack;
+  const hasPlannedAngelEquity = Boolean(
+    step2?.totalAngelAllocated && step2.totalAngelAllocated > 0
+  );
 
-  // Initial scheme selection
-  const defaultScheme: InvestorTaxReliefSchemeType = isUK
-    ? 'GB_SEIS_SEED_ENTERPRISE'
-    : 'IE_EII_EMPLOYMENT_INVESTMENT_INCENTIVE';
+  // Initial scheme selection: default to NONE_BOOTSTRAPPED when €0/£0 angel equity is planned in Step 2
+  const defaultScheme: InvestorTaxReliefSchemeType = !hasPlannedAngelEquity
+    ? 'NONE_BOOTSTRAPPED'
+    : isUK
+      ? 'GB_SEIS_SEED_ENTERPRISE'
+      : 'IE_EII_EMPLOYMENT_INVESTMENT_INCENTIVE';
 
   const [primaryTaxScheme, setPrimaryTaxScheme] = useState<InvestorTaxReliefSchemeType>(
     existingStep4?.primaryTaxScheme || defaultScheme
@@ -67,17 +78,17 @@ export function ModuleKTaxReliefStep({
   const defaultRaise =
     step2?.totalAngelAllocated && step2.totalAngelAllocated > 0
       ? step2.totalAngelAllocated
-      : isUK
-      ? 150000
-      : 100000;
+      : 0;
 
   const [targetReliefRaiseAmount, setTargetReliefRaiseAmount] = useState<number>(
-    existingStep4?.targetReliefRaiseAmount || defaultRaise
+    existingStep4?.targetReliefRaiseAmount ?? defaultRaise
   );
 
   // Dynamic relief percentage by scheme
   const investorReliefPercentage = useMemo(() => {
     switch (primaryTaxScheme) {
+      case 'NONE_BOOTSTRAPPED':
+        return 0;
       case 'GB_SEIS_SEED_ENTERPRISE':
         return 50; // HMRC 50% income tax relief
       case 'GB_EIS_ENTERPRISE_INVESTMENT':
@@ -96,7 +107,10 @@ export function ModuleKTaxReliefStep({
   // Tax savings calculated (respecting statutory HMRC SEIS £250k / EIS £5M / Revenue EII €5.5M caps;
   // Irish SURE is a founder PAYE tax refund tracked in `founderEstimatedPayeRefundForSure`, not an angel relief)
   const estimatedInvestorTaxSavings = useMemo(() => {
-    if (primaryTaxScheme === 'IE_SURE_FOUNDER_PAYE_REFUND') {
+    if (
+      primaryTaxScheme === 'IE_SURE_FOUNDER_PAYE_REFUND' ||
+      primaryTaxScheme === 'NONE_BOOTSTRAPPED'
+    ) {
       return 0;
     }
     const cleanRaise = Math.max(0, Number(targetReliefRaiseAmount) || 0);
@@ -123,7 +137,10 @@ export function ModuleKTaxReliefStep({
   // Statutory Qualification Gates
   const [advanceAssuranceStatus, setAdvanceAssuranceStatus] = useState<
     'NOT_STARTED' | 'PREPARING_PACK' | 'SUBMITTED' | 'APPROVED'
-  >(existingStep4?.advanceAssuranceStatus || 'PREPARING_PACK');
+  >(
+    existingStep4?.advanceAssuranceStatus ||
+      (hasPlannedAngelEquity ? 'PREPARING_PACK' : 'NOT_STARTED')
+  );
 
   const [grossAssetsWithinThreshold, setGrossAssetsWithinThreshold] = useState<boolean>(
     existingStep4?.grossAssetsWithinThreshold ?? true
@@ -144,6 +161,9 @@ export function ModuleKTaxReliefStep({
 
   const [activeWhyCard, setActiveWhyCard] = useState<boolean>(false);
   const [activeExampleCard, setActiveExampleCard] = useState<boolean>(false);
+  const [showParkInput, setShowParkInput] = useState<boolean>(false);
+  const [parkQuestionText, setParkQuestionText] = useState<string>('');
+  const [parkSavedNotice, setParkSavedNotice] = useState<boolean>(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -296,10 +316,88 @@ export function ModuleKTaxReliefStep({
           disabled={isGeneratingAi || isVaultReadonly}
           className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-          {isGeneratingAi ? 'Synthesizing Tax Strategy...' : 'Auto-Generate Tax Pitch with AI'}
+          <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+          {isGeneratingAi ? 'Synthesizing Tax Strategy...' : 'Calibrate Tax Strategy'}
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setShowParkInput((prev) => !prev)}
+          disabled={isVaultReadonly}
+          className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
+          Park It
+        </Button>
+        {parkSavedNotice && (
+          <span className="text-[11px] font-semibold text-emerald-700">
+            ✓ Parked in Open Questions
+          </span>
+        )}
       </div>
+
+      {showParkInput && (
+        <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+          <Input
+            type="text"
+            value={parkQuestionText}
+            onChange={(e) => setParkQuestionText(e.target.value)}
+            placeholder="e.g., Ask accountant whether we qualify for Revenue SURE or EII..."
+            className="flex-1 bg-white text-base sm:text-xs"
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={async () => {
+              if (!parkQuestionText.trim()) return;
+              await parkModuleKOpenQuestionAction({
+                planId: plan.id,
+                questionText: `[Step 4 - Tax Relief] ${parkQuestionText.trim()}`,
+              });
+              setParkQuestionText('');
+              setShowParkInput(false);
+              setParkSavedNotice(true);
+              setTimeout(() => setParkSavedNotice(false), 3500);
+            }}
+            className="bg-slate-900 text-xs text-white hover:bg-slate-800"
+          >
+            Save to Parking Lot
+          </Button>
+        </div>
+      )}
+
+      {/* Bootstrapped / Zero-Angel Reassurance Banner */}
+      {!hasPlannedAngelEquity && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+              Skipping Angel or VC Equity? You don&apos;t need SEIS/EII to win grants.
+            </div>
+            <p className="text-[11px] leading-relaxed text-emerald-900">
+              Your Step 2 Capital Stack has <span className="font-mono tabular-nums font-semibold">{currencySymbol}0</span> allocated to external equity.{isUK ? ' Keep "No External Equity (100% Bootstrapped & Grants)" selected below and click Save & Continue.' : ' Unless you want to reclaim your own prior PAYE income tax via Revenue SURE, keep "No External Equity" selected and click Save & Continue.'}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isVaultReadonly || isSaving}
+            onClick={async () => {
+              setPrimaryTaxScheme('NONE_BOOTSTRAPPED');
+              setTargetReliefRaiseAmount(0);
+              setAdvanceAssuranceStatus('NOT_STARTED');
+              await handleSaveStep4();
+              onContinueToNextStep?.();
+            }}
+            className="h-8 shrink-0 border-emerald-300 bg-white text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+          >
+            Keep 100% Bootstrapped &amp; Continue
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
       {activeWhyCard && (
         <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
@@ -364,6 +462,12 @@ export function ModuleKTaxReliefStep({
           {(isUK
             ? [
                 {
+                  id: 'NONE_BOOTSTRAPPED' as const,
+                  badge: '0% Dilution • No Angels',
+                  name: 'No External Equity (100% Bootstrapped & Grants)',
+                  desc: 'Funding strictly via founder savings, customer revenue, grants, or Start Up Loans — no angel shares issued.',
+                },
+                {
                   id: 'GB_SEIS_SEED_ENTERPRISE' as const,
                   badge: '50% Relief • Up to £250k',
                   name: 'Seed Enterprise Investment Scheme (SEIS)',
@@ -384,22 +488,34 @@ export function ModuleKTaxReliefStep({
               ]
             : [
                 {
+                  id: 'NONE_BOOTSTRAPPED' as const,
+                  badge: '0% Dilution • No Angels',
+                  name: 'No External Equity (100% Bootstrapped & Grants)',
+                  desc: 'Funding strictly via founder cash, customer sales, LEO grants, or MFI loans — no outside equity shares.',
+                },
+                {
+                  id: 'IE_SURE_FOUNDER_PAYE_REFUND' as const,
+                  badge: 'Up to 41% Cash Back • Founder Cash',
+                  name: 'Startup Relief for Entrepreneurs (SURE)',
+                  desc: 'Reclaim up to 41% of your own prior PAYE income tax paid over the past 4–6 years when investing into your Irish LTD.',
+                },
+                {
                   id: 'IE_EII_EMPLOYMENT_INVESTMENT_INCENTIVE' as const,
                   badge: 'Up to 50% Relief • €500k/yr',
                   name: 'Employment Investment Incentive (EII)',
                   desc: 'Irish Revenue flagship angel incentive. Up to 50% income tax relief against total income.',
                 },
                 {
-                  id: 'IE_SURE_FOUNDER_PAYE_REFUND' as const,
-                  badge: 'Up to 41% Cash Back • Founder Cash',
-                  name: 'Startup Relief for Entrepreneurs (SURE)',
-                  desc: 'Extract up to €100k+ in cash refunds from PAYE income tax paid over the past 6 employment years.',
-                },
-                {
                   id: 'IE_SCIS_SMALL_COMPANY_INVESTMENT' as const,
                   badge: '35% Relief',
                   name: 'Small Company Investment Relief (SCIS)',
                   desc: 'Targeted relief for micro-enterprises and non-executive seed directors.',
+                },
+                {
+                  id: 'OTHER' as const,
+                  badge: 'Custom Structure',
+                  name: 'Other Scheme / 30% R&D Tax Credit',
+                  desc: 'Revenue 30% refundable R&D tax credit or custom cross-border investment structure.',
                 },
               ]
           ).map((sch) => {
@@ -585,6 +701,14 @@ export function ModuleKTaxReliefStep({
               Assessor verification gates required by {isUK ? 'HMRC' : 'Revenue'} before issuing certificates.
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <JargonTooltip term="SEIS_EIS_ADVANCE_ASSURANCE" label="Advance Assurance" />
+            {isUK ? (
+              <JargonTooltip term="RISK_TO_CAPITAL" label="Risk-to-Capital Test" />
+            ) : (
+              <JargonTooltip term="SURE_PAYE" label="What is SURE?" />
+            )}
+          </div>
         </div>
 
         {/* Advance Assurance Status Selector */}
@@ -710,7 +834,7 @@ export function ModuleKTaxReliefStep({
             disabled={isGeneratingAi || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Tax Pitch with AI'}
           </Button>
         </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  SlidersHorizontal,
   Coins,
   TrendingUp,
   CreditCard,
@@ -49,6 +50,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import { parkOpenQuestionAction } from '@/app/actions/module-a';
 import type {
   ActiveStartupPlan,
   RevenueModelStep1Data,
@@ -129,12 +132,12 @@ export function ModuleHWorkspace({
   initialStep,
   highlightTarget,
 }: ModuleHWorkspaceProps) {
-  // Step expansion state: 0 = all collapsed by default, 1..5, or 'ALL'
+  // Step expansion state: default to Step 1 open so founders can act immediately
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 5) {
       return initialStep;
     }
-    return 0;
+    return 1;
   });
 
   // Handle deep-link scrolling and highlight
@@ -157,6 +160,7 @@ export function ModuleHWorkspace({
 
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
+  const [isPlainMode, setIsPlainMode] = useState<boolean>(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isGeneratingAiJustification, setIsGeneratingAiJustification] = useState(false);
   const [aiJustificationSuccess, setAiJustificationSuccess] = useState(false);
@@ -221,7 +225,11 @@ export function ModuleHWorkspace({
   // -------------------------------------------------------------
   // STEP 2 STATE: PRICING ARCHITECTURE & TIERS
   // -------------------------------------------------------------
-  const defaultVatRate = selectedCountry === 'GB' ? 20 : 23;
+  const isPlanNotVatRegistered =
+    plan.moduleGData?.step4?.vatStatus === 'NOT_REGISTERED';
+  const statutoryVatRate =
+    selectedCountry === 'GB' ? 20 : selectedCountry === 'IE' ? 23 : 0;
+  const defaultVatRate = isPlanNotVatRegistered ? 0 : statutoryVatRate;
 
   const [step2Data, setStep2Data] = useState<PricingTiersStep2Data>(() => {
     const existing = plan.moduleHData?.step2PricingTiers;
@@ -541,10 +549,10 @@ export function ModuleHWorkspace({
     Math.round((gatewayFeeAmount + refundAndAffiliateFeeAmount + directCogsAmount) * 100) / 100;
 
   // Pocket profit (Contribution Margin) per sale
-  const pocketProfitPerSale = Math.max(
-    0,
-    Math.round((simulatedNetPrice - totalFrictionPerSale) * 100) / 100
-  );
+  const rawPocketProfitPerSale =
+    Math.round((simulatedNetPrice - totalFrictionPerSale) * 100) / 100;
+  const isNegativeUnitMargin = rawPocketProfitPerSale <= 0 && simulatedNetPrice > 0;
+  const pocketProfitPerSale = Math.max(0, rawPocketProfitPerSale);
   const contributionMarginPercent =
     simulatedNetPrice > 0 ? Math.round((pocketProfitPerSale / simulatedNetPrice) * 100) : 0;
 
@@ -821,8 +829,7 @@ export function ModuleHWorkspace({
     (step4Data.primarySalesMotion !== 'OTHER' || Boolean(step4Data.otherSalesMotionText?.trim())) &&
     step4Data.expectedConversionRatePercent > 0 &&
     step4Data.salesCycleDays > 0 &&
-    step4Data.teamMonthlyCapacityCap > 0 &&
-    Boolean(step4Data.writtenAssumptionsNarrative && step4Data.writtenAssumptionsNarrative.trim().length > 30);
+    step4Data.teamMonthlyCapacityCap > 0;
 
   const SALES_MOTION_OPTIONS = [
     {
@@ -1272,12 +1279,19 @@ export function ModuleHWorkspace({
     isDirtyStep4Ref.current = false;
     setSaveStatus('saving');
     try {
+      const autoSummaryIfBlank =
+        step4Data.writtenAssumptionsNarrative?.trim() ||
+        buildClientSalesAssumptionsFallback().narrative;
       const updatedStep4: SalesAssumptionsStep4Data = {
         ...step4Data,
+        writtenAssumptionsNarrative: autoSummaryIfBlank,
         capacityFeasibilityStatus: isCapacitySurplus ? 'CAPACITY_SURPLUS' : 'CAPACITY_DEFICIT',
         requiredMonthlyLeads: calculatedRequiredMonthlyLeads,
         lastSavedAt: new Date().toISOString(),
       };
+      if (!step4Data.writtenAssumptionsNarrative?.trim()) {
+        setStep4Data(updatedStep4);
+      }
       if (onSaveStep4SalesAssumptions) {
         await onSaveStep4SalesAssumptions(updatedStep4, isStep4Complete ? 80 : 65);
       }
@@ -1786,12 +1800,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
     }));
   };
 
-  const handleParkBlindSpotInOpenQuestions = (b: BlindSpotItem) => {
-    if (plan.openQuestions) {
-      const questionText = `[Revenue & Pricing]: ${b.title} — ${b.explanation} (Action: ${b.suggestedAction})`;
-      if (!plan.openQuestions.includes(questionText)) {
-        plan.openQuestions.push(questionText);
-      }
+  const handleParkBlindSpotInOpenQuestions = async (b: BlindSpotItem) => {
+    const questionText = `[Revenue & Pricing]: ${b.title} — ${b.explanation} (Action: ${b.suggestedAction})`;
+    if (plan.openQuestions && !plan.openQuestions.includes(questionText)) {
+      plan.openQuestions.push(questionText);
+    }
+    try {
+      await parkOpenQuestionAction({
+        planId: plan.id,
+        questionText,
+        sourceModule: 'MOD_H_REVENUE',
+      });
+    } catch {
+      // Non-blocking fallback
     }
   };
 
@@ -1800,7 +1821,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
       {/* ------------------------------------------------------------- */}
       {/* TOP HEADER MODULE CARD                                        */}
       {/* ------------------------------------------------------------- */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -1808,7 +1829,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 Module H • Pricing &amp; Breakeven Engine
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
-                <Sparkles className="mr-1 h-3 w-3" />
+                <SlidersHorizontal className="mr-1 h-3 w-3" />
                 {completedCoreStepsCount} of 4 Core Steps Ready
               </Badge>
             </div>
@@ -1822,7 +1843,31 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
           </div>
 
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setIsPlainMode(true)}
+                  className={`rounded-md px-2.5 py-1 font-semibold transition-all ${
+                    isPlainMode
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Founder View (Plain English)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPlainMode(false)}
+                  className={`rounded-md px-2.5 py-1 font-semibold transition-all ${
+                    !isPlainMode
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Assessor Terms (COGS / Margin)
+                </button>
+              </div>
               <Button
                 size="sm"
                 variant="outline"
@@ -1840,7 +1885,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                  Back to Module G
+                  Back to Module F
                 </Button>
               )}
             </div>
@@ -2228,7 +2273,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div
                   onClick={() =>
                     setStep1Data((prev) => ({
@@ -2297,7 +2342,60 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     </div>
                   </div>
                 </div>
+
+                <div
+                  onClick={() =>
+                    setStep1Data((prev) => ({
+                      ...prev,
+                      offeringStructure: 'OTHER',
+                    }))
+                  }
+                  className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
+                    step1Data.offeringStructure === 'OTHER'
+                      ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                        step1Data.offeringStructure === 'OTHER'
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">
+                        Other / Custom Packaging
+                      </h4>
+                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
+                        Bespoke quotes, base product + add-on modules, or seasonal drops.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {step1Data.offeringStructure === 'OTHER' && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2 mt-2">
+                  <Label className="text-xs font-semibold text-slate-900">
+                    Describe how your offerings or packages are structured:
+                  </Label>
+                  <Input
+                    value={step1Data.otherOfferingStructureText || ''}
+                    onChange={(e) =>
+                      setStep1Data((prev) => ({
+                        ...prev,
+                        otherOfferingStructureText: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Core platform license + optional per-seat implementation packs..."
+                    className="text-base sm:text-xs bg-white"
+                  />
+                </div>
+              )}
             </div>
 
             {/* 3. WHAT EXACTLY ARE YOU CHARGING FOR (VALUE METRIC) */}
@@ -2393,7 +2491,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
             {/* BOTTOM STEP 1 ACTION TOOLBAR */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {onBackToModuleG && (
                   <Button
                     size="sm"
@@ -2402,9 +2500,16 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     className="text-xs text-slate-600"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                    Back to Module G (Launchpad)
+                    Back to Module F (Team &amp; Runway)
                   </Button>
                 )}
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_H_REVENUE"
+                  stepLabel="Module H • Step 1"
+                  suggestedQuestion="Should we charge a one-off fee, recurring subscription, or package retainer for our core offer?"
+                  disabled={isVaultReadonly}
+                />
                 {saveStatus === 'saved' && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -2848,6 +2953,71 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
                         return (
                           <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-3">
+                            {/* Billing Cadence & VAT Rate Controls */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                  Billing Cadence
+                                </Label>
+                                <select
+                                  disabled={isVaultReadonly}
+                                  value={tier.billingFrequency || 'MONTHLY'}
+                                  onChange={(e) =>
+                                    handleUpdateTier(tier.id, {
+                                      billingFrequency: e.target.value as PricingTierItem['billingFrequency'],
+                                    })
+                                  }
+                                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base font-medium text-slate-900 sm:text-xs"
+                                >
+                                  <option value="MONTHLY">Monthly</option>
+                                  <option value="QUARTERLY">Quarterly</option>
+                                  <option value="ANNUAL">Annual</option>
+                                  <option value="ONE_OFF">One-Off Sale</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                  VAT / Sales Tax
+                                </Label>
+                                <select
+                                  disabled={isVaultReadonly}
+                                  value={String(taxRate)}
+                                  onChange={(e) => {
+                                    const nextTax = Math.max(0, Number(e.target.value) || 0);
+                                    const nextNet =
+                                      displayGross > 0
+                                        ? Math.round((displayGross / (1 + nextTax / 100)) * 100) / 100
+                                        : netAmount;
+                                    handleUpdateTier(tier.id, {
+                                      taxRatePercent: nextTax,
+                                      priceGross: displayGross,
+                                      priceNetOfTax: nextNet,
+                                    });
+                                  }}
+                                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-base font-medium text-slate-900 sm:text-xs"
+                                >
+                                  <option value="0">0% (Not VAT Registered / Zero-Rated)</option>
+                                  {selectedCountry === 'IE' ? (
+                                    <>
+                                      <option value="23">23% (IE Standard VAT)</option>
+                                      <option value="13.5">13.5% (IE Reduced Services/Hospitality)</option>
+                                      <option value="9">9% (IE Second Reduced Rate)</option>
+                                    </>
+                                  ) : selectedCountry === 'GB' ? (
+                                    <>
+                                      <option value="20">20% (UK Standard VAT)</option>
+                                      <option value="5">5% (UK Reduced Rate)</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="20">20% Standard VAT</option>
+                                      <option value="10">10% Sales Tax / GST</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                            </div>
+
                             <div>
                               <div className="flex items-center justify-between gap-1 mb-1.5">
                                 <Label className="text-xs font-bold text-slate-800">
@@ -3038,12 +3208,12 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 >
                   {isGeneratingAiJustification ? (
                     <>
-                      <Wand2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                       <span>Synthesizing Strategy from Mod A-D...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
                       <span>Auto-Generate with AI (Grant/Bank Mode)</span>
                     </>
                   )}
@@ -3084,7 +3254,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
             {/* BOTTOM STEP 2 ACTION TOOLBAR */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   variant="outline"
@@ -3097,6 +3267,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Step 1
                 </Button>
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_H_REVENUE"
+                  stepLabel="Module H • Step 2"
+                  suggestedQuestion="Test our starter vs. flagship price points with 5 real prospects to confirm willingness to pay."
+                  disabled={isVaultReadonly}
+                />
                 {saveStatus === 'saved' && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -3543,7 +3720,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   disabled={isVaultReadonly}
                   className="h-8 shrink-0 text-xs border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
                 >
-                  <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                   Use Industry Benchmark
                 </Button>
               </div>
@@ -3610,7 +3787,9 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <div className="space-y-1.5 pt-2 border-t border-slate-100">
                     <div className="flex items-center justify-between gap-2">
                       <Label className="text-xs font-semibold text-slate-700">
-                        Direct Cost to Make &amp; Deliver 1 Sale (COGS)
+                        {isPlainMode
+                          ? 'Direct Cost to Make & Deliver 1 Sale'
+                          : 'Direct Cost to Make & Deliver 1 Sale (COGS)'}
                       </Label>
                       <span className="text-xs font-bold text-rose-600 shrink-0">
                         -{currencySymbol}
@@ -3654,10 +3833,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2.5">
                       <span className="text-xs font-bold text-slate-900">
-                        Live Single-Sale Receipt Breakdown
+                        {isPlainMode
+                          ? 'Live Single-Sale Receipt Breakdown'
+                          : 'Unit Contribution Margin & COGS Breakdown'}
                       </span>
                       <Badge className="bg-emerald-600 text-white text-[10px]">
-                        {contributionMarginPercent}% Pocket Margin
+                        {contributionMarginPercent}%{' '}
+                        {isPlainMode ? 'Pocket Margin' : 'Contribution Margin'}
                       </Badge>
                     </div>
 
@@ -3723,22 +3905,89 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   </div>
 
                   {/* Bottom Highlight: Resulting Pocket Profit */}
-                  <div className="rounded-xl bg-emerald-600 p-3.5 text-white shadow-xs">
+                  <div
+                    className={`rounded-xl p-3.5 text-white shadow-xs ${
+                      isNegativeUnitMargin ? 'bg-amber-900' : 'bg-emerald-600'
+                    }`}
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-100">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-white/85">
                           True Pocket Profit Per Sale
                         </div>
-                        <p className="text-[11px] text-emerald-50 mt-0.5">
-                          Cash left over from 1 sale to pay your monthly bills
+                        <p className="text-[11px] text-white/90 mt-0.5">
+                          {isNegativeUnitMargin
+                            ? 'Direct unit costs exceed net price — adjust price or COGS below'
+                            : 'Cash left over from 1 sale to pay your monthly bills'}
                         </p>
                       </div>
-                      <div className="text-2xl font-black tracking-tight text-white shrink-0">
+                      <div className="font-mono tabular-nums text-2xl font-black tracking-tight text-white shrink-0">
+                        {rawPocketProfitPerSale < 0 ? '-' : ''}
                         {currencySymbol}
-                        {pocketProfitPerSale.toFixed(2)}
+                        {Math.abs(rawPocketProfitPerSale).toFixed(2)}
                       </div>
                     </div>
                   </div>
+
+                  {/* Constructive Negative-Margin Coaching Banner */}
+                  {isNegativeUnitMargin && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 space-y-2">
+                      <div className="font-bold text-amber-950">
+                        Unit Margin Alert: Each sale currently loses{' '}
+                        <span className="font-mono tabular-nums">
+                          {currencySymbol}
+                          {Math.abs(rawPocketProfitPerSale).toFixed(2)}
+                        </span>{' '}
+                        before overheads
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-amber-900">
+                        Your net price (
+                        <span className="font-mono tabular-nums font-semibold">
+                          {currencySymbol}
+                          {simulatedNetPrice.toFixed(2)}
+                        </span>
+                        ) is lower than your combined platform/payment fee (
+                        <span className="font-mono tabular-nums">
+                          {currencySymbol}
+                          {gatewayFeeAmount.toFixed(2)}
+                        </span>
+                        ), direct COGS (
+                        <span className="font-mono tabular-nums">
+                          {currencySymbol}
+                          {directCogsAmount.toFixed(2)}
+                        </span>
+                        ), and refund/affiliate buffer (
+                        <span className="font-mono tabular-nums">
+                          {currencySymbol}
+                          {refundAndAffiliateFeeAmount.toFixed(2)}
+                        </span>
+                        ). Selling more volume cannot reach breakeven until unit margin is positive.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setOpenStep(2)}
+                          className="h-7 border-amber-300 bg-white text-[11px] font-semibold text-amber-950 hover:bg-amber-100"
+                        >
+                          Raise Tier Price in Step 2 (≥{currencySymbol}
+                          {Math.ceil(totalFrictionPerSale * 1.35)})
+                        </Button>
+                        {onNavigateToModule && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onNavigateToModule('MOD_E_OPERATIONS', 1)}
+                            className="h-7 border-amber-300 bg-white text-[11px] font-medium text-amber-900 hover:bg-amber-100"
+                          >
+                            Review Unit COGS in Module E
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -4001,6 +4250,108 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       <span className="text-xs font-normal text-slate-300">/mo</span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* What-If Sandbox Stress-Test Presets (1-Click Non-Destructive Scenarios) */}
+              <div className="rounded-xl border border-white/15 bg-white/5 p-3.5 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-300">
+                      1-Click &ldquo;What-If Sandbox&rdquo; Stress-Test Presets
+                    </span>
+                    <p className="text-[11px] text-slate-300">
+                      Test how your breakeven target responds under pressure without overwriting your saved Step 2 prices or Module F salaries.
+                    </p>
+                  </div>
+                  {step3Data.isSandboxActive && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleResetStep3ToModuleDefaults}
+                      className="h-7 border-amber-400/40 bg-amber-950/40 px-2.5 text-[11px] font-semibold text-amber-200 hover:bg-amber-900/50"
+                    >
+                      <RefreshCw className="mr-1 h-3 w-3" />
+                      Reset Sandbox
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => {
+                      const stressedPrice = Math.max(
+                        1,
+                        Math.round(blendedAveragePrice * 0.8 * 100) / 100
+                      );
+                      const basePayroll = activeMonthlyPayroll;
+                      const stressedPayroll = Math.round(basePayroll * 1.15);
+                      setStep3Data((prev) => ({
+                        ...prev,
+                        isSandboxActive: true,
+                        activePriceSlider: stressedPrice,
+                        sandboxMonthlyPayrollOverride: stressedPayroll,
+                      }));
+                    }}
+                    className="rounded-lg border border-white/15 bg-slate-900/80 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-amber-400/50 hover:bg-slate-900"
+                  >
+                    <div className="font-bold text-amber-300">
+                      1. Slow Start / Worst Case
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      -20% Net Price &amp; +15% Monthly Bills
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => {
+                      const leanPayroll = Math.max(
+                        0,
+                        Math.round(activeMonthlyPayroll * 0.7)
+                      );
+                      setStep3Data((prev) => ({
+                        ...prev,
+                        isSandboxActive: true,
+                        activePriceSlider: blendedAveragePrice,
+                        sandboxMonthlyPayrollOverride: leanPayroll,
+                      }));
+                    }}
+                    className="rounded-lg border border-white/15 bg-slate-900/80 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-emerald-400/50 hover:bg-slate-900"
+                  >
+                    <div className="font-bold text-emerald-300">
+                      2. Survival / Ramen Mode
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      Trim monthly salary/drawings by -30%
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isVaultReadonly}
+                    onClick={() => {
+                      const premiumPrice =
+                        Math.round(blendedAveragePrice * 1.25 * 100) / 100;
+                      setStep3Data((prev) => ({
+                        ...prev,
+                        isSandboxActive: true,
+                        activePriceSlider: premiumPrice,
+                        sandboxMonthlyPayrollOverride: undefined,
+                      }));
+                    }}
+                    className="rounded-lg border border-white/15 bg-slate-900/80 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-emerald-400/50 hover:bg-slate-900"
+                  >
+                    <div className="font-bold text-white">
+                      3. Premium Positioning
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      +25% Net Price (fewer sales needed)
+                    </div>
+                  </button>
                 </div>
               </div>
 
@@ -4557,12 +4908,12 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 >
                   {isGeneratingAiBreakevenNarrative ? (
                     <>
-                      <Wand2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 animate-spin text-emerald-700" />
                       <span>Synthesizing Assessor Defense...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
                       <span>Auto-Generate with AI (Grant Assessor Mode)</span>
                     </>
                   )}
@@ -4603,7 +4954,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
             {/* Bottom Step 3 Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -4613,6 +4964,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Step 2
                 </Button>
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_H_REVENUE"
+                  stepLabel="Module H • Step 3"
+                  suggestedQuestion="Get supplier/packaging or delivery quotes so our direct cost per sale (COGS) leaves at least a 50%+ gross margin."
+                  disabled={isVaultReadonly}
+                />
                 {saveStatus === 'saved' && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -5375,7 +5733,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       Auto-Draft with AI (Assessor Mode)
                     </>
                   )}
@@ -5420,19 +5778,28 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* STEP 4 FOOTER TOOLBAR                                         */}
             {/* ------------------------------------------------------------- */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                onClick={() => {
-                  setOpenStep(3);
-                  window.scrollTo({ top: 400, behavior: 'smooth' });
-                }}
-                className="text-xs text-slate-600 hover:bg-slate-100"
-              >
-                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                Back to Step 3: Pocket Profit
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    setOpenStep(3);
+                    window.scrollTo({ top: 400, behavior: 'smooth' });
+                  }}
+                  className="text-xs text-slate-600 hover:bg-slate-100"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Step 3: Pocket Profit
+                </Button>
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_H_REVENUE"
+                  stepLabel="Module H • Step 4"
+                  suggestedQuestion="Verify realistic monthly delivery capacity and payment terms (upfront vs. 30-day invoice) before finalizing Year 1 sales targets."
+                  disabled={isVaultReadonly}
+                />
+              </div>
 
               <div className="flex items-center gap-2">
                 {saveStatus === 'saved' && (
@@ -6015,7 +6382,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Audit Commercial Blind Spots with AI
                       </>
                     )}

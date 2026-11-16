@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+  SlidersHorizontal,
   ExternalLink,
   CheckCircle2,
   Sparkles,
@@ -770,7 +771,7 @@ export function PartnerSlot({
                           : 'border-emerald-600/40 bg-slate-500/30 text-[10px] text-slate-200'
                       }
                     >
-                      <Sparkles className="mr-1 h-3 w-3" />
+                      <SlidersHorizontal className="mr-1 h-3 w-3" />
                       {isPaidModal
                         ? `Done-For-You Formation Checkout • ${currencySymbol}${basePrice} Base Package`
                         : 'Startup Preflight Warm Intro Concierge'}

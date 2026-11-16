@@ -339,7 +339,7 @@ export function buildModuleCStandaloneHtmlDocument(
               .map(
                 (q, qIdx) => `
               <tr>
-                <td style="width: 36px; font-weight: 700; color: #4f46e5;">Q${qIdx + 1}</td>
+                <td style="width: 36px; font-weight: 700; color: #047857;">Q${qIdx + 1}</td>
                 <td>
                   <div style="font-weight: 700; color: #0f172a;">${escapeDocumentHtml(q.questionText)}</div>
                   ${
@@ -383,7 +383,7 @@ export function buildModuleCStandaloneHtmlDocument(
                     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 8px;">
                       <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                         <div style="font-weight: 700; font-size: 11px; color: #1e293b;">Q${qNum + 1}: ${escapeDocumentHtml(q.questionText)}</div>
-                        <span class="pill" style="margin: 0; background: #eef2ff; color: #3730a3; border-color: #c7d2fe;">Avg: ${qAvg} / 5.0 (${sCount} answered)</span>
+                        <span class="pill" style="margin: 0; background: #ecfdf5; color: #065f46; border-color: #a7f3d0;">Avg: ${qAvg} / 5.0 (${sCount} answered)</span>
                       </div>
                       <div style="display: flex; gap: 6px; margin-top: 6px;">
                         ${[1, 2, 3, 4, 5]
@@ -444,8 +444,8 @@ export function buildModuleCStandaloneHtmlDocument(
                     const otherRow = otherCount > 0
                       ? `
                       <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 2px 0; border-top: 1px dashed #e2e8f0; margin-top: 3px;">
-                        <span style="color: #4338ca; font-weight: 600;">Other / Custom Write-Ins</span>
-                        <span style="font-weight: 700; color: #4338ca;">${otherCount}</span>
+                        <span style="color: #065f46; font-weight: 600;">Other / Custom Write-Ins</span>
+                        <span style="font-weight: 700; color: #065f46;">${otherCount}</span>
                       </div>
                       ${
                         otherTexts.length > 0
@@ -512,7 +512,7 @@ export function buildModuleCStandaloneHtmlDocument(
             }
 
             const aiSummaryHtml = survey.aiInsightsSummary
-              ? `<div class="worry-box" style="margin-top: 10px; background: #eef2ff; border-color: #c7d2fe; color: #1e1b4b;">
+              ? `<div class="worry-box" style="margin-top: 10px; background: #ecfdf5; border-color: #a7f3d0; color: #0f172a;">
                   <strong>AI Signal Score (${survey.aiInsightsSummary.signalScoreOutOf100}/100):</strong> ${escapeDocumentHtml(survey.aiInsightsSummary.headlineTakeaway)}
                   ${
                     survey.aiInsightsSummary.validatedPainPoints?.length
@@ -534,7 +534,7 @@ export function buildModuleCStandaloneHtmlDocument(
                 <div>
                   <div class="card-label">SURVEY #${idx + 1}</div>
                   <div class="card-value" style="font-size: 15px; font-weight: 800;">${escapeDocumentHtml(survey.title)}</div>
-                  ${focusPills ? `<div style="font-size: 11px; color: #6366f1; font-weight: 600; margin-top: 2px;">Focus: ${escapeDocumentHtml(focusPills)}</div>` : ''}
+                  ${focusPills ? `<div style="font-size: 11px; color: #059669; font-weight: 600; margin-top: 2px;">Focus: ${escapeDocumentHtml(focusPills)}</div>` : ''}
                   ${survey.introDescription?.trim() ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;"><strong>Intro:</strong> ${escapeDocumentHtml(survey.introDescription.trim())}</div>` : ''}
                   ${survey.waitlistIncentiveText?.trim() ? `<div style="font-size: 11px; color: #059669; margin-top: 2px;"><strong>Waitlist Incentive:</strong> ${escapeDocumentHtml(survey.waitlistIncentiveText.trim())}</div>` : ''}
                 </div>
@@ -639,7 +639,7 @@ export function buildModuleCStandaloneHtmlDocument(
               <tr>
                 <td style="width: 36px; font-weight: 700; color: #047857;">#${lIdx + 1}</td>
                 <td style="font-weight: 700; color: #0f172a;">${escapeDocumentHtml(lead.respondentNameOrRole || 'Early-Bird Lead')}</td>
-                <td><span style="font-family: monospace; font-size: 11px; color: #3730a3; font-weight: 600;">${escapeDocumentHtml(lead.respondentEmail || '—')}</span></td>
+                <td><span style="font-family: monospace; font-size: 11px; color: #065f46; font-weight: 600;">${escapeDocumentHtml(lead.respondentEmail || '—')}</span></td>
                 <td>
                   <span class="pill" style="margin: 0; background: ${lead.isSimulated ? '#f1f5f9' : '#ecfdf5'}; color: ${lead.isSimulated ? '#475569' : '#047857'}; border-color: ${lead.isSimulated ? '#cbd5e1' : '#a7f3d0'};">
                     ${lead.isSimulated ? 'Simulated Sample' : '✓ Verified Beta Lead'}
@@ -656,7 +656,7 @@ export function buildModuleCStandaloneHtmlDocument(
     .map(
       (item) => `
       <div class="card">
-        <div class="card-label" style="color: ${item.severity === 'WARNING' ? '#b45309' : '#4f46e5'};">
+        <div class="card-label" style="color: ${item.severity === 'WARNING' ? '#b45309' : '#047857'};">
           ${escapeDocumentHtml(item.severity)} • ${escapeDocumentHtml(item.category)}
         </div>
         <div class="card-value" style="font-weight: 700; margin-bottom: 4px;">
@@ -667,7 +667,7 @@ export function buildModuleCStandaloneHtmlDocument(
         </div>
         ${
           item.suggestedAction
-            ? `<div class="card-value" style="font-size: 12px; color: #1e1b4b; margin-top: 6px; font-weight: 600;">
+            ? `<div class="card-value" style="font-size: 12px; color: #0f172a; margin-top: 6px; font-weight: 600;">
                 👉 Next Step: ${escapeDocumentHtml(item.suggestedAction)}
               </div>`
             : ''
@@ -680,12 +680,12 @@ export function buildModuleCStandaloneHtmlDocument(
     <div class="section">
       <div class="section-title">1. Primary Market Validation Snapshot</div>
       <div class="grid-4">
-        <div class="card" style="background: #eef2ff; border-color: #c7d2fe;">
-          <div class="card-label" style="color: #4338ca;">Customer Surveys</div>
-          <div class="card-value" style="font-weight: 800; font-size: 16px; color: #312e81;">
+        <div class="card" style="background: #ecfdf5; border-color: #a7f3d0;">
+          <div class="card-label" style="color: #065f46;">Customer Surveys</div>
+          <div class="card-value" style="font-weight: 800; font-size: 16px; color: #0f172a;">
             ${validSurveys.length} Survey${validSurveys.length === 1 ? '' : 's'}
           </div>
-          <div class="card-value" style="font-size: 11px; color: #4338ca; margin-top: 4px;">
+          <div class="card-value" style="font-size: 11px; color: #065f46; margin-top: 4px;">
             ${validSurveys.filter((s) => s.isPublished).length} Published &amp; Locked
           </div>
         </div>

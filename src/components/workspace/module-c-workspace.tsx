@@ -55,6 +55,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import {
   Card,
   CardContent,
@@ -553,7 +554,7 @@ function buildDefaultOutreachTemplates(
   const qCount = Math.max(survey.questions.length, 5);
 
   return {
-    linkedinDm: `Hey [Name] — hope your week is going well! Quick question: I'm doing some independent research into how ${audiencePhrase} currently handle ${topicPhrase}.\n\nI'm not selling anything — just running a ${qCount}-question anonymous Mom-Test survey (takes under 60 seconds, no login required).\n\nWould love your honest perspective if you have a spare minute:\n{{SURVEY_LINK}}\n\nHappy to share the aggregated findings with you once we wrap up!`,
+    linkedinDm: `Hey [Name] — hope your week is going well! Quick question: I'm doing some independent research into how ${audiencePhrase} currently handle ${topicPhrase}.\n\nI'm not selling anything — just running a quick ${qCount}-question anonymous research survey (takes under 60 seconds, no login required).\n\nWould love your honest perspective if you have a spare minute:\n{{SURVEY_LINK}}\n\nHappy to share the aggregated findings with you once we wrap up!`,
     communityPost: `Hi everyone — I'm researching how ${audiencePhrase} deal with ${topicPhrase} in the real world (what actually works vs. what wastes time).\n\nNothing to sell or pitch here! I put together a quick ${qCount}-question anonymous survey that takes ~60 seconds with zero login:\n{{SURVEY_LINK}}\n\nIf you've dealt with this recently, I'd be super grateful for your candid input — and I'll post a full summary of the results back in this thread next week. Thanks!`,
     whatsappBlurb: `Hey! 👋 Doing a quick 60-second research survey on how people handle ${topicPhrase} (only ${qCount} quick questions, no login needed). Would love your honest take if you have a spare minute: {{SURVEY_LINK}}`,
     coldEmailSubject: `Quick 60-sec question on ${topicPhrase}`,
@@ -1063,12 +1064,16 @@ export function ModuleCWorkspace({
     }
   };
 
-  // Step Accordion State: 0 = all collapsed by default, 1..4 = specific step open, 'ALL' = all open
+  // Step Accordion State: auto-open first incomplete step instead of leaving all steps collapsed
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 4) {
       return initialStep;
     }
-    return 0;
+    const hasSurveys = (plan.moduleCData?.surveys || []).length > 0;
+    const hasInterviews = (plan.moduleCData?.interviewLogs || []).length > 0;
+    if (!hasSurveys) return 1;
+    if (!hasInterviews) return 2;
+    return 3;
   });
 
   // Handle deep-link scrolling and highlight
@@ -1343,6 +1348,22 @@ export function ModuleCWorkspace({
     );
     setShowPublishConfirm(false);
     setShowAiFocusSelector(false);
+  };
+
+  const handleUnlockZeroResponseSurvey = async () => {
+    if (!activeSurvey || isVaultReadonly) return;
+    const realCount = (activeSurvey.responses || []).filter(
+      (r) => !r.isSimulated
+    ).length;
+    if (realCount > 0) return;
+    await updateActiveSurvey(
+      (curr) => ({
+        ...curr,
+        isPublished: false,
+        publishedAt: undefined,
+      }),
+      'Survey returned to Draft Mode because 0 real customer responses have been collected so far. Edit freely, then Publish & Lock when ready!'
+    );
   };
 
   // 2. DELETE SURVEY BY ID OR CURRENT SURVEY
@@ -2094,7 +2115,7 @@ export function ModuleCWorkspace({
         date: new Date(now).toISOString().slice(0, 10),
         channel: 'PHONE_CALL',
         rawNotes: `10-min phone call. Said the idea sounds super cool and modern, and she'd "definitely check it out when it launches," but admitted she only deals with ${shortProblemRef} once a quarter and just uses a free template.`,
-        keyTakeaway: `Polite compliments ("sounds super cool"), but only encounters the problem once a quarter and uses a free template—not our high-urgency first core customer group (a "Beachhead" simply means the very first specific group of customers you focus on winning before expanding to everyone else).`,
+        keyTakeaway: `Polite compliments ("sounds super cool"), but only encounters the problem once a quarter and uses a free template — not our high-urgency first core customer group.`,
         verbatimQuote: `Your app sounds really slick and I'd definitely take a look when you launch, though for me it only comes up once every few months.`,
         workaroundAndSpend: `Free template once a quarter (€0 spend).`,
         painScore1To5: 2,
@@ -2333,16 +2354,16 @@ export function ModuleCWorkspace({
     .flyer {
       width: 100%;
       max-width: 680px;
-      border: 3px solid #1e1b4b;
+      border: 3px solid #0f172a;
       border-radius: 28px;
       padding: 44px 40px;
       text-align: center;
     }
     .badge {
       display: inline-block;
-      background: #eef2ff;
-      color: #3730a3;
-      border: 1px solid #c7d2fe;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
@@ -2370,7 +2391,7 @@ export function ModuleCWorkspace({
       flex-direction: column;
       align-items: center;
       background: #f8fafc;
-      border: 2px dashed #6366f1;
+      border: 2px dashed #059669;
       border-radius: 24px;
       padding: 24px;
       margin-bottom: 24px;
@@ -2379,14 +2400,14 @@ export function ModuleCWorkspace({
       margin-top: 12px;
       font-size: 14px;
       font-weight: 700;
-      color: #312e81;
+      color: #0f172a;
     }
     .url-pill {
       display: inline-block;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 15px;
       font-weight: 700;
-      color: #1e1b4b;
+      color: #0f172a;
       background: #f1f5f9;
       border: 1px solid #cbd5e1;
       padding: 10px 20px;
@@ -2721,6 +2742,26 @@ export function ModuleCWorkspace({
                   Collapse All
                 </Button>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowWhyCard((prev) => !prev)}
+                className="shrink-0 border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-emerald-300" />
+                What is &ldquo;The Mom Test&rdquo;?
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowParkInput((prev) => !prev)}
+                className="shrink-0 border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
+              >
+                <BookmarkPlus className="h-3.5 w-3.5 text-amber-300" />
+                Not Sure Yet? Park Question
+              </Button>
               {onBackToModuleB && (
                 <Button
                   type="button"
@@ -2768,7 +2809,7 @@ export function ModuleCWorkspace({
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+              <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
               <div>
                 <strong className="text-white">
                   Rule #3: Keep it under 60 seconds (No Login)
@@ -2939,7 +2980,7 @@ export function ModuleCWorkspace({
                 size="sm"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
-                Edit Step
+                {isStep1Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -2965,7 +3006,7 @@ export function ModuleCWorkspace({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base font-bold text-slate-900">
-                    Step 1: Customer Validation Surveys
+                    Step 1: Bias-Free Customer Validation Surveys
                   </h2>
                   {isStep1Complete ? (
                     <Badge variant="success" className="shrink-0 text-[10px]">
@@ -2978,11 +3019,29 @@ export function ModuleCWorkspace({
                   )}
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Each survey below is shown as a clean overview tile. Click{' '}
-                  <strong>&ldquo;Open Survey Studio&rdquo;</strong> on any tile
-                  to build questions, grab your QR code &amp; outreach links, or
-                  analyze responses in a dedicated window.
+                  <strong>&ldquo;The Mom Test&rdquo; Rule:</strong> Instead of asking friends &ldquo;Would you buy my idea?&rdquo; (which invites polite compliments), we ask about real past habits, frustrations, and what they already spend. Click{' '}
+                  <strong>&ldquo;Open Survey Studio&rdquo;</strong> on any tile below to edit questions, grab your QR code, or review responses.
                 </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowWhyCard((prev) => !prev)}
+                    className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                    Why Are We Asking This?
+                  </Button>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_C_SURVEYS_FEEDBACK"
+                    stepNumber={1}
+                    suggestedQuestion="Decide the best 2 groups, WhatsApp chats, or local venues where we can share our 5-question survey link this week."
+                    onParked={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
               </div>
             </div>
 
@@ -2992,10 +3051,10 @@ export function ModuleCWorkspace({
                 size="sm"
                 disabled={isVaultReadonly}
                 onClick={() => void handleCreateNewBlankSurvey(true)}
-                className="shrink-0 bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
+                className="shrink-0 bg-slate-950 text-white border-b border-slate-800 text-xs hover:bg-slate-800"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                Build New Survey with AI
+                <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-400" />
+                Draft New Survey
               </Button>
               <Button
                 type="button"
@@ -3075,7 +3134,11 @@ export function ModuleCWorkspace({
                               : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                           }`}
                         >
-                          {s.isActive ? '● Accepting Responses' : '○ Paused'}
+                          {s.isPublished
+                            ? s.isActive
+                              ? '● Live & Accepting Responses'
+                              : '○ Paused'
+                            : '○ Draft Preview (Not Yet Published)'}
                         </button>
                       </div>
 
@@ -3248,7 +3311,7 @@ export function ModuleCWorkspace({
                   onClick={() => void handleCreateNewBlankSurvey(true)}
                   className="bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
                   Build with AI Co-Pilot
                 </Button>
                 <Button
@@ -3381,15 +3444,17 @@ export function ModuleCWorkspace({
                         : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                     }`}
                   >
-                    {activeSurvey.isActive
-                      ? '● Accepting Responses'
-                      : '○ Paused'}
+                    {activeSurvey.isPublished
+                      ? activeSurvey.isActive
+                        ? '● Live & Accepting Responses'
+                        : '○ Paused'
+                      : '○ Draft Preview (Publish to Lock & Share)'}
                   </button>
                 </div>
 
-                {/* Right: Publish & Lock + Copy Link + Preview + Close */}
+                {/* Right: Publish & Lock + Unlock if 0 Real Responses + Copy Link + Preview + Close */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {!isSurveyPublished && (
+                  {!isSurveyPublished ? (
                     <Button
                       type="button"
                       size="sm"
@@ -3402,6 +3467,21 @@ export function ModuleCWorkspace({
                       <Lock className="h-3.5 w-3.5" />
                       Publish &amp; Lock Survey
                     </Button>
+                  ) : (
+                    (activeSurvey.responses || []).filter((r) => !r.isSimulated)
+                      .length === 0 &&
+                    !isVaultReadonly && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleUnlockZeroResponseSurvey()}
+                        className="border-amber-300 bg-amber-50 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Unlock to Edit (0 Real Responses)
+                      </Button>
+                    )
                   )}
 
                   <Button
@@ -3600,7 +3680,7 @@ export function ModuleCWorkspace({
                       }
                       className="bg-slate-950 text-white border-b border-slate-800 text-xs text-white hover:from-emerald-800 hover:to-teal-900"
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
                       {showAiFocusSelector
                         ? 'Close AI Focus Selector'
                         : 'Build Questions with AI'}
@@ -3623,7 +3703,7 @@ export function ModuleCWorkspace({
                       onClick={handleRegenerateOutreachTemplates}
                       className="text-xs"
                     >
-                      <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
                       Refresh Copy from Idea Context
                     </Button>
                   )}
@@ -3725,7 +3805,7 @@ export function ModuleCWorkspace({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <Badge className="bg-emerald-700 text-white">
-                      <Sparkles className="mr-1 h-3 w-3" />
+                      <SlidersHorizontal className="mr-1 h-3 w-3" />
                       Mom-Test AI Survey Builder
                     </Badge>
                     <CardTitle className="mt-2 text-base font-bold text-slate-900 sm:text-lg">
@@ -3935,7 +4015,7 @@ export function ModuleCWorkspace({
                         </>
                       ) : (
                         <>
-                          <Wand2 className="h-3.5 w-3.5" />
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
                           Generate {desiredQuestionCount} Mom-Test Questions
                         </>
                       )}
@@ -4239,7 +4319,7 @@ export function ModuleCWorkspace({
                                   }
                                   className="h-7 bg-emerald-700 text-[11px] text-white hover:bg-emerald-800"
                                 >
-                                  <Wand2 className="h-3 w-3" />
+                                  <SlidersHorizontal className="h-3 w-3" />
                                   Use This Rewrite
                                 </Button>
                               )}
@@ -4470,7 +4550,7 @@ export function ModuleCWorkspace({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-3.5 w-3.5" />
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
                         + Suggest 1 Question with AI
                       </>
                     )}
@@ -4558,8 +4638,11 @@ export function ModuleCWorkspace({
               </div>
               <Button
                 type="button"
-                disabled={isVaultReadonly}
-                onClick={handlePublishAndLockSurvey}
+                disabled={isVaultReadonly || activeSurvey.questions.length === 0}
+                onClick={() => {
+                  setShowPublishConfirm(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 className="bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
               >
                 <Lock className="h-4 w-4" />
@@ -5753,7 +5836,7 @@ export function ModuleCWorkspace({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
                     Analyze Results with AI
                   </>
                 )}
@@ -5919,7 +6002,7 @@ export function ModuleCWorkspace({
                       : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
                   AI Signal vs. Noise Summary
                   {activeSurvey.aiInsightsSummary && (
                     <span
@@ -5966,7 +6049,7 @@ export function ModuleCWorkspace({
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
                             <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
-                              <Sparkles className="mr-1 h-3 w-3" />
+                              <SlidersHorizontal className="mr-1 h-3 w-3" />
                               AI &ldquo;Signal vs. Polite Noise&rdquo; Synthesis
                             </Badge>
                             <h3 className="mt-2 text-lg font-bold text-white">
@@ -6040,7 +6123,7 @@ export function ModuleCWorkspace({
                     <Card className="border-dashed border-slate-200 bg-white">
                       <CardContent className="p-8 text-center">
                         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                          <Sparkles className="h-5 w-5" />
+                          <SlidersHorizontal className="h-5 w-5" />
                         </div>
                         <h4 className="mt-3 text-sm font-bold text-slate-900">
                           Ready to Analyze Your {totalResponses} Responses
@@ -6056,7 +6139,7 @@ export function ModuleCWorkspace({
                           onClick={handleRunAiAnalysis}
                           className="mt-4 bg-emerald-700 text-white hover:bg-emerald-800"
                         >
-                          <Sparkles className="h-3.5 w-3.5" />
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
                           Analyze Results with AI
                         </Button>
                       </CardContent>
@@ -6530,15 +6613,27 @@ export function ModuleCWorkspace({
                     </Button>
                     <Button
                       type="button"
+                      variant="outline"
                       size="sm"
                       onClick={() => {
                         setActiveViewTab('AUDIENCE_BOOST');
                         void loadBoostDataForActiveSurvey();
                       }}
-                      className="bg-gradient-to-r from-amber-600 to-orange-600 text-xs font-bold text-white hover:from-amber-700 hover:to-orange-700 shadow-xs"
+                      className="border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     >
-                      <Flame className="h-3.5 w-3.5" />
-                      Next: Guaranteed Responses
+                      Optional: B2C Consumer Panel Boost
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setActiveViewTab('INSIGHTS');
+                        void handleSyncLiveResponses(true);
+                      }}
+                      className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
+                    >
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      Next: Results &amp; Insights ({totalResponses})
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
                   </>
@@ -6660,7 +6755,7 @@ export function ModuleCWorkspace({
                 size="sm"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
-                Edit Step
+                {isStep2Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -6696,6 +6791,14 @@ export function ModuleCWorkspace({
                   >
                     {isStep2Complete ? 'Completed' : 'In Progress'}
                   </Badge>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_C_SURVEYS_FEEDBACK"
+                    stepNumber={2}
+                    suggestedQuestion="Book 3 short 15-minute discovery calls with real target customers to hear how they currently deal with this problem."
+                    onParked={onParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   {interviewLogs.length > 0 && (
                     <Badge className="shrink-0 border-emerald-300 bg-emerald-100 text-[10px] font-bold text-emerald-900">
                       {
@@ -7016,7 +7119,7 @@ export function ModuleCWorkspace({
                   }}
                   className="border-slate-200 bg-slate-50 text-xs font-semibold text-emerald-900 hover:bg-slate-100"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
                   Synthesize Calls in Survey Insights
                 </Button>
               )}
@@ -7195,7 +7298,7 @@ export function ModuleCWorkspace({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-3.5 w-3.5" />
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
                         Extract with AI Mom-Test Filter
                       </>
                     )}
@@ -7473,7 +7576,7 @@ export function ModuleCWorkspace({
                 size="sm"
                 className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
               >
-                Edit Step
+                {isStep3Complete ? 'Edit Step' : 'Open Step'}
                 <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </div>

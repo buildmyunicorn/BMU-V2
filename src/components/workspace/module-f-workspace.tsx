@@ -49,7 +49,9 @@ import {
   X,
   Bookmark,
   Copy,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import {
   parseCvAndDraftPromoterBioAction,
   generateRoleMatrixSummaryAction,
@@ -146,6 +148,7 @@ export interface ModuleFWorkspaceProps {
   userName?: string;
   userEmail?: string;
   onParkOpenQuestion?: (questionText: string) => void;
+  onRequestUpgrade?: () => void;
   onBackToModuleE?: () => void;
   onContinueToModuleG?: () => void;
   initialStep?: number;
@@ -376,6 +379,16 @@ function buildDefaultStep2DataForPlan(
   // Pre-seed 7 hats with sensible defaults from current team members
   const founder1 = teamMembers[0]?.id || 'UNASSIGNED';
   const founder2 = teamMembers.length > 1 ? teamMembers[1].id : 'UNASSIGNED';
+  const isSoloTeam = teamMembers.length <= 1;
+  const soloSustainableHoursByHat: Record<string, number> = {
+    VISION_FUNDRAISING: 4,
+    PRODUCT_TECH_BUILD: 6,
+    SALES_COMMERCIAL_BD: 5,
+    MARKETING_GROWTH: 3,
+    CUSTOMER_SUCCESS_SUPPORT: 3,
+    OPS_LEGAL_COMPLIANCE: 2,
+    FINANCE_CASHFLOW_GRANTS: 2,
+  };
 
   const defaultAssignments: StartupHatAssignment[] = STARTUP_HATS_CONFIG.map(
     (hat) => {
@@ -402,7 +415,9 @@ function buildDefaultStep2DataForPlan(
         scopeSummary: hat.description,
         primaryOwnerMemberId: primary,
         backupOwnerMemberId: backup,
-        weeklyHours: hat.defaultWeeklyHours,
+        weeklyHours: isSoloTeam
+          ? soloSustainableHoursByHat[hat.key] ?? 3
+          : hat.defaultWeeklyHours,
         confidence,
         notes: '',
       };
@@ -649,6 +664,281 @@ export interface AwkwardQuestionDef {
     alignmentTag: 'FULL_TIME_COMMITTED' | 'BOOTSTRAP_LEAN' | 'AGGRESSIVE_SCALE' | 'BALANCED_MODERATE' | 'OTHER';
   }>;
 }
+
+export const SOLO_FOUNDER_QUESTIONS_CONFIG: AwkwardQuestionDef[] = [
+  {
+    key: 'Q1',
+    number: 1,
+    category: 'TIME_COMMITMENT',
+    title: 'Weekly Hours Cap & Personal / Family Boundaries',
+    subtitle: 'What is the sustainable weekly hours boundary you are committing to over the next 12 months?',
+    contextWhy: 'Solo founders burn out when every evening and Sunday turns into unpaid admin. Setting an explicit weekly cap protects your energy and focus.',
+    options: [
+      {
+        value: 'PART_TIME_MOONLIGHT_15_25',
+        label: 'Focused Side-Build (15–25 hrs/wk alongside day job or family)',
+        description: 'Protected evening/weekend blocks while maintaining primary household income.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'SUSTAINABLE_FULL_TIME_40_45',
+        label: 'Sustainable Full-Time Pace (35–42 hrs/wk, protected weekends)',
+        description: 'Full daytime focus on sales and delivery with strict weekend recovery.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'INTENSE_HUSTLE_55_PLUS',
+        label: 'Time-Boxed Launch Sprint (50+ hrs/wk for 90 days max)',
+        description: 'Short, bounded sprint to open doors or ship V1 before stepping back to a sustainable rhythm.',
+        alignmentTag: 'AGGRESSIVE_SCALE',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Personal Schedule Boundary',
+        description: 'Specify school-hours, seasonal, or custom availability.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q2',
+    number: 2,
+    category: 'MONEY_SALARIES',
+    title: 'Personal Savings & Family Stop-Loss Limit',
+    subtitle: 'What is the maximum personal cash you are willing to risk before the business must pay its own bills?',
+    contextWhy: 'Ring-fencing household rent, mortgage, and emergency savings upfront prevents emotional sunk-cost decisions later.',
+    options: [
+      {
+        value: 'ZERO_BOOTSTRAP_REVENUE_ONLY',
+        label: 'Strict Bootstrap Cap (Under €2,500 / £2,000 personal cash)',
+        description: 'Pre-orders, deposits, or early customer sales must fund any bigger equipment or stock spend.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'MODERATE_RINGFENCED_POT',
+        label: 'Ring-Fenced Startup Pot (€3,000–€10,000 / £2,500–£8,500)',
+        description: 'Dedicated personal seed pot matched with Start Up Loan or 50% grant support—zero family emergency savings touched.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'DEDICATED_SAVINGS_RUNWAY',
+        label: 'Dedicated 6–12 Month Savings Runway (€10,000+ / £10,000+)',
+        description: 'Ring-fenced savings set aside specifically for this venture with a clear review checkpoint.',
+        alignmentTag: 'FULL_TIME_COMMITTED',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Personal Capital Limit',
+        description: 'Specify your exact personal cash stop-loss rule.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q3',
+    number: 3,
+    category: 'TIME_COMMITMENT',
+    title: 'Your Full-Time Leap Milestone (If Currently Employed or Contracting)',
+    subtitle: 'What concrete proof must you see before leaving steady income or signing a long lease?',
+    contextWhy: 'Having a written numerical green-light stops you from jumping too early out of excitement—or waiting forever out of fear.',
+    options: [
+      {
+        value: 'IMMEDIATELY_DAY_ONE',
+        label: 'Already Full-Time on This Venture',
+        description: 'Already committed full-time with personal survival budget mapped in Step 3.',
+        alignmentTag: 'FULL_TIME_COMMITTED',
+      },
+      {
+        value: 'ON_REVENUE_VALIDATION',
+        label: 'When Net Pocket Profit Covers My Survival Floor for 3 Months',
+        description: 'Stay part-time/lean until repeat customer sales reliably cover personal bills.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'ON_FIRST_GRANT_OR_ROUND',
+        label: 'Upon Grant / Start Up Loan Approval + 10 Paying Pilot Customers',
+        description: 'Combine verified customer demand with approved funding cushion before resigning.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Leap Trigger',
+        description: 'Describe your exact milestone for going all-in.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q4',
+    number: 4,
+    category: 'VISION_EXIT',
+    title: 'Your 9-Month "Walk-Away or Pivot" Checkpoint',
+    subtitle: 'What traction target must you hit by Month 9 to keep investing—or pause and pivot the offer?',
+    contextWhy: 'e.g., "If we haven\'t reached 20 paying customers or €15k pilot/grant traction within 9 months and €4,000 personal spend, I will pause cash spend and pivot the offer before touching family savings."',
+    options: [
+      {
+        value: 'PAYING_CUSTOMERS_CHECKPOINT',
+        label: '20+ Paying Customers (or 70% Local Capacity) Within 9 Months',
+        description: 'If real strangers are not paying and returning by Month 9, pause spend and rework the offer.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'BREAKEVEN_RUNWAY_CHECKPOINT',
+        label: 'Clear Line-of-Sight to Monthly Breakeven by Month 9–12',
+        description: 'Monthly sales covering monthly business bills and minimum personal drawings.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'GRANT_OR_SEED_MILESTONE',
+        label: 'Validated Pilot KPIs + Grant / Seed Funding Secured',
+        description: 'Technical/commercial pilot proven with institutional or investor backing.',
+        alignmentTag: 'AGGRESSIVE_SCALE',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Custom Pivot / Stop-Loss Checkpoint',
+        description: 'Write your exact Month-9 traction rule below.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q5',
+    number: 5,
+    category: 'ROLES_AUTHORITY',
+    title: 'First Bottleneck Hat You Will Automate or Outsource',
+    subtitle: 'Which of the 7 Startup Hats drains your energy most and gets handed off first?',
+    contextWhy: 'Solo founders thrive when they spend 80% of their week on their unfair advantage (making & selling) and offload their weakest hat early.',
+    options: [
+      {
+        value: 'BOOKKEEPING_VAT_PAYROLL',
+        label: 'Bookkeeping, VAT & Tax Returns (€60–€150/mo cloud bookkeeper)',
+        description: 'Keep compliance spotless without losing Sundays to receipts and tax filings.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'PACKING_PRODUCTION_ADMIN',
+        label: 'Part-Time Production, Packing, Kitchen, or Booking Admin',
+        description: 'Free up founder hours for high-value customer acquisition and product quality.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'SPECIALIST_TECH_DESIGN_ADS',
+        label: 'Specialist Freelancer for Web/Tech Build, Design, or Paid Ads',
+        description: 'Use vetted fixed-quote specialists rather than struggling solo for months.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other First Delegation Priority',
+        description: 'Specify the first task or role you plan to hand off.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q6',
+    number: 6,
+    category: 'ROLES_AUTHORITY',
+    title: '2-Week Illness or Family Emergency Continuity Plan',
+    subtitle: 'If you caught flu or had a family emergency for 14 days, how does the business avoid collapsing?',
+    contextWhy: 'Bank managers, Start Up Loans, and LEO officers always ask solo founders about "key-person risk". A simple written answer wins huge trust.',
+    options: [
+      {
+        value: 'DOCUMENTED_SOP_PLUS_BACKUP_CONTRACTOR',
+        label: '1-Page Written Checklist + Trusted Freelancer / Trade Peer Backup',
+        description: 'A vetted peer, locum, or part-time assistant can cover urgent orders or reschedule bookings.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'AUTOMATED_DIGITAL_BUFFER',
+        label: 'Self-Serve Digital Delivery + Clear Lead-Time / Booking Buffer',
+        description: 'Automated checkout/onboarding keeps running while non-urgent dispatch pauses transparently.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'SPOUSE_OR_ADVISOR_EMERGENCY_ACCESS',
+        label: 'Emergency Admin Pack Shared with Trusted Partner / Advisor',
+        description: 'Critical supplier contacts, banking instructions, and customer comms templates are safely documented.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Key-Person Continuity Plan',
+        description: 'Describe how orders or clients are covered if you are out for 2 weeks.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q7',
+    number: 7,
+    category: 'ROLES_AUTHORITY',
+    title: 'External Accountability & Blind-Spot Check-In Cadence',
+    subtitle: 'Who will challenge your assumptions once a month when you do not have a co-founder across the desk?',
+    contextWhy: 'Solo founders move fast (zero boardroom arguments!), but isolation can hide pricing or scope blind spots. One monthly check-in cures solo tunnel vision.',
+    options: [
+      {
+        value: 'LEO_GROWTH_HUB_MENTOR',
+        label: 'Monthly LEO / Growth Hub / Start Up Loans Mentor Check-In',
+        description: 'Use free state-backed mentoring to review monthly sales, margins, and milestones.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'INDUSTRY_ADVISOR_PAIR',
+        label: '1–2 Informal Industry Advisors (Monthly 45-Min Coffee / Call)',
+        description: 'Experienced operators in your sector who review pricing, suppliers, and hiring.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'FOUNDER_PEER_MASTERMIND',
+        label: 'Bi-Weekly Peer Founder Accountability Group + Customer Calls',
+        description: 'Commit to 3 concrete goals every fortnight alongside fellow founders.',
+        alignmentTag: 'FULL_TIME_COMMITTED',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Accountability Rhythm',
+        description: 'Describe how you keep yourself accountable and objective.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+  {
+    key: 'Q8',
+    number: 8,
+    category: 'EQUITY_VESTING',
+    title: 'Future Co-Founder & Early Equity Stance',
+    subtitle: 'Do you intend to stay 100% solo-owned, or are you open to bringing on a partner later?',
+    contextWhy: 'Clarifying this now ensures you never casually promise 30%–50% equity over coffee without a 12-month trial cliff and 4-year vesting.',
+    options: [
+      {
+        value: 'STAY_100_SOLO_HIRE_CASH',
+        label: 'Stay 100% Solo-Owned — Hire Staff/Contractors for Cash as We Grow',
+        description: 'Retain 100% ownership and fund specialists through customer revenue, loans, or grants.',
+        alignmentTag: 'BOOTSTRAP_LEAN',
+      },
+      {
+        value: 'OPEN_TO_PARTNER_WITH_4YR_VESTING',
+        label: 'Open to a Complementary Partner (Strictly on 4-Yr Vesting + 1-Yr Cliff)',
+        description: 'Would welcome a commercial/technical partner only after a paid trial and formal reverse-vesting.',
+        alignmentTag: 'BALANCED_MODERATE',
+      },
+      {
+        value: 'KEY_HIRE_SMALL_EQUITY_POOL',
+        label: '100% Solo Founder + Small 5%–10% Option Pool for Key Early Hires',
+        description: 'Keep clear founder control while rewarding 1–2 early builders with vested options.',
+        alignmentTag: 'AGGRESSIVE_SCALE',
+      },
+      {
+        value: 'OTHER',
+        label: 'Other Ownership Stance',
+        description: 'Describe your long-term ownership preference.',
+        alignmentTag: 'OTHER',
+      },
+    ],
+  },
+];
 
 export const AWKWARD_QUESTIONS_CONFIG: AwkwardQuestionDef[] = [
   // --------------------------------------------------------------------------
@@ -1718,6 +2008,58 @@ export const QUICK_ADD_ROLE_TEMPLATES: Array<{
     isGrantEligible: true,
     isRdEligible: false,
   },
+  {
+    title: 'Production / Kitchen Assistant',
+    department: 'OPERATIONS_SUPPORT',
+    employmentMode: 'PART_TIME',
+    yearScheduled: 1,
+    targetQuarter: 'Q3',
+    compensationModel: 'FULL_CASH',
+    grossSalaryEur: 18000,
+    grossSalaryGbp: 15500,
+    equityPercent: 0,
+    isGrantEligible: true,
+    isRdEligible: false,
+  },
+  {
+    title: 'Retail / Storefront Associate',
+    department: 'OPERATIONS_SUPPORT',
+    employmentMode: 'PART_TIME',
+    yearScheduled: 1,
+    targetQuarter: 'Q4',
+    compensationModel: 'FULL_CASH',
+    grossSalaryEur: 17500,
+    grossSalaryGbp: 15000,
+    equityPercent: 0,
+    isGrantEligible: false,
+    isRdEligible: false,
+  },
+  {
+    title: 'Field Technician / Installer',
+    department: 'OPERATIONS_SUPPORT',
+    employmentMode: 'FULL_TIME',
+    yearScheduled: 2,
+    targetQuarter: 'Q1',
+    compensationModel: 'FULL_CASH',
+    grossSalaryEur: 36000,
+    grossSalaryGbp: 31000,
+    equityPercent: 0,
+    isGrantEligible: true,
+    isRdEligible: false,
+  },
+  {
+    title: 'Part-Time Bookkeeper / Operations Admin',
+    department: 'LEADERSHIP_GA',
+    employmentMode: 'CONTRACTOR_RETAINER',
+    yearScheduled: 1,
+    targetQuarter: 'Q2',
+    compensationModel: 'FULL_CASH',
+    grossSalaryEur: 6000,
+    grossSalaryGbp: 5200,
+    equityPercent: 0,
+    isGrantEligible: false,
+    isRdEligible: false,
+  },
 ];
 
 export function buildDefaultStep5DataForPlan(
@@ -1728,7 +2070,7 @@ export function buildDefaultStep5DataForPlan(
   const saved = plan.moduleFData?.step5HiringPlanData;
   if (saved && Array.isArray(saved.roles)) {
     return {
-      hiringPosture: saved.hiringPosture || 'CORE_TECH_SWEAT_EQUITY',
+      hiringPosture: saved.hiringPosture || 'CONTRACTOR_LEAN_FIRST',
       otherHiringPostureText: saved.otherHiringPostureText || '',
       roles: saved.roles,
       contractorBudgetYear1: saved.contractorBudgetYear1 ?? 0,
@@ -1771,7 +2113,7 @@ export function buildDefaultStep5DataForPlan(
       employmentMode: isContractor ? 'CONTRACTOR_RETAINER' : isPartTime ? 'PART_TIME' : 'FULL_TIME',
       yearScheduled: 1,
       targetQuarter: 'Q1',
-      compensationModel: 'FULL_CASH',
+      compensationModel: 'PURE_SWEAT_EQUITY',
       // No compensation populated (starts at 0)
       grossAnnualSalary: 0,
       isGrantReimbursableEligible: member.roleClassification === 'FOUNDER_PROMOTER' || member.roleClassification === 'KEY_TEAM_MEMBER',
@@ -1779,12 +2121,12 @@ export function buildDefaultStep5DataForPlan(
       equityGrantPercent: 0,
       vestingYears: 4,
       cliffMonths: 12,
-      notes: `Imported from Step 1 Team Profiles (${member.fullName || 'Member'}). Set target salary or sweat equity mode.`,
+      notes: `Imported from Step 1 Team Profiles (${member.fullName || 'Member'}). Defaults to €0 Year-1 salary (Founder-Led / Sweat Equity) until you choose to add cash pay.`,
     };
   });
 
   return {
-    hiringPosture: 'CORE_TECH_SWEAT_EQUITY',
+    hiringPosture: 'CONTRACTOR_LEAN_FIRST',
     otherHiringPostureText: '',
     roles: defaultRoles,
     contractorBudgetYear1: 0,
@@ -1890,27 +2232,42 @@ export function buildDefaultStep6DataForPlan(
   }
 
   const isGb = selectedCountry === 'GB';
+  const savedFoundersCount =
+    plan.moduleFData?.promoterProfiles?.teamMembers?.filter(
+      (m) => m.roleClassification === 'FOUNDER_PROMOTER'
+    ).length ?? 1;
+  const isSoloPlan =
+    plan.moduleFData?.promoterProfiles?.teamStructurePosture ===
+      'SOLO_FOUNDER_CURRENT' || savedFoundersCount <= 1;
+  const hasSweatEquityHires = (
+    plan.moduleFData?.step5HiringPlanData?.roles || []
+  ).some((r) => (Number(r.equityGrantPercent) || 0) > 0);
+
   const defaultBlindSpots: TeamBlindSpotItem[] = [
-    {
-      id: 'tb-1-dead-equity',
-      title: 'Absence of 4-Year Equity Vesting with a 1-Year Cliff',
-      category: 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK',
-      severity: 'CRITICAL',
-      whyItMatters:
-        'If any co-founder or early equity contributor walks away within the first 12 months without reverse-vesting, they keep their full shareholding, creating "dead equity" that blocks venture capital and grant co-funding.',
-      recommendedActionOrFix:
-        'Implement standard 4-year reverse-vesting with a 1-year cliff and strict bad-leaver share repurchase clauses before issuing company shares.',
-      isResolved: false,
-    },
+    ...(!isSoloPlan || hasSweatEquityHires
+      ? [
+          {
+            id: 'tb-1-dead-equity',
+            title: 'Absence of 4-Year Equity Vesting with a 1-Year Cliff',
+            category: 'EQUITY_VESTING_OR_DEAD_EQUITY_RISK' as const,
+            severity: 'CRITICAL' as const,
+            whyItMatters:
+              'If any co-founder or early equity contributor walks away within the first 12 months without reverse-vesting, they keep their full shareholding, creating "dead equity" that blocks venture capital and grant co-funding.',
+            recommendedActionOrFix:
+              'Implement standard 4-year reverse-vesting with a 1-year cliff and strict bad-leaver share repurchase clauses before issuing company shares.',
+            isResolved: false,
+          },
+        ]
+      : []),
     {
       id: 'tb-2-key-person',
-      title: 'Key-Person Single Point of Failure on Technical / Domain Delivery',
+      title: 'Key-Person Continuity & Single Point of Failure Backup',
       category: 'SINGLE_POINT_OF_FAILURE_OR_BURNOUT',
-      severity: 'CRITICAL',
+      severity: isSoloPlan ? 'IMPORTANT' : 'CRITICAL',
       whyItMatters:
-        'Solo founders or teams where 1 person holds 4+ core operational hats face severe execution drag, burnout, and acute diligence friction during LEO / Innovate UK panel reviews.',
+        'Solo founders or lean teams where 1 person holds core operational hats should document a simple 2-week illness/holiday backup plan so bank and grant panels see clear business continuity.',
       recommendedActionOrFix:
-        'Formalize a 2-person Advisory Board and cross-train fractional contractors on deployment keys and customer relationships to ensure operational redundancy.',
+        'Keep a 1-page operating checklist, automate bookkeeping/booking admin early, and name 1–2 trusted advisors or backup contractors.',
       isResolved: false,
     },
     {
@@ -1932,7 +2289,7 @@ export function buildDefaultStep6DataForPlan(
       whyItMatters:
         'Code and brand assets created prior to formal incorporation remain the personal property of individual founders until legally assigned via a written IP Transfer Deed.',
       recommendedActionOrFix:
-        'Execute a bilateral Intellectual Property Assignment Deed and confirm Section 431 elections (UK) or nominal share value declarations upon incorporation.',
+        'Execute a bilateral Intellectual Property Assignment Deed (so the company cleanly owns all code and brand assets) and ask your accountant about a UK Section 431 share tax election (within 14 days of share issue) or Irish nominal share value declaration upon incorporation.',
       isResolved: false,
     },
   ];
@@ -1961,17 +2318,18 @@ export function ModuleFWorkspace({
   userName,
   userEmail,
   onParkOpenQuestion,
+  onRequestUpgrade,
   onBackToModuleE,
   onContinueToModuleG,
   initialStep,
   highlightTarget,
 }: ModuleFWorkspaceProps) {
-  // Step Accordion View State: 0 = all collapsed by default, 1..6, or 'ALL'
+  // Step Accordion View State: default to Step 1 open so founders land directly in action
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       return initialStep;
     }
-    return 0;
+    return 1;
   });
 
   // Handle deep-link scrolling and highlight
@@ -2261,16 +2619,21 @@ export function ModuleFWorkspace({
     step4Data.responses.find((r) => r.memberId === activeFounderAlignmentId) ||
     step4Data.responses[0];
 
+  const activeQuestionSet = isSoloFounderMode
+    ? SOLO_FOUNDER_QUESTIONS_CONFIG
+    : AWKWARD_QUESTIONS_CONFIG;
+
   const answeredQuestionsCountForActiveFounder = activeFounderResponse
-    ? Object.keys(activeFounderResponse.answers || {}).length
+    ? activeQuestionSet.filter((q) => Boolean(activeFounderResponse.answers?.[q.key]))
+        .length
     : 0;
 
-  const totalQuestionsCount = AWKWARD_QUESTIONS_CONFIG.length; // 20
+  const totalQuestionsCount = activeQuestionSet.length;
 
   const step4Complete =
     step4Data.responses.length > 0 &&
     (isSoloFounderMode
-      ? answeredQuestionsCountForActiveFounder >= 12
+      ? answeredQuestionsCountForActiveFounder >= 6
       : step4Data.responses.some(
           (r) => Object.keys(r.answers || {}).length >= 12
         ));
@@ -3658,14 +4021,14 @@ export function ModuleFWorkspace({
       )}
 
       {/* ========================================================================= */}
-      {/* 1. TOP DARK-INDIGO MODULE HEADER CARD & 6-STEP ACCORDION NAVIGATION STRIP */}
+      {/* 1. TOP DARK-SLATE MODULE HEADER CARD & 6-STEP ACCORDION NAVIGATION STRIP  */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-emerald-400/40 bg-emerald-500/30 text-slate-200">
-                Module F • Team, Survival Budget &amp; Co-Founder Fit
+                Module F • Team, Survival Budget &amp; Founder Readiness
               </Badge>
               <Badge
                 variant="outline"
@@ -3675,10 +4038,12 @@ export function ModuleFWorkspace({
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Module F: Your Team, Co-Founder Fit & Personal Runway
+              Module F: Your Team, Roles &amp; Personal Runway
             </h1>
-            <p className="max-w-3xl text-xs text-slate-200/90 sm:text-sm">
-              Build your promoter and team member roster with 150-word LEO-ready bios and LinkedIn links, map the 7 Startup Hats, calculate your personal survival budget (UK Start Up Loans Tab #2 compliant), and stress-test the 12 awkward co-founder questions.
+            <p className="max-w-3xl text-xs text-slate-300 sm:text-sm">
+              {isSoloFounderMode
+                ? 'Capture your founder bio and relevant background, map realistic weekly hours across the 7 Startup Hats, calculate your personal survival budget, and lock in 8 solo founder readiness & boundary checks.'
+                : 'Build your founder and team bios, assign clear ownership across the 7 Startup Hats, calculate each founder’s personal survival budget, and stress-test co-founder alignment before splitting equity.'}
             </p>
           </div>
 
@@ -3708,7 +4073,7 @@ export function ModuleFWorkspace({
                 </Button>
               )}
             </div>
-            <div className="text-right text-[11px] text-slate-300">
+            <div className="text-right text-[11px] text-slate-300 font-mono tabular-nums">
               Module F Progress: <strong>{totalModuleFProgress}%</strong> (
               {completedModuleFCoreStepsCount} of 5 Core Steps Ready)
             </div>
@@ -3716,11 +4081,11 @@ export function ModuleFWorkspace({
         </div>
 
         {/* 6-Step Accordion Navigation Strip */}
-        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-850 pt-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-800 pt-4 sm:grid-cols-3 lg:grid-cols-6">
           {[
             {
               step: 'Step 1',
-              title: 'Promoter & Team Bios',
+              title: 'Founder & Team Bios',
               targetId: 'module-f-step-1',
               stepNum: 1,
               done: moduleFReadinessSteps[0]?.isComplete ?? false,
@@ -3741,7 +4106,9 @@ export function ModuleFWorkspace({
             },
             {
               step: 'Step 4',
-              title: 'Co-Founder Alignment',
+              title: isSoloFounderMode
+                ? 'Solo Readiness Check'
+                : 'Co-Founder Alignment',
               targetId: 'module-f-step-4',
               stepNum: 4,
               done: moduleFReadinessSteps[3]?.isComplete ?? false,
@@ -3838,7 +4205,7 @@ export function ModuleFWorkspace({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
-                    Step 1: Promoter &amp; Key Team Member Profiles
+                    Step 1: Founder &amp; Key Team Bios
                   </h3>
                   <Badge
                     variant={step1Complete ? 'default' : 'outline'}
@@ -3892,7 +4259,7 @@ export function ModuleFWorkspace({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <CardTitle className="text-base font-bold text-slate-900">
-                        Step 1: Promoter &amp; Key Team Member Profiles
+                        Step 1: Founder &amp; Key Team Bios
                       </CardTitle>
                       <Badge
                         variant={step1Complete ? 'default' : 'outline'}
@@ -3906,7 +4273,9 @@ export function ModuleFWorkspace({
                       </Badge>
                     </div>
                     <CardDescription className="mt-1 text-xs text-slate-600">
-                      Document your founders and key existing team members. Captures photos, LinkedIn profiles, domain track records, 150-word LEO-compliant promoter bios, and Appendix D CV readiness.
+                      {selectedCountry === 'IE'
+                        ? 'Introduce yourself and any key team members in plain English. Captures practical hands-on experience, LinkedIn links, 150-word Irish LEO Promoter Profiles, and Appendix D CV readiness.'
+                        : 'Introduce yourself and any key team members in plain English. Captures practical hands-on experience, qualifications, LinkedIn links, and investor/grant-ready founder bios.'}
                     </CardDescription>
                   </div>
                 </div>
@@ -3942,30 +4311,89 @@ export function ModuleFWorkspace({
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   Why Are We Asking This?
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setActiveExampleCard(activeExampleCard === 1 ? null : 1)
+                  }
+                  className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
+                >
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  Show Me an Example
+                </Button>
               </div>
 
               {/* "Why Are We Asking This?" Explainer */}
               {activeWhyCard === 1 && (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-950">
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-800">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
                       <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <div className="space-y-1">
                         <p className="font-semibold text-slate-900">
-                          Why Grant Assessors &amp; Investors Scrutinize Your Team:
+                          Why Lenders, Grant Assessors &amp; Investors Read Your Bio First:
                         </p>
-                        <p className="text-slate-900/90 leading-relaxed">
-                          Irish LEO application forms explicitly demand a <strong>minimum 150-word background narrative per promoter</strong> plus formal CVs attached to <strong>Appendix D</strong>. Similarly, UK Innovate UK Question 8 scores your <em>Team Capability to Deliver</em>. Capturing photos, verified LinkedIn links, and concrete past accomplishments proves credibility and de-risks execution before asking for public or private funding.
+                        <p className="text-slate-800 leading-relaxed">
+                          You do <strong>not</strong> need a university degree or corporate tech pedigree to score highly. Assessors simply want to see <em>lived domain credibility</em>—why you understand this customer problem firsthand and can deliver reliably.{' '}
+                          {selectedCountry === 'IE'
+                            ? 'Irish LEO application forms also ask for a 150-word background summary per founder ("Promoter") plus an attached CV for Appendix D.'
+                            : 'UK Start Up Loans and Innovate UK assessors score practical capability to deliver and relevant hands-on experience.'}
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveWhyCard(null)}
-                      className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
+                      className="shrink-0 text-slate-500 hover:text-slate-800 text-xs"
                     >
                       ✕
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* "Show Me an Example" 3-Archetype Drawer */}
+              {activeExampleCard === 1 && (
+                <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-emerald-950">
+                      Strong Founder Bio Examples Across 3 Different Business Types:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveExampleCard(null)}
+                      className="shrink-0 text-emerald-700 hover:text-emerald-950 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                      <p className="font-bold text-slate-900 text-[11px]">
+                        1. Food, Craft or Retail Founder
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
+                        &ldquo;Aoife Byrne has 9 years&apos; experience managing production and wholesale accounts for an artisan bakery in Cork, growing weekly output from 400 to 3,200 units while maintaining full HACCP food-safety compliance...&rdquo;
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                      <p className="font-bold text-slate-900 text-[11px]">
+                        2. Local Clinic, Studio or Trade
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
+                        &ldquo;Callum Reid is a Chartered Physiotherapist (CORU/HCPC registered) with 7 years&apos; clinical experience treating sports injuries across NHS and private clinics, managing a 92% repeat patient booking rate...&rdquo;
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                      <p className="font-bold text-slate-900 text-[11px]">
+                        3. B2B Software / SaaS Founder
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
+                        &ldquo;Priya Nair spent 6 years as Operations Manager in freight logistics before building workflow automation tools, giving her direct buyer relationships with 40+ fleet operators...&rdquo;
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -4034,7 +4462,7 @@ export function ModuleFWorkspace({
                       }
                       placeholder="Describe your custom team structure..."
                       disabled={isVaultReadonly}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-emerald-600 focus:outline-hidden"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                     />
                   </div>
                 )}
@@ -4289,7 +4717,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="Full Name (e.g. Lynn Walsh)"
                                   disabled={isVaultReadonly}
-                                  className="text-sm font-bold text-slate-900 border-b border-dashed border-slate-300 hover:border-emerald-400 focus:border-emerald-700 focus:outline-hidden pb-0.5"
+                                  className="text-base sm:text-sm font-bold text-slate-900 border-b border-dashed border-slate-300 hover:border-emerald-400 focus:border-emerald-700 focus:outline-hidden pb-0.5"
                                 />
                                 {member.isCurrentUserFounder && (
                                   <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
@@ -4515,9 +4943,9 @@ export function ModuleFWorkspace({
                                   jobTitle: e.target.value,
                                 })
                               }
-                              placeholder="e.g. Founder & CTO / Lead Full-Stack Dev"
+                              placeholder="e.g. Founder & Head Baker / Clinic Lead / Product Lead"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -4549,7 +4977,7 @@ export function ModuleFWorkspace({
                               }
                               placeholder="https://linkedin.com/in/username"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -4565,9 +4993,9 @@ export function ModuleFWorkspace({
                                   email: e.target.value,
                                 })
                               }
-                              placeholder="name@startup.com"
+                              placeholder="name@company.com"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
                         </div>
@@ -4576,7 +5004,7 @@ export function ModuleFWorkspace({
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div>
                             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                              Formal Education, Degrees &amp; LEO / Enterprise Courses
+                              Qualifications, Trade Certs, Courses or Degrees
                             </label>
                             <input
                               type="text"
@@ -4586,15 +5014,15 @@ export function ModuleFWorkspace({
                                   relevantEducationAndDegrees: e.target.value,
                                 })
                               }
-                              placeholder="e.g. BSc Computer Science, LEO Start Your Own Business course"
+                              placeholder="e.g. HACCP Cert, Trade Qualification, Start Your Own Business Course, or Degree"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
                           <div>
                             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                              Prior Industry Experience &amp; Key Track Record
+                              Hands-On Industry Experience &amp; Track Record
                             </label>
                             <input
                               type="text"
@@ -4604,19 +5032,21 @@ export function ModuleFWorkspace({
                                   keyPastCompaniesOrTrackRecord: e.target.value,
                                 })
                               }
-                              placeholder="e.g. 8 years scaling fintech software, ex-Stripe tech lead"
+                              placeholder="e.g. 7 years managing hospitality ops, clinic patients, retail accounts, or software delivery"
                               disabled={isVaultReadonly}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
+                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
                         </div>
 
-                        {/* Row 4: 150-Word LEO Bio Narrative + Word Count Badge */}
+                        {/* Row 4: 150-Word Bio Narrative + Word Count Badge */}
                         <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <label className="text-xs font-bold text-slate-900">
                               {isFounder
-                                ? 'Detailed Promoter Bio Narrative (LEO Min. 150 Words & UK Q8 Capability)'
+                                ? selectedCountry === 'IE'
+                                  ? 'Founder / Promoter Bio (150+ Words Recommended for Irish LEO)'
+                                  : 'Founder Bio & Relevant Background (120–150+ Words Recommended)'
                                 : 'Key Team Member Bio & Capability Statement'}
                             </label>
                             <div className="flex items-center gap-2">
@@ -4635,23 +5065,27 @@ export function ModuleFWorkspace({
                                 {isParsingCv[member.id] ? (
                                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                 ) : (
-                                  <Wand2 className="mr-1 h-3 w-3 text-emerald-700" />
+                                  <SlidersHorizontal className="mr-1 h-3 w-3 text-emerald-700" />
                                 )}
-                                Auto-Draft with AI
+                                Draft Bio from Details
                               </Button>
                               <Badge
                                 variant={isLeo150Compliant ? 'default' : 'outline'}
-                                className={`text-[10px] ${
+                                className={`text-[10px] font-mono tabular-nums ${
                                   isLeo150Compliant
                                     ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
-                                    : 'border-amber-300 bg-amber-50 text-amber-800'
+                                    : 'border-slate-300 bg-white text-slate-600'
                                 }`}
                               >
                                 {wordCount} Words{' '}
                                 {isFounder &&
-                                  (isLeo150Compliant
-                                    ? '✓ (LEO 150-Word Met)'
-                                    : `(Need ${Math.max(0, 150 - wordCount)} more for LEO)`)}
+                                  (selectedCountry === 'IE' && plan.fundingTrackMode !== 'COMMERCIAL_ONLY'
+                                    ? isLeo150Compliant
+                                      ? '✓ (150+ Word Grant Bio Ready)'
+                                      : '• Click "Draft Bio" anytime to expand to 150+ words'
+                                    : isLeo150Compliant
+                                      ? '✓ Detailed Bio Ready'
+                                      : '• Short notes fine for now')}
                               </Badge>
                             </div>
                           </div>
@@ -4664,9 +5098,9 @@ export function ModuleFWorkspace({
                                 compiled150WordNarrative: e.target.value,
                               })
                             }
-                            placeholder="Draft a comprehensive 150-word narrative covering domain qualifications, commercial background, technical track record, and specific role responsibilities..."
+                            placeholder="Summarize practical hands-on experience, customer knowledge, relevant certifications or past roles, and what this person owns day-to-day..."
                             disabled={isVaultReadonly}
-                            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-emerald-600 focus:outline-hidden leading-relaxed"
+                            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden leading-relaxed"
                           />
 
                           {/* Appendix D CV Readiness Checkbox */}
@@ -4684,7 +5118,9 @@ export function ModuleFWorkspace({
                                 className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                               />
                               <span className="font-medium">
-                                Up-to-date CV ready to attach for Grant Appendix D / Innovate UK Annex
+                                {selectedCountry === 'IE'
+                                  ? 'Up-to-date CV ready to attach for LEO Grant Appendix D'
+                                  : 'Up-to-date CV / resume ready to attach for lenders or grant assessors'}
                               </span>
                               {member.cvFileName && (
                                 <Badge className="bg-emerald-100 text-emerald-800 text-[10px] border-emerald-300 font-medium shrink-0">
@@ -4700,25 +5136,17 @@ export function ModuleFWorkspace({
                 </div>
               </div>
 
-              {/* Step Toolbar: AI Assistant + Save + Next */}
+              {/* Step Toolbar: Park + Save + Next */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  {onParkOpenQuestion && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        onParkOpenQuestion(
-                          'Confirm 150-word promoter bios and Appendix D CVs for all founders before submitting LEO or Innovate UK grant applications.'
-                        )
-                      }
-                      className="text-xs text-slate-600"
-                    >
-                      <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                      Park Open Question
-                    </Button>
-                  )}
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_F_COFOUNDER_TEAM"
+                    stepLabel="Module F • Step 1"
+                    suggestedQuestion="Gather updated CVs and confirm founder bio highlights before submitting our plan or grant application."
+                    disabled={isVaultReadonly}
+                    onParkQuestion={onParkOpenQuestion}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -4907,13 +5335,13 @@ export function ModuleFWorkspace({
                         </p>
                         <ul className="list-disc pl-4 space-y-1 text-slate-900/90">
                           <li>
-                            <strong>Clear Primary Accountability:</strong> One single throat to choke for every critical area so nothing falls through the cracks.
+                            <strong>Clear Ownership:</strong> One named owner per area so nothing falls through the cracks.
                           </li>
                           <li>
-                            <strong>Business Continuity Redundancy:</strong> Having a designated backup owner protects the company if a founder falls ill or travels.
+                            <strong>Business Continuity:</strong> Noting who covers or supports each area (even an external bookkeeper, freelancer, or mentor) protects the business if you get busy or unwell.
                           </li>
                           <li>
-                            <strong>Workload Health:</strong> A founder holding 6 or 7 hats is a major execution risk flag. Assessors want to see realistic weekly commitments and plans to recruit or outsource.
+                            <strong>Sustainable Weekly Hours:</strong> Assessors know solo founders wear every hat at launch—they just want to see realistic total hours (under 45 hrs/wk) and smart use of tools or part-time help where you are stretched.
                           </li>
                         </ul>
                       </div>
@@ -5009,6 +5437,16 @@ export function ModuleFWorkspace({
                       </div>
                     )}
 
+                    {/* Supportive Solo Founder Reassurance Banner */}
+                    {isSoloFounderMode && (
+                      <div className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs text-emerald-950">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                        <p className="leading-relaxed">
+                          <strong>Solo Founder Note:</strong> Every solo founder wears all 7 hats on Day 1—that&apos;s completely normal! Keep your total weekly hours realistic (e.g., <span className="font-mono tabular-nums font-semibold">15–40 hrs/wk</span> across all 7 hats) and flag the 1–2 hats where you&apos;ll lean on software tools, a bookkeeper, freelancers, or an advisor.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Team Member Cards Grid */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {step1Data.teamMembers.map((member, idx) => {
@@ -5019,11 +5457,13 @@ export function ModuleFWorkspace({
                           (acc, h) => acc + (Number(h.weeklyHours) || 0),
                           0
                         );
-                        const isOverloaded =
-                          primaryHats.length >= 5 || totalHours >= 50;
-                        const isBorderline =
-                          primaryHats.length === 4 ||
-                          (totalHours >= 40 && totalHours < 50);
+                        const isOverloaded = isSoloFounderMode
+                          ? totalHours >= 50
+                          : primaryHats.length >= 5 || totalHours >= 50;
+                        const isBorderline = isSoloFounderMode
+                          ? totalHours >= 40 && totalHours < 50
+                          : primaryHats.length === 4 ||
+                            (totalHours >= 40 && totalHours < 50);
 
                         const memberDisplayName = member.fullName?.trim()
                           ? member.fullName
@@ -5220,7 +5660,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base sm:text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
                             >
                               <option value="UNASSIGNED">
                                 ⚠️ Currently Unassigned (Open Gap)
@@ -5259,7 +5699,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base sm:text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
                             >
                               <option value="UNASSIGNED">
                                 None / Single Owner Only
@@ -5304,7 +5744,7 @@ export function ModuleFWorkspace({
                                 })
                               }
                               disabled={isVaultReadonly}
-                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-emerald-600 focus:outline-hidden"
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden"
                             />
                           </div>
 
@@ -5367,7 +5807,7 @@ export function ModuleFWorkspace({
                             }
                             placeholder="Key specific deliverable, e.g. closing first 10 pilot accounts, sprint velocity..."
                             disabled={isVaultReadonly}
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-base sm:text-[11px] text-slate-700 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                           />
                         </div>
                       </div>
@@ -5618,7 +6058,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="e.g. Dr. Aoife O'Brien"
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                                 />
                               </div>
                               <div>
@@ -5635,7 +6075,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="e.g. B2B Enterprise SaaS GTM &amp; Outbound Sales"
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                                 />
                               </div>
                             </div>
@@ -5656,7 +6096,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="e.g. Ex-VP Sales at Stripe / LEO Mentorship Panel"
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                                 />
                               </div>
                               <div>
@@ -5675,7 +6115,7 @@ export function ModuleFWorkspace({
                                     })
                                   }
                                   disabled={isVaultReadonly}
-                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
+                                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs text-slate-800 focus:border-emerald-600 focus:outline-hidden"
                                 >
                                   <option value="MONTHLY">Monthly Formal Advisory Call (60 min)</option>
                                   <option value="QUARTERLY">Quarterly Strategy Board Review</option>
@@ -5700,7 +6140,7 @@ export function ModuleFWorkspace({
                                 }
                                 placeholder="e.g. Pro-Bono via LEO Mentorship Voucher, non-voting board seat, or 0.25% advisory shares (2-yr vest)"
                                 disabled={isVaultReadonly}
-                                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
+                                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base sm:text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -5734,7 +6174,7 @@ export function ModuleFWorkspace({
                       {isDraftingStep2Ai ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       )}
                       Auto-Draft with AI
                     </Button>
@@ -5784,14 +6224,14 @@ export function ModuleFWorkspace({
                   }
                   placeholder="Click 'Auto-Draft with AI' to automatically synthesize the 7-hat distribution, primary owners, and advisory coverage into a formal narrative suitable for Irish LEO Form Section 1 and UK Innovate UK Question 8..."
                   disabled={isVaultReadonly}
-                  className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-emerald-600 focus:outline-hidden leading-relaxed"
+                  className="w-full rounded-lg border border-slate-300 bg-white p-3 text-base sm:text-xs focus:border-emerald-600 focus:outline-hidden leading-relaxed"
                 />
 
                 {step2Data.aiCoachTip && (
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs text-slate-900 flex items-start gap-2">
-                    <Sparkles className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-semibold">AI Pre-Flight Note: </span>
+                      <span className="font-semibold">Preflight Auditor Note: </span>
                       <span>{step2Data.aiCoachTip}</span>
                     </div>
                   </div>
@@ -5801,22 +6241,14 @@ export function ModuleFWorkspace({
               {/* Step 2 Toolbar: Park Open Question + Save Step 2 + Next Step */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  {onParkOpenQuestion && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        onParkOpenQuestion(
-                          'Resolve unassigned functional hats or evaluate fractional contractors to relieve founder operational overload before grant submission.'
-                        )
-                      }
-                      className="text-xs text-slate-600"
-                    >
-                      <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                      Park Open Question
-                    </Button>
-                  )}
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_F_COFOUNDER_TEAM"
+                    stepLabel="Module F • Step 2"
+                    suggestedQuestion="Decide which 1–2 functional hats (e.g., bookkeeping, specialist build, or design) we should delegate to part-time support so founder weekly hours stay sustainable."
+                    disabled={isVaultReadonly}
+                    onParkQuestion={onParkOpenQuestion}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6014,7 +6446,7 @@ export function ModuleFWorkspace({
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-950">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
-                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                      <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <div className="space-y-1">
                         <p className="font-bold text-slate-900">
                           Grant Assessor &amp; Loan Underwriter Reality Check:
@@ -6612,7 +7044,7 @@ export function ModuleFWorkspace({
                               })
                             }
                             disabled={isVaultReadonly}
-                            className="h-8 w-28 rounded-lg border border-slate-300 px-2 text-right text-xs font-bold text-slate-900 bg-white focus:border-emerald-600 focus:outline-hidden"
+                            className="h-8 w-28 rounded-lg border border-slate-300 px-2 text-right text-base sm:text-xs font-bold text-slate-900 bg-white focus:border-emerald-600 focus:outline-hidden"
                           />
                         </div>
                       </div>
@@ -6749,22 +7181,14 @@ export function ModuleFWorkspace({
               {/* Step 3 Toolbar: Park Open Question + Save Step 3 + Next Step */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  {onParkOpenQuestion && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        onParkOpenQuestion(
-                          'Confirm exact personal living buffer and minimum drawings timeline before committing to full-time resignation date.'
-                        )
-                      }
-                      className="text-xs text-slate-600"
-                    >
-                      <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                      Park Open Question
-                    </Button>
-                  )}
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_F_COFOUNDER_TEAM"
+                    stepLabel="Module F • Step 3"
+                    suggestedQuestion="Confirm our exact personal household buffer and minimum monthly drawings timeline before committing to full-time hours."
+                    disabled={isVaultReadonly}
+                    onParkQuestion={onParkOpenQuestion}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6831,7 +7255,7 @@ export function ModuleFWorkspace({
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                       Step 4: {isSoloFounderMode
-                        ? 'The 20 Hard Questions Every Solo Founder Must Answer'
+                        ? 'Solo Founder Readiness & Boundaries Check (8 Questions)'
                         : '20 Awkward Co-Founder Questions & The Founder Prenup'}
                     </h3>
                     <Badge
@@ -6847,7 +7271,7 @@ export function ModuleFWorkspace({
                   </div>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     {isSoloFounderMode
-                      ? `${answeredQuestionsCountForActiveFounder}/20 Hard Questions Answered • Founder Charter & Candidate Screener`
+                      ? `${answeredQuestionsCountForActiveFounder}/${totalQuestionsCount} Solo Readiness Boundaries Answered • Operating Charter`
                       : `${answeredQuestionsCountForActiveFounder}/20 Answered • ${
                           step4Data.isRevealed
                             ? 'Side-by-Side Heatmap Revealed'
@@ -6888,7 +7312,7 @@ export function ModuleFWorkspace({
                     <div className="flex flex-wrap items-center gap-2">
                       <CardTitle className="text-base font-bold text-slate-900">
                         Step 4: {isSoloFounderMode
-                          ? 'The 20 Hard Questions Every Solo Founder Must Answer'
+                          ? 'Solo Founder Readiness & Boundaries Check (8 Questions)'
                           : '20 Awkward Co-Founder Questions & The Founder Prenup'}
                       </CardTitle>
                       <Badge
@@ -6906,13 +7330,13 @@ export function ModuleFWorkspace({
                         className="text-[10px] shrink-0 bg-slate-50 text-slate-600 border-slate-200 font-medium"
                       >
                         {isSoloFounderMode
-                          ? 'Solo Founder Charter & Screener'
+                          ? 'Solo Operating Charter'
                           : 'Blind-Reveal Survey & Prenup Matrix'}
                       </Badge>
                     </div>
                     <CardDescription className="mt-1 text-xs text-slate-600">
                       {isSoloFounderMode
-                        ? '65% of startups fail due to co-founder fallout. Answer these 20 non-negotiables now so you know your exact boundaries, equity criteria, and expectations before bringing on a partner.'
+                        ? 'Lock in 8 practical boundaries around weekly hours, personal cash limits, peer accountability, and what would have to be true before you ever share equity.'
                         : 'Stress-test quit triggers, salary timelines, deadlock tie-breakers, and reverse vesting before signing official Shareholders Agreements. Answer privately, then reveal your side-by-side compatibility heatmap.'}
                     </CardDescription>
                   </div>
@@ -6946,7 +7370,7 @@ export function ModuleFWorkspace({
                   className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  Why Are We Asking These 20 Questions?
+                  Why Are We Asking This?
                 </Button>
                 <Button
                   type="button"
@@ -6958,7 +7382,7 @@ export function ModuleFWorkspace({
                   className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
                   <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
-                  Harvard Dilemmas &amp; Fall-Out Realities
+                  Show Me an Example
                 </Button>
               </div>
 
@@ -7072,78 +7496,82 @@ export function ModuleFWorkspace({
                 </div>
               )}
 
-              {/* 5-Category Sub-Tab Navigation Bar */}
-              <div className="border-b border-slate-200 pb-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Survey Categories (20 Hard Scenarios)
-                  </span>
-                  <span className="text-xs font-medium text-emerald-700">
-                    {answeredQuestionsCountForActiveFounder} of 20 answered for{' '}
-                    <strong>{activeFounderResponse?.memberName || 'You'}</strong>
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
-                  {AWKWARD_QUESTION_CATEGORIES.map((cat) => {
-                    const catQuestions = AWKWARD_QUESTIONS_CONFIG.filter(
-                      (q) => q.category === cat.id
-                    );
-                    const answeredInCat = catQuestions.filter(
-                      (q) => activeFounderResponse?.answers?.[q.key]
-                    ).length;
-                    const isActive = activeQuestionCategory === cat.id;
-                    const isAllDone = answeredInCat === catQuestions.length;
+              {/* 5-Category Sub-Tab Navigation Bar (Co-Founder Mode Only) */}
+              {!isSoloFounderMode && (
+                <div className="border-b border-slate-200 pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Survey Categories (20 Hard Scenarios)
+                    </span>
+                    <span className="text-xs font-medium text-emerald-700 font-mono tabular-nums">
+                      {answeredQuestionsCountForActiveFounder} of 20 answered for{' '}
+                      <strong>{activeFounderResponse?.memberName || 'You'}</strong>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+                    {AWKWARD_QUESTION_CATEGORIES.map((cat) => {
+                      const catQuestions = AWKWARD_QUESTIONS_CONFIG.filter(
+                        (q) => q.category === cat.id
+                      );
+                      const answeredInCat = catQuestions.filter(
+                        (q) => activeFounderResponse?.answers?.[q.key]
+                      ).length;
+                      const isActive = activeQuestionCategory === cat.id;
+                      const isAllDone = answeredInCat === catQuestions.length;
 
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setActiveQuestionCategory(cat.id)}
-                        className={`rounded-lg border p-2 text-left transition-all ${
-                          isActive
-                            ? 'border-emerald-700 bg-emerald-50 text-slate-900 shadow-2xs ring-1 ring-emerald-700'
-                            : isAllDone
-                            ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900 hover:bg-emerald-50'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="flex items-center gap-1 truncate">
-                            <span>{cat.emoji}</span>
-                            <span className="truncate">{cat.shortLabel}</span>
-                          </span>
-                          {isAllDone ? (
-                            <Check className="h-3 w-3 text-emerald-600 shrink-0" />
-                          ) : (
-                            <span className="text-[10px] text-slate-400 shrink-0">
-                              {answeredInCat}/4
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setActiveQuestionCategory(cat.id)}
+                          className={`rounded-lg border p-2 text-left transition-all ${
+                            isActive
+                              ? 'border-emerald-700 bg-emerald-50 text-slate-900 shadow-2xs ring-1 ring-emerald-700'
+                              : isAllDone
+                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900 hover:bg-emerald-50'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="flex items-center gap-1 truncate">
+                              <span>{cat.emoji}</span>
+                              <span className="truncate">{cat.shortLabel}</span>
                             </span>
-                          )}
-                        </div>
-                        <div className="mt-1 h-1 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={`h-full transition-all ${
-                              isAllDone ? 'bg-emerald-500' : 'bg-emerald-700'
-                            }`}
-                            style={{
-                              width: `${(answeredInCat / catQuestions.length) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </button>
-                    );
-                  })}
+                            {isAllDone ? (
+                              <Check className="h-3 w-3 text-emerald-600 shrink-0" />
+                            ) : (
+                              <span className="text-[10px] text-slate-400 shrink-0 font-mono tabular-nums">
+                                {answeredInCat}/4
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 h-1 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full transition-all ${
+                                isAllDone ? 'bg-emerald-500' : 'bg-emerald-700'
+                              }`}
+                              style={{
+                                width: `${(answeredInCat / catQuestions.length) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Active Category Questions List */}
+              {/* Active Questions List (8 Solo Readiness Checks OR 4 Active Co-Founder Category Questions) */}
               {(() => {
                 const currentCat = AWKWARD_QUESTION_CATEGORIES.find(
                   (c) => c.id === activeQuestionCategory
                 );
-                const currentQuestions = AWKWARD_QUESTIONS_CONFIG.filter(
-                  (q) => q.category === activeQuestionCategory
-                );
+                const currentQuestions = isSoloFounderMode
+                  ? SOLO_FOUNDER_QUESTIONS_CONFIG
+                  : AWKWARD_QUESTIONS_CONFIG.filter(
+                      (q) => q.category === activeQuestionCategory
+                    );
                 const memberIdToAnswer =
                   activeFounderResponse?.memberId ||
                   step4Data.responses[0]?.memberId ||
@@ -7151,24 +7579,32 @@ export function ModuleFWorkspace({
 
                 return (
                   <div className="space-y-6">
-                    {/* Category Header Banner */}
+                    {/* Header Banner */}
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3.5 border border-slate-200">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-base">{currentCat?.emoji}</span>
+                          {!isSoloFounderMode && (
+                            <span className="text-base">{currentCat?.emoji}</span>
+                          )}
                           <h4 className="text-sm font-bold text-slate-900">
-                            {currentCat?.label}
+                            {isSoloFounderMode
+                              ? '8 Solo Founder Boundaries & Execution Guardrails'
+                              : currentCat?.label}
                           </h4>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {currentCat?.desc}
+                          {isSoloFounderMode
+                            ? 'Answer at least 6 of 8 practical checks to complete your Solo Founder Operating Charter.'
+                            : currentCat?.desc}
                         </p>
                       </div>
                       <Badge
                         variant="outline"
-                        className="text-[11px] bg-white text-slate-600 border-slate-200"
+                        className="text-[11px] bg-white text-slate-600 border-slate-200 font-mono tabular-nums"
                       >
-                        4 Questions in this Category
+                        {isSoloFounderMode
+                          ? `${answeredQuestionsCountForActiveFounder}/8 Answered`
+                          : '4 Questions in this Category'}
                       </Badge>
                     </div>
 
@@ -7292,7 +7728,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="Describe your exact compromise, conditional trigger, or hybrid terms..."
                                   disabled={isVaultReadonly}
-                                  className="w-full rounded-lg border border-emerald-300 bg-white p-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                                  className="w-full rounded-lg border border-emerald-300 bg-white p-2 text-base sm:text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                                 />
                               </div>
                             )}
@@ -7311,7 +7747,7 @@ export function ModuleFWorkspace({
                                 }
                                 placeholder="Private note (e.g. 'Must discuss over coffee before incorporating CRO entity')"
                                 disabled={isVaultReadonly}
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-[11px] text-slate-600 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-base sm:text-[11px] text-slate-600 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -7339,8 +7775,8 @@ export function ModuleFWorkspace({
                           Solo Founder Operating Charter &amp; Candidate Screener
                         </span>
                       </div>
-                      <Badge className="bg-emerald-500 text-white text-[10px]">
-                        {answeredQuestionsCountForActiveFounder}/20 Non-Negotiables Locked
+                      <Badge className="bg-emerald-500 text-white text-[10px] font-mono tabular-nums">
+                        {answeredQuestionsCountForActiveFounder}/{totalQuestionsCount} Boundaries Locked
                       </Badge>
                     </div>
 
@@ -7350,12 +7786,12 @@ export function ModuleFWorkspace({
                           Solo Boundary Posture
                         </span>
                         <div className="mt-1 text-base font-extrabold text-white">
-                          {answeredQuestionsCountForActiveFounder >= 12
+                          {answeredQuestionsCountForActiveFounder >= 6
                             ? 'Charter Formed'
                             : 'In Progress'}
                         </div>
                         <p className="mt-1 text-[10px] text-slate-300">
-                          {answeredQuestionsCountForActiveFounder} of 20 hard boundaries defined before recruiting a partner.
+                          {answeredQuestionsCountForActiveFounder} of {totalQuestionsCount} personal operating boundaries locked in.
                         </p>
                       </div>
 
@@ -7477,15 +7913,13 @@ export function ModuleFWorkspace({
                       <Button
                         type="button"
                         onClick={() => {
-                          alert(
-                            `Upgrade to Co-Founder Pack! Special discounted upgrade cost: ${
-                              selectedCountry === 'GB' ? '£40' : '€50'
-                            } (Normally ${
-                              selectedCountry === 'GB' ? '£109' : '€129'
-                            } with your ${
-                              selectedCountry === 'GB' ? '£69' : '€79'
-                            } Solo Pass credit applied). Unlocks 3 collaborative seats, blind-reveal heatmap, and cap table tools.`
-                          );
+                          if (onRequestUpgrade) {
+                            onRequestUpgrade();
+                          } else {
+                            setSaveBanner(
+                              `Co-Founder Pack upgrade (${selectedCountry === 'GB' ? '£40' : '€50'} after your ${selectedCountry === 'GB' ? '£69' : '€79'} Solo Pass credit): open Account & Plan Passes in the top bar to add 2 co-founder seats and unlock the Blind-Reveal Heatmap.`
+                            );
+                          }
                         }}
                         className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs sm:text-sm font-bold shadow-sm px-5 py-2.5"
                       >
@@ -7709,24 +8143,18 @@ export function ModuleFWorkspace({
               {/* Step 4 Toolbar: Park Open Question + Save Step 4 + Next Step */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  {onParkOpenQuestion && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        onParkOpenQuestion(
-                          isSoloFounderMode
-                            ? 'Review 20-question solo founder charter with commercial advisor before offering co-founder equity.'
-                            : 'Schedule dedicated founder coffee session to resolve Amber/Red flashpoints in Step 4 alignment survey.'
-                        )
-                      }
-                      className="text-xs text-slate-600"
-                    >
-                      <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-amber-500" />
-                      Park Open Question
-                    </Button>
-                  )}
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_F_COFOUNDER_TEAM"
+                    stepLabel="Module F • Step 4"
+                    suggestedQuestion={
+                      isSoloFounderMode
+                        ? 'Confirm my weekly mentor/accountability check-in cadence and personal cash stop-loss cap before launch.'
+                        : 'Schedule a dedicated founder coffee session to resolve any misaligned answers in our Step 4 alignment survey.'
+                    }
+                    disabled={isVaultReadonly}
+                    onParkQuestion={onParkOpenQuestion}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -7906,7 +8334,7 @@ export function ModuleFWorkspace({
                   }
                   className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                 >
-                  <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                  <Lightbulb className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                   Show Me an Example
                 </Button>
               </div>
@@ -7954,23 +8382,17 @@ export function ModuleFWorkspace({
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-[11px] text-emerald-900">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px] text-emerald-900">
                     <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
-                      <strong>Year 1: 2.0 FTEs</strong>
+                      <strong>Example A — Local / Food / Clinic / Retail:</strong>
                       <p className="mt-1 text-slate-600">
-                        Founders on minimal drawings + Lead Dev on Hybrid (€36k cash + 4% equity with 4-yr vest) + Part-time Growth Marketer (€16k).
+                        <strong>Y1 (1.0 FTE):</strong> Solo founder (€0 external staff; part-time bookkeeper on €150/mo retainer). <strong>Y2 (2.5 FTE):</strong> Production / Kitchen Assistant (€28k) + Part-time Storefront/Ops Admin (€15k). <strong>Y3 (4.0 FTE):</strong> Full-time Operations / Site Supervisor (€36k).
                       </p>
                     </div>
                     <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
-                      <strong>Year 2: 4.5 FTEs</strong>
+                      <strong>Example B — B2B Tech / SaaS (Grant-Backed):</strong>
                       <p className="mt-1 text-slate-600">
-                        Senior Full-Stack Dev (€60k) + Sales SDR (€35k) + Operations Support (€30k). Subsidized by LEO Priming or Seed round.
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-white p-2.5 border border-emerald-200">
-                      <strong>Year 3: 7.0 FTEs</strong>
-                      <p className="mt-1 text-slate-600">
-                        Enterprise AE (€50k) + DevOps / Platform Engineer (€65k) + Customer Success Lead (€38k). Sustainable unit economics.
+                        <strong>Y1 (2.0 FTE):</strong> Founders on minimal drawings + Part-time Product Engineer (€36k + 2% vested equity). <strong>Y2 (4.0 FTE):</strong> Full-Stack Dev (€58k, LEO Priming supported) + Customer Onboarding Lead (€35k). <strong>Y3 (6.5 FTE):</strong> Account Executive (€50k) + Support Specialist (€36k).
                       </p>
                     </div>
                   </div>
@@ -7979,6 +8401,43 @@ export function ModuleFWorkspace({
             </CardHeader>
 
             <CardContent className="pt-6 space-y-6">
+              {/* Year-1 Founder-Led Reassurance Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+                    Not hiring salaried staff in Year 1? That is 100% normal.
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-emerald-900">
+                    Most early-stage founders operate <strong>Founder-Led (€0 external payroll)</strong> in Year 1 and only add part-time or specialist hires in Year 2–3 once revenue or grant funding lands. Keep Year-1 salaries at <span className="font-mono tabular-nums font-semibold">{formatPlanCurrency(0, plan.baseCurrency)}</span> unless you have confirmed cash payroll.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isVaultReadonly}
+                  onClick={() => {
+                    setStep5Data((prev) => ({
+                      ...prev,
+                      hiringPosture: 'CONTRACTOR_LEAN_FIRST',
+                      roles: prev.roles.map((r) =>
+                        r.yearScheduled === 1
+                          ? {
+                              ...r,
+                              grossAnnualSalary: 0,
+                              compensationModel: 'PURE_SWEAT_EQUITY',
+                            }
+                          : r
+                      ),
+                    }));
+                  }}
+                  className="h-8 shrink-0 border-emerald-300 bg-white text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                >
+                  Keep Year 1 Lean ({formatPlanCurrency(0, plan.baseCurrency)} External Hires)
+                </Button>
+              </div>
+
               {/* ------------------------------------------------------------- */}
               {/* SECTION 1: HIRING POSTURE & STRATEGY (Edge-Case Safe)         */}
               {/* ------------------------------------------------------------- */}
@@ -8112,7 +8571,7 @@ export function ModuleFWorkspace({
                 {/* Quick Add Presets Bar */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 flex flex-wrap items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                    <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+                    <SlidersHorizontal className="h-4 w-4 text-amber-500 shrink-0" />
                     <span>Quick-Add Industry Roles to Year {activeYearTab}:</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -8383,7 +8842,7 @@ export function ModuleFWorkspace({
                                             .value as RoleDepartmentType,
                                         })
                                       }
-                                      className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                                      className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-base sm:text-xs text-slate-800"
                                     >
                                       {ROLE_DEPARTMENT_OPTIONS.map((dept) => (
                                         <option key={dept.value} value={dept.value}>
@@ -8405,7 +8864,7 @@ export function ModuleFWorkspace({
                                           targetQuarter: e.target.value as any,
                                         })
                                       }
-                                      className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                                      className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-base sm:text-xs text-slate-800"
                                     >
                                       <option value="Q1">Q1 (Month 1–3)</option>
                                       <option value="Q2">Q2 (Month 4–6)</option>
@@ -8516,7 +8975,7 @@ export function ModuleFWorkspace({
                                                 Number(e.target.value) || 0,
                                             })
                                           }
-                                          className={`pl-7 text-xs font-bold ${
+                                          className={`pl-7 text-base sm:text-xs font-bold ${
                                             isPureSweat
                                               ? 'bg-slate-100 text-slate-400'
                                               : 'text-slate-900'
@@ -8543,7 +9002,7 @@ export function ModuleFWorkspace({
                                                 Number(e.target.value) || 0,
                                             })
                                           }
-                                          className="pr-6 text-xs font-bold text-slate-900 border-slate-200"
+                                          className="pr-6 text-base sm:text-xs font-bold text-slate-900 border-slate-200"
                                         />
                                         <span className="absolute right-3 top-2 text-xs font-bold text-emerald-400">
                                           %
@@ -8564,7 +9023,7 @@ export function ModuleFWorkspace({
                                               vestingYears: Number(e.target.value),
                                             })
                                           }
-                                          className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800"
+                                          className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-base sm:text-xs text-slate-800"
                                         >
                                           <option value={1}>1-Year Vesting</option>
                                           <option value={2}>2-Year Vesting</option>
@@ -8578,7 +9037,7 @@ export function ModuleFWorkspace({
                                               cliffMonths: Number(e.target.value),
                                             })
                                           }
-                                          className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800"
+                                          className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-base sm:text-xs text-slate-800"
                                         >
                                           <option value={0}>0-Mo Cliff</option>
                                           <option value={6}>6-Mo Cliff</option>
@@ -8682,7 +9141,7 @@ export function ModuleFWorkspace({
                                           })
                                         }
                                         placeholder="e.g. Automatically converts to standard market cash salary once Seed round closes or MRR crosses €15k..."
-                                        className="text-xs bg-emerald-50/70/40 border-slate-200"
+                                        className="text-base sm:text-xs bg-emerald-50/70/40 border-slate-200"
                                       />
                                     </div>
                                   )}
@@ -8732,7 +9191,7 @@ export function ModuleFWorkspace({
                               : 'contractorBudgetYear3']: val,
                           }));
                         }}
-                        className="pl-7 text-xs font-bold text-slate-900"
+                        className="pl-7 text-base sm:text-xs font-bold text-slate-900"
                       />
                     </div>
                   </div>
@@ -8975,7 +9434,7 @@ export function ModuleFWorkspace({
                       </>
                     ) : (
                       <>
-                        <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Generate AI Summary
                       </>
                     )}
@@ -8991,11 +9450,11 @@ export function ModuleFWorkspace({
                     }))
                   }
                   placeholder="Summarize your talent recruitment, onboarding cadence, and retention strategy (e.g. share options pool, remote-first flexibility, milestone bonuses)..."
-                  className="w-full rounded-md border border-slate-200 bg-white p-2.5 text-xs leading-relaxed focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-md border border-slate-200 bg-white p-2.5 text-base sm:text-xs leading-relaxed focus:border-emerald-600 focus:outline-none"
                 />
                 {step5Data.aiCoachTip && (
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-[11px] text-slate-950 flex items-start gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
                       <strong className="font-semibold text-slate-900">Assessor Coaching: </strong>
                       <span>{step5Data.aiCoachTip}</span>
@@ -9006,21 +9465,14 @@ export function ModuleFWorkspace({
 
               {/* Step 5 Bottom Action Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    onParkOpenQuestion &&
-                    onParkOpenQuestion(
-                      'Hiring Roadmap: What is the optimal timing to transition early sweat equity team members into full cash PAYE salaries?'
-                    )
-                  }
-                  className="text-xs text-amber-700 hover:bg-amber-50"
-                >
-                  <Bookmark className="mr-1 h-3.5 w-3.5" />
-                  Park Question in Parking Lot
-                </Button>
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                  stepLabel="Module F • Step 5"
+                  suggestedQuestion="What monthly revenue milestone should trigger our first paid hire so we never over-commit fixed payroll?"
+                  disabled={isVaultReadonly}
+                  onParkQuestion={onParkOpenQuestion}
+                />
 
                 <div className="flex items-center gap-2">
                   {step5AutosavedAt && (
@@ -9447,7 +9899,7 @@ export function ModuleFWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                           AI Run Team Blind-Spot Audit &amp; Brief
                         </>
                       )}
@@ -9747,7 +10199,7 @@ export function ModuleFWorkspace({
               {/* Assessor Coaching Tip */}
               {step6Data.aiCoachTip && (
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-950 flex items-start gap-2.5">
-                  <Sparkles className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <SlidersHorizontal className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
                   <div>
                     <strong className="font-bold text-slate-900">Grant Assessor Insight: </strong>
                     <span className="leading-relaxed">{step6Data.aiCoachTip}</span>
@@ -9790,15 +10242,15 @@ export function ModuleFWorkspace({
                 </div>
               </div>
 
-              {/* Conversion / Handoff CTA Bar into Module G Launchpad */}
+              {/* Conversion / Handoff CTA Bar into Module H Revenue & Pricing */}
               {onContinueToModuleG && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-white">
                   <div className="text-xs min-w-0 flex-1">
                     <span className="font-semibold text-slate-300">
-                      Module F Complete! Ready to set up legal, banking &amp; operational infrastructure for {plan.title}?
+                      Module F Complete! Ready to model pricing &amp; unit breakeven for {plan.title}?
                     </span>{' '}
                     <span className="text-slate-300">
-                      Continue to Module G: Getting Set Up (Launchpad &amp; Operations Hub) to register CRO / Companies House, live domain &amp; official email, business banking, and statutory insurance.
+                      Continue to Module H: Revenue, Pricing &amp; Pocket Profit to connect your product COGS, customer willingness-to-pay, and survival/team budget into a live 3-year breakeven engine.
                     </span>
                   </div>
                   <Button
@@ -9809,9 +10261,9 @@ export function ModuleFWorkspace({
                       await handleSaveStep6();
                       onContinueToModuleG();
                     }}
-                    className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-500 text-xs font-semibold"
+                    className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-semibold"
                   >
-                    Continue to Module G: Launchpad
+                    Continue to Module H: Revenue &amp; Pricing
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                 </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Sparkles,
+  FileText,
   BookOpen,
   Compass,
   MessageSquare,
@@ -31,6 +31,7 @@ import {
   Lightbulb,
   ChevronDown,
   ChevronUp,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -173,6 +174,7 @@ export function ProjectDashboardView({
   const [copiedSurveyLink, setCopiedSurveyLink] = useState(false);
   const [isVentureMapOpen, setIsVentureMapOpen] = useState(true);
   const [activeStageDetail, setActiveStageDetail] = useState<number | null>(null);
+  const [showFullDashboardOverview, setShowFullDashboardOverview] = useState(false);
   const isGrantSupported = isGrantCheckerSupportedForCountry(hqCountryCode);
 
   useEffect(() => {
@@ -249,6 +251,7 @@ export function ProjectDashboardView({
     moduleProgressList.reduce((acc, m) => acc + m.progress, 0) /
       Math.max(1, moduleProgressList.length)
   );
+  const briefStepNumber = isGrantSupported ? 8 : 7;
 
   const firstName = founderName?.trim().split(' ')[0] || 'Founder';
 
@@ -450,7 +453,7 @@ export function ProjectDashboardView({
               {/* STAGE 2 */}
               {(() => {
                 const stage2Mods = moduleProgressList.filter((m) =>
-                  ['MOD_D_PRODUCT_BUILD', 'MOD_E_OPERATIONS', 'MOD_F_COFOUNDER_TEAM', 'MOD_G_LAUNCHPAD'].includes(m.code)
+                  ['MOD_D_PRODUCT_BUILD', 'MOD_E_OPERATIONS', 'MOD_F_COFOUNDER_TEAM'].includes(m.code)
                 );
                 const avgProgress = Math.round(
                   stage2Mods.reduce((acc, m) => acc + m.progress, 0) / Math.max(1, stage2Mods.length)
@@ -490,16 +493,16 @@ export function ProjectDashboardView({
                     </div>
 
                     <h4 className="mt-1 text-xs font-bold text-white group-hover:text-emerald-300">
-                      Product, Team &amp; Setup
+                      Product, Operations &amp; Team
                     </h4>
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
                       {isGrantSupported
-                        ? 'Scope your V1 build, request 3 supplier quotes, align co-founders & complete launchpad.'
-                        : 'Scope your lean V1 build, align co-founders & tick off your company launchpad checklist.'}
+                        ? 'Scope your V1 build, map fulfillment, request 3 supplier quotes & align co-founders.'
+                        : 'Scope your lean V1 build, map order fulfillment & align your founding team.'}
                     </p>
 
                     <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2 text-[10px]">
-                      <span className="text-emerald-300 font-medium">✓ Scope &amp; Launchpad Hub</span>
+                      <span className="text-emerald-300 font-medium">✓ Product, Ops &amp; Team</span>
                       <Button
                         type="button"
                         size="sm"
@@ -563,18 +566,18 @@ export function ProjectDashboardView({
                       Pricing, Growth &amp; Finance
                     </h4>
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
-                      Stress-test breakeven in the Pocket Profit sandbox, plan marketing &amp; build 3-year cashflows.
+                      Architect pricing, stress-test Pocket Profit breakeven, plan marketing &amp; build 3-year cashflows.
                     </p>
 
                     <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2 text-[10px]">
-                      <span className="text-emerald-300 font-medium">✓ Pocket Profit &amp; Forecast</span>
+                      <span className="text-emerald-300 font-medium">✓ Pricing, Growth &amp; Cashflow</span>
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onEnterWorkspace('MOD_H_REVENUE', 3);
+                          onEnterWorkspace('MOD_H_REVENUE');
                         }}
                         className="h-6 px-1.5 text-[10px] text-white hover:bg-white/20 hover:text-white"
                       >
@@ -588,7 +591,7 @@ export function ProjectDashboardView({
               {/* STAGE 4 */}
               {(() => {
                 const stage4Mods = moduleProgressList.filter((m) =>
-                  ['MOD_K_GRANTS_FUNDING', 'MOD_L_BUSINESS_PLAN'].includes(m.code)
+                  ['MOD_K_GRANTS_FUNDING', 'MOD_G_LAUNCHPAD', 'MOD_L_BUSINESS_PLAN'].includes(m.code)
                 );
                 const avgProgress = Math.round(
                   stage4Mods.reduce((acc, m) => acc + m.progress, 0) / Math.max(1, stage4Mods.length)
@@ -629,13 +632,13 @@ export function ProjectDashboardView({
 
                     <h4 className="mt-1 text-xs font-bold text-white group-hover:text-emerald-300">
                       {isGrantSupported
-                        ? 'Grants, Master Doc & Plan'
-                        : 'Master Blueprint & Plan Studio'}
+                        ? 'Grants, Launchpad & Plan'
+                        : 'Capital, Launchpad & Plan'}
                     </h4>
                     <p className="mt-1 text-[11px] leading-relaxed text-slate-200/85">
                       {isGrantSupported
-                        ? 'Match with non-dilutive grants and compile your official grant & investor-ready dossiers.'
-                        : 'Review your living master blueprint and compile investor-ready pitch & commercial plans.'}
+                        ? 'Match with grants, complete your 6 Launchpad setup pillars & compile your official dossier.'
+                        : 'Map funding, complete your 6 Launchpad setup pillars & compile investor-ready dossiers.'}
                     </p>
 
                     <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2 text-[10px]">
@@ -674,14 +677,14 @@ export function ProjectDashboardView({
                       'Founder Motivations & Fit • Beachhead Persona & Competitor Scout • Bias-Free Mom-Test Customer Survey & QR Kit.'}
                     {activeStageDetail === 2 &&
                       (isGrantSupported
-                        ? 'Product Vehicle & V1 Scope • Premises, Equipment & 3-Quote Concierge • Co-Founder Alignment • 6 Launchpad Setup Cards.'
-                        : 'Product Vehicle & Lean V1 Scope • Operational Blueprint & Supplier Quotes • Co-Founder Alignment • 6 Launchpad Setup Cards.')}
+                        ? 'Product Vehicle & V1 Scope • Premises, Equipment & 3-Quote Concierge • Promoter CVs, Survival Budget & Co-Founder Alignment.'
+                        : 'Product Vehicle & Lean V1 Scope • Operational Blueprint & Supplier Quotes • Promoter CVs & Co-Founder Alignment.')}
                     {activeStageDetail === 3 &&
-                      'Pocket Profit Breakeven Sandbox • First 10 Customers Marketing Strategy • No-Spreadsheet 36-Month Financial Forecast.'}
+                      'Pricing Architect & Pocket Profit Sandbox • First 10 Customers Marketing Strategy • No-Spreadsheet 36-Month Financial Forecast.'}
                     {activeStageDetail === 4 &&
                       (isGrantSupported
-                        ? 'LEO & Innovate UK Grant Matcher • Continuous Living Master Document • Official 5-Mode Business Plan & Grant Compiler.'
-                        : 'Continuous Living Master Document • Ask My Startup AI Intelligence • Investor & Commercial Business Plan Studio.')}
+                        ? 'LEO & Innovate UK Grant Matcher • 6 Launchpad Setup Cards • Official 5-Mode Business Plan & Grant Compiler.'
+                        : 'Capital Strategy • 6 Launchpad Setup Cards • Investor & Commercial Business Plan Compiler.')}
                   </span>
                 </div>
                 <Button
@@ -700,12 +703,125 @@ export function ProjectDashboardView({
       </div>
 
       {/* =================================================================== */}
+      {/* GUIDED FOCUS MODE (SHOWN WHEN MODULE A < 100% TO PREVENT OVERWHELM) */}
+      {/* =================================================================== */}
+      {(moduleAProgressPercent < 100 || overallVentureReadiness < 25) && !showFullDashboardOverview ? (
+        <section className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-xs space-y-5">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border-emerald-300 bg-emerald-50 text-[10px] font-bold text-emerald-900">
+                  {moduleAProgressPercent < 100
+                    ? 'START HERE • STEP 1 OF YOUR JOURNEY'
+                    : 'START HERE • NEXT GUIDED STEP'}
+                </Badge>
+                <span className="text-xs font-mono tabular-nums font-semibold text-emerald-800">
+                  {moduleAProgressPercent < 100
+                    ? `Module A: ${moduleAProgressPercent}% Complete`
+                    : `Venture Readiness: ${overallVentureReadiness}%`}
+                </span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-950">
+                {moduleAProgressPercent < 100
+                  ? 'Start Clean: Capture Your 1-Page Concept & Fit Check (10 mins)'
+                  : `Great Start! Next Up: ${activeModuleTitle}`}
+              </h2>
+              <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">
+                {moduleAProgressPercent < 100 ? (
+                  <>
+                    You don&apos;t need spreadsheets, company registration numbers, or 3-year projections yet. Finish <strong>Module A: Ideation &amp; Concept Canvas</strong> (~10 minutes) first — your answers automatically pre-fill your customer surveys, unit economics, grant checks, and business plan later.
+                  </>
+                ) : (
+                  <>
+                    Your Module A Concept Canvas is saved! Continue step-by-step in <strong>{activeModuleTitle}</strong>, or open the full 12-module workspace overview anytime below.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 shrink-0 sm:items-end">
+              <Button
+                type="button"
+                onClick={() =>
+                  onEnterWorkspace(
+                    moduleAProgressPercent < 100 ? 'MOD_A_IDEATION' : activeModule
+                  )
+                }
+                className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-xs font-bold text-white px-5"
+              >
+                {moduleAProgressPercent < 100
+                  ? moduleAProgressPercent > 0
+                    ? 'Continue Module A'
+                    : 'Start Module A Now'
+                  : `Continue ${activeModuleTitle}`}
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFullDashboardOverview(true)}
+                className="w-full sm:w-auto border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              >
+                Show All 12 Modules &amp; Tools
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <div className="text-[11px] font-bold text-emerald-800">1. Brain Dump &amp; Canvas</div>
+              <p className="mt-1 text-xs text-slate-600">
+                Describe your raw idea in plain English and turn it into a structured 1-page mirror canvas.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <div className="text-[11px] font-bold text-emerald-800">2. Fit &amp; Grant Pre-Check</div>
+              <p className="mt-1 text-xs text-slate-600">
+                Check founder-idea fit, weekly capacity, and instant local grant eligibility in plain English.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <div className="text-[11px] font-bold text-emerald-800">3. Constructive Blind-Spots</div>
+              <p className="mt-1 text-xs text-slate-600">
+                Receive supportive &ldquo;Things to Consider&rdquo; prompts before unlocking surveys, pricing, and financials.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <>
+          {(moduleAProgressPercent < 100 || overallVentureReadiness < 25) && showFullDashboardOverview && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-2.5 text-xs text-emerald-950">
+              <span>
+                <strong>Tip:</strong>{' '}
+                {moduleAProgressPercent < 100 ? (
+                  <>
+                    Completing <strong>Module A ({moduleAProgressPercent}%)</strong> first will auto-populate your downstream surveys, financials, and business plan.
+                  </>
+                ) : (
+                  <>
+                    Focus on one step at a time — return to Guided Focus Mode anytime for a distraction-free view.
+                  </>
+                )}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowFullDashboardOverview(false)}
+                className="h-7 border-emerald-300 bg-white text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50"
+              >
+                Return to Guided Focus Mode
+              </Button>
+            </div>
+          )}
+
+      {/* =================================================================== */}
       {/* ASK MY STARTUP: EXECUTIVE VENTURE QUERY BAR                         */}
       {/* =================================================================== */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-md sm:p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500/15 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-10 left-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl" />
-
+      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-5 text-white shadow-xs sm:p-6">
         <div className="relative space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -751,7 +867,7 @@ export function ProjectDashboardView({
             className="flex flex-col gap-2 sm:flex-row sm:items-center"
           >
             <div className="relative flex-1">
-              <Sparkles className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />
               <input
                 type="text"
                 value={dashboardQuery}
@@ -934,18 +1050,18 @@ export function ProjectDashboardView({
             <div>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs">
-                  <Sparkles className="h-5 w-5" />
+                  <FileText className="h-5 w-5" />
                 </div>
                 <Badge className="border-slate-200 bg-slate-50 text-[10px] font-bold text-emerald-900">
-                  WORKFLOW 3 • COMPILE &amp; EXPORT
+                  WORKFLOW 3 • MODULE L STUDIO
                 </Badge>
               </div>
 
               <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-emerald-800">
-                Business Plan Studio
+                Module L &amp; Multi-Version Studio
               </h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                Compile and export tailored business plans for IE LEO Grants, UK
+                Compile, audit, and export tailored dossiers for IE LEO Grants, UK
                 Innovate UK, Start Up Loans, commercial banks, or angel investors.
               </p>
             </div>
@@ -1035,8 +1151,8 @@ export function ProjectDashboardView({
           <div>
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
               {isGrantSupported
-                ? 'Featured Interactive Tools & Fast Shortcuts'
-                : 'Featured Interactive Tools'}
+                ? '2. Featured Interactive Tools & Fast Shortcuts'
+                : '2. Featured Interactive Tools'}
             </h2>
             <p className="text-xs text-slate-500">
               {isGrantSupported
@@ -1397,7 +1513,7 @@ export function ProjectDashboardView({
 
           {/* Card 3: Open Questions & Concept Fit Vault (Module A) */}
           <div
-            onClick={() => onEnterWorkspace('MOD_A_IDEATION', 7)}
+            onClick={() => onEnterWorkspace('MOD_A_IDEATION', briefStepNumber)}
             className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-amber-300 hover:shadow-md"
           >
             <div>
@@ -1447,7 +1563,7 @@ export function ProjectDashboardView({
                 variant="outline"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEnterWorkspace('MOD_A_IDEATION', 7);
+                  onEnterWorkspace('MOD_A_IDEATION', briefStepNumber);
                 }}
                 className="w-full border-slate-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
               >
@@ -1548,6 +1664,8 @@ export function ProjectDashboardView({
           })}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }

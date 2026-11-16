@@ -203,7 +203,7 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
     <!-- SECTION 1: EXECUTIVE COMMERCIAL DEFENSE NARRATIVE -->
     <div class="section">
       <div class="section-title">1. Executive Commercial Defense Narrative</div>
-      <div style="background: #f8fafc; border-left: 3px solid #4f46e5; padding: 14px 18px; border-radius: 8px; font-size: 13px; line-height: 1.65; color: #1e293b;">
+      <div style="background: #f8fafc; border-left: 3px solid #047857; padding: 14px 18px; border-radius: 8px; font-size: 13px; line-height: 1.65; color: #1e293b;">
         ${escapeHtml(
           step5Data.executiveMarketingSummaryNarrative ||
             'Commercial defense narrative pending completion by founders.'
@@ -211,7 +211,7 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
       </div>
       ${
         step5Data.aiAssessorTip
-          ? `<div style="margin-top: 10px; font-size: 11.5px; color: #4338ca; background: #eef2ff; padding: 8px 12px; border-radius: 6px;">
+          ? `<div style="margin-top: 10px; font-size: 11.5px; color: #065f46; background: #ecfdf5; padding: 8px 12px; border-radius: 6px;">
               <strong>Assessor Tip:</strong> ${escapeHtml(step5Data.aiAssessorTip)}
             </div>`
           : ''
@@ -312,7 +312,7 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
           </div>
           <div style="text-align: right;">
             <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b;">Warm Pipeline Size</div>
-            <div style="font-size: 14px; font-weight: 700; color: #4f46e5;">${step3Data.targetPipeline.length} High-Probability Leads</div>
+            <div style="font-size: 14px; font-weight: 700; color: #047857;">${step3Data.targetPipeline.length} High-Probability Leads</div>
           </div>
         </div>
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #334155;">
@@ -342,7 +342,7 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
                     (p) => `<tr>
                       <td><strong>${escapeHtml(p.companyOrPersona)}</strong></td>
                       <td>${escapeHtml(p.decisionMakerTitle || p.triggerEventOrAngle || 'Key Contact')}</td>
-                      <td><span style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #4f46e5;">${escapeHtml(p.status)}</span></td>
+                      <td><span style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #047857;">${escapeHtml(p.status)}</span></td>
                       <td>${escapeHtml(p.source)}</td>
                     </tr>`
                   )
@@ -368,10 +368,10 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
           <div style="font-size: 16px; font-weight: 800; color: #047857; margin-top: 2px;">${metrics.ltvToCacRatio}:1</div>
           <div style="font-size: 9.5px; color: #065f46;">LTV: ${currencySymbol}${metrics.ltv}</div>
         </div>
-        <div style="border: 1px solid #c7d2fe; border-radius: 10px; padding: 10px; background: #eef2ff;">
-          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #3730a3;">Payback Velocity</div>
-          <div style="font-size: 16px; font-weight: 800; color: #4338ca; margin-top: 2px;">${metrics.paybackMonths} mos</div>
-          <div style="font-size: 9.5px; color: #3730a3;">${metrics.paybackMonths <= 6 ? 'Within 6m target' : 'Working buffer needed'}</div>
+        <div style="border: 1px solid #a7f3d0; border-radius: 10px; padding: 10px; background: #ecfdf5;">
+          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #065f46;">Payback Velocity</div>
+          <div style="font-size: 16px; font-weight: 800; color: #065f46; margin-top: 2px;">${metrics.paybackMonths} mos</div>
+          <div style="font-size: 9.5px; color: #065f46;">${metrics.paybackMonths <= 6 ? 'Within 6m target' : 'Working buffer needed'}</div>
         </div>
         <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #ffffff;">
           <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b;">Module J Sync</div>
@@ -484,7 +484,7 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
               .map(
                 (b, i) => `
             <div style="border: 1px solid ${
-              b.severity === 'CRITICAL' ? '#fecdd3' : b.severity === 'WARNING' ? '#fde68a' : '#e0e7ff'
+              b.severity === 'CRITICAL' ? '#fecdd3' : b.severity === 'WARNING' ? '#fde68a' : '#d1fae5'
             }; background: ${
                   b.severity === 'CRITICAL'
                     ? '#fff1f2'
@@ -503,7 +503,7 @@ export function buildModuleIStandaloneHtmlDocument(data: ModuleIBriefData): stri
               <div style="font-size: 12px; color: #334155; line-height: 1.5; margin-bottom: 6px;">
                 ${escapeHtml(b.explanation)}
               </div>
-              <div style="font-size: 11.5px; color: #1e1b4b; background: #ffffff; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 11.5px; color: #0f172a; background: #ffffff; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
                 <strong>Recommended Mitigation:</strong> ${escapeHtml(b.suggestedAction)}
               </div>
             </div>`

@@ -390,12 +390,27 @@ export async function generateModuleAGrantPositioningAdviceAction(input: {
   };
 }
 
+export type OpenQuestionModuleCode =
+  | 'MOD_A_IDEATION'
+  | 'MOD_B_MARKET'
+  | 'MOD_C_SURVEYS_FEEDBACK'
+  | 'MOD_D_PRODUCT_BUILD'
+  | 'MOD_E_OPERATIONS'
+  | 'MOD_F_COFOUNDER_TEAM'
+  | 'MOD_G_LAUNCHPAD'
+  | 'MOD_H_REVENUE'
+  | 'MOD_I_MARKETING'
+  | 'MOD_J_FINANCE'
+  | 'MOD_K_GRANTS_FUNDING'
+  | 'MOD_L_BUSINESS_PLAN';
+
 /**
  * Saves an item to the Open Questions Parking Lot (`open_questions_parking_lot`) in Cloud SQL.
  */
 export async function parkOpenQuestionAction(input: {
   planId: string;
   questionText: string;
+  sourceModule?: OpenQuestionModuleCode;
 }): Promise<{ ok: boolean; persistedToCloudSql: boolean }> {
   if (!UUID_REGEX.test(input.planId) || !input.questionText.trim()) {
     return { ok: true, persistedToCloudSql: false };
@@ -411,13 +426,124 @@ export async function parkOpenQuestionAction(input: {
   try {
     await db.insert(openQuestionsParkingLot).values({
       planId: input.planId,
-      sourceModule: 'MOD_A_IDEATION',
+      sourceModule: input.sourceModule || 'MOD_A_IDEATION',
       questionText: input.questionText.trim().slice(0, 1000),
       status: 'OPEN',
     });
     return { ok: true, persistedToCloudSql: true };
   } catch {
     return { ok: true, persistedToCloudSql: false };
+  }
+}
+
+/**
+ * Updates core plan settings in-place (`title`, `oneLinerSummary`, `hqCountryCode`, `baseCurrency`,
+ * `industryCategory`, and `fundingTrackMode`) without creating a duplicate plan or hitting plan limits.
+ */
+export async function updateStartupPlanSettingsAction(input: {
+  planId: string;
+  title: string;
+  oneLinerSummary?: string;
+  hqCountryCode: SupportedCountryCode;
+  baseCurrency: string;
+  industryCategory: string;
+  fundingTrackMode?: 'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY';
+}): Promise<{ ok: boolean; persistedToCloudSql: boolean; error?: string }> {
+  const cleanTitle = input.title.trim();
+  if (!cleanTitle) {
+    return {
+      ok: false,
+      persistedToCloudSql: false,
+      error: 'Plan title cannot be empty.',
+    };
+  }
+
+  if (!UUID_REGEX.test(input.planId)) {
+    return { ok: true, persistedToCloudSql: false };
+  }
+
+  const ownership = await verifyActiveSessionAndPlanOwnership(input.planId, {
+    requireWrite: true,
+  });
+  if (!ownership.authorized) {
+    return {
+      ok: false,
+      persistedToCloudSql: false,
+      error: ownership.reason || 'Unauthorized access to this plan.',
+    };
+  }
+
+  try {
+    const [existingPlan] = await db
+      .select()
+      .from(startupPlans)
+      .where(eq(startupPlans.id, input.planId))
+      .limit(1);
+
+    if (!existingPlan) {
+      return { ok: false, persistedToCloudSql: false, error: 'Plan not found.' };
+    }
+
+    const updatedComplianceMeta = {
+      ...(existingPlan.grantComplianceMetadataJson || {}),
+      ...(input.fundingTrackMode
+        ? { fundingTrackMode: input.fundingTrackMode }
+        : {}),
+    };
+
+    await db
+      .update(startupPlans)
+      .set({
+        title: cleanTitle.slice(0, 160),
+        ...(typeof input.oneLinerSummary === 'string'
+          ? { oneLinerSummary: input.oneLinerSummary.trim().slice(0, 500) }
+          : {}),
+        hqCountryCode: input.hqCountryCode,
+        baseCurrency: input.baseCurrency,
+        industryCategory: input.industryCategory.trim().slice(0, 120),
+        grantComplianceMetadataJson: updatedComplianceMeta,
+        updatedAt: new Date(),
+      })
+      .where(eq(startupPlans.id, input.planId));
+
+    if (input.fundingTrackMode) {
+      const [modARow] = await db
+        .select()
+        .from(planModulesData)
+        .where(
+          and(
+            eq(planModulesData.planId, input.planId),
+            eq(planModulesData.moduleCode, 'MOD_A_IDEATION')
+          )
+        )
+        .limit(1);
+
+      if (modARow) {
+        const currentJson = (modARow.structuredInputsJsonb || {}) as Record<
+          string,
+          unknown
+        >;
+        await db
+          .update(planModulesData)
+          .set({
+            structuredInputsJsonb: {
+              ...currentJson,
+              fundingTrackMode: input.fundingTrackMode,
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(planModulesData.id, modARow.id));
+      }
+    }
+
+    return { ok: true, persistedToCloudSql: true };
+  } catch (err) {
+    console.warn('[SPF Plan Settings] Failed to update plan settings:', err);
+    return {
+      ok: false,
+      persistedToCloudSql: false,
+      error: 'Database unavailable while updating plan settings.',
+    };
   }
 }
 

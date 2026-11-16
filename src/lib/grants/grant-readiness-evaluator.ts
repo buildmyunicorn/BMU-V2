@@ -55,31 +55,33 @@ export function evaluatePlanGrantReadiness(
     Boolean(plan.moduleBData?.beachhead?.beachheadSegment?.trim()) ||
     Boolean(plan.moduleBData?.competitiveWedge?.competitiveEdgeSummary?.trim());
 
-  // 3. Customer Validation Evidence (Module C)
+  // 3. Customer Validation Evidence (Module C - non-simulated responses only)
   const surveys = plan.moduleCData?.surveys || [];
   const totalSurveyResponses = surveys.reduce(
-    (acc, s) => acc + (s.responses?.length || 0),
+    (acc, s) => acc + (s.responses?.filter((r) => !r.isSimulated).length || 0),
     0
   );
   const totalInterviews = plan.moduleCData?.interviewLogs?.length || 0;
-  const hasValidationProof = totalSurveyResponses >= 3 || totalInterviews >= 2;
+  const hasValidationProof = totalSurveyResponses >= 3 || totalInterviews >= 1;
 
   // 4. Technical Work Packages (Module D Step 5)
   const workPackagesCount =
     plan.moduleDData?.workPackagesAndFlow?.workPackages?.length || 0;
   const hasWorkPackages = workPackagesCount > 0;
 
-  // 5. 3 Supplier Quotes (Module E Step 2)
+  // 5. 3 Supplier Quotes (Module E Step 2 - items >= €1,000)
   const equipmentItems =
     plan.moduleEData?.premisesAndEquipment?.equipmentItems || [];
-  const quotesAttached = equipmentItems.some(
+  const itemsRequiring3Quotes = equipmentItems.filter(
+    (e) => Number(e.totalCostExVat || 0) >= 1000
+  );
+  const hasThreeQuotes = itemsRequiring3Quotes.every(
     (e) =>
       e.quoteComplianceStatus === 'THREE_QUOTES_UPLOADED_READY' ||
       e.quoteComplianceStatus === 'HAVE_3_WRITTEN_QUOTES' ||
       Boolean(e.supplierQuotesSummary?.trim()) ||
       Boolean(e.conciergeQuotesRequested)
   );
-  const hasThreeQuotes = quotesAttached || equipmentItems.length === 0;
 
   // 6. Promoter Profiles & CVs (Module F Step 1)
   const promoterCount =
@@ -180,8 +182,8 @@ export function evaluatePlanGrantReadiness(
       stepNumber: 2,
       isComplete: hasThreeQuotes,
       summary: hasThreeQuotes
-        ? 'Equipment schedule audited; quotes attached or exemption verified.'
-        : 'LEO / Innovate UK require 3 independent supplier quotes for capital items > €5k.',
+        ? 'Equipment schedule audited; quotes attached or under threshold.'
+        : 'Irish LEO rules require 3 independent supplier quotes for vouched items ≥ €1,000.',
       actionPrompt: 'Open Module E Step 2 to attach quotes or request via Concierge',
     },
     PROMOTER_PROFILES: {

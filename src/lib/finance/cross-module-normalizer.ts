@@ -190,16 +190,9 @@ export function computeModuleHBlendedPricing(
             ? 'MONTHLY'
             : defaultCadence;
 
-    // Prioritize official Step 2 tier pricing unless What-If Sandbox is explicitly active
-    const sliderPriceRaw = Number(step3?.activePriceSlider) || 0;
-    const useSandboxSlider =
-      Boolean(step3?.isSandboxActive) && sliderPriceRaw > 0;
-    const effectiveMonthlyAccrualNetPrice = useSandboxSlider
-      ? sliderPriceRaw > blendedMonthlyAccrualNetPrice * 3 &&
-        dominantBillingCadence === 'ANNUAL'
-        ? normalizePriceToMonthlyAccrualNet(sliderPriceRaw, 'ANNUAL')
-        : sliderPriceRaw
-      : blendedMonthlyAccrualNetPrice;
+    // Official Step 2 tier pricing is always authoritative for downstream modules (Modules I, J, K, L).
+    // What-If Sandbox slider adjustments in Module H Step 3 remain non-destructive until applied to Step 2 tiers.
+    const effectiveMonthlyAccrualNetPrice = blendedMonthlyAccrualNetPrice;
 
     const effectiveMonthlyAccrualGrossPrice =
       Math.round(
@@ -355,6 +348,104 @@ export interface ExtractedModuleDCosts {
   channelBlendedFeePercent: number | null;
 }
 
+export interface DeduplicatedModuleDCosts {
+  hasExplicitCosts: boolean;
+  monthlyTechStackCost: number;
+  oneOffBuildCost: number;
+  unitBuildCogs: number;
+}
+
+/**
+ * Deduplicates Module D Step 4 (Build-vs-Buy items) and Step 5 (Work Packages WP1–WP4)
+ * so costs carried over or mirrored across both steps are never double-counted (2x CapEx bug).
+ */
+export function computeDeduplicatedModuleDCosts(
+  buildItems?: NonNullable<SavedModuleDData['buildVsBuy']>['items'] | null,
+  workPackages?: NonNullable<SavedModuleDData['workPackagesAndFlow']>['workPackages'] | null
+): DeduplicatedModuleDCosts {
+  const safeBuildItems = Array.isArray(buildItems) ? buildItems : [];
+  const safeWorkPackages = Array.isArray(workPackages) ? workPackages : [];
+
+  let step4Monthly = 0;
+  let step4OneOff = 0;
+  let step4PerUnit = 0;
+  let hasExplicit = false;
+
+  const step4NormalizedTitles = new Set<string>();
+
+  for (const item of safeBuildItems) {
+    if (item.title?.trim()) {
+      step4NormalizedTitles.add(item.title.trim().toLowerCase());
+    }
+    const amt = Math.max(0, Number(item.estimatedCostAmount) || 0);
+    if (amt <= 0) continue;
+    hasExplicit = true;
+    if (item.costModel === 'MONTHLY_SUBSCRIPTION') {
+      step4Monthly += amt;
+    } else if (item.costModel === 'ONE_OFF_PURCHASE') {
+      step4OneOff += amt;
+    } else if (item.costModel === 'PER_UNIT_COGS') {
+      step4PerUnit += amt;
+    }
+  }
+
+  let step5AiMonthly = 0;
+  let step5AiOneOff = 0;
+  let step5AiPerUnit = 0;
+  let step5CustomMonthly = 0;
+  let step5CustomOneOff = 0;
+  let step5CustomPerUnit = 0;
+
+  for (const wp of safeWorkPackages) {
+    const amt = Math.max(0, Number(wp.estimatedCostAmount) || 0);
+    if (amt <= 0) continue;
+    hasExplicit = true;
+
+    const normalizedWpTitle = (wp.title || '').trim().toLowerCase();
+    const isClonedFromStep4 =
+      Boolean(wp.id?.startsWith('wp-from-s4-')) ||
+      (normalizedWpTitle.length > 0 && step4NormalizedTitles.has(normalizedWpTitle));
+
+    // Skip direct clones of Step 4 items
+    if (isClonedFromStep4) continue;
+
+    if (wp.isCustom) {
+      if (wp.costModel === 'MONTHLY_SUBSCRIPTION') {
+        step5CustomMonthly += amt;
+      } else if (wp.costModel === 'ONE_OFF_PURCHASE') {
+        step5CustomOneOff += amt;
+      } else if (wp.costModel === 'PER_UNIT_COGS') {
+        step5CustomPerUnit += amt;
+      }
+    } else {
+      if (wp.costModel === 'MONTHLY_SUBSCRIPTION') {
+        step5AiMonthly += amt;
+      } else if (wp.costModel === 'ONE_OFF_PURCHASE') {
+        step5AiOneOff += amt;
+      } else if (wp.costModel === 'PER_UNIT_COGS') {
+        step5AiPerUnit += amt;
+      }
+    }
+  }
+
+  const monthlyTechStackCost =
+    (step4Monthly > 0 ? Math.max(step4Monthly, step5AiMonthly) : step5AiMonthly) +
+    step5CustomMonthly;
+  const oneOffBuildCost =
+    (step4OneOff > 0 ? Math.max(step4OneOff, step5AiOneOff) : step5AiOneOff) +
+    step5CustomOneOff;
+  const unitBuildCogs =
+    (step4PerUnit > 0 ? Math.max(step4PerUnit, step5AiPerUnit) : step5AiPerUnit) +
+    step5CustomPerUnit;
+
+  return {
+    hasExplicitCosts: hasExplicit,
+    monthlyTechStackCost: Math.round(monthlyTechStackCost * 100) / 100,
+    oneOffBuildCost: Math.round(oneOffBuildCost * 100) / 100,
+    unitBuildCogs: Math.round(unitBuildCogs * 100) / 100,
+  };
+}
+
 export function extractModuleDCosts(
   modD?: SavedModuleDData | null
 ): ExtractedModuleDCosts {
@@ -365,36 +456,11 @@ export function extractModuleDCosts(
     ? modD!.workPackagesAndFlow!.workPackages
     : [];
 
-  let monthlyTechStackCost = 0;
-  let oneOffBuildCost = 0;
-  let unitBuildCogs = 0;
-  let hasExplicit = false;
-
-  for (const item of buildItems) {
-    const amt = Math.max(0, Number(item.estimatedCostAmount) || 0);
-    if (amt <= 0) continue;
-    hasExplicit = true;
-    if (item.costModel === 'MONTHLY_SUBSCRIPTION') {
-      monthlyTechStackCost += amt;
-    } else if (item.costModel === 'ONE_OFF_PURCHASE') {
-      oneOffBuildCost += amt;
-    } else if (item.costModel === 'PER_UNIT_COGS') {
-      unitBuildCogs += amt;
-    }
-  }
-
-  for (const wp of workPackages) {
-    const amt = Math.max(0, Number(wp.estimatedCostAmount) || 0);
-    if (amt <= 0) continue;
-    hasExplicit = true;
-    if (wp.costModel === 'MONTHLY_SUBSCRIPTION') {
-      monthlyTechStackCost += amt;
-    } else if (wp.costModel === 'ONE_OFF_PURCHASE') {
-      oneOffBuildCost += amt;
-    } else if (wp.costModel === 'PER_UNIT_COGS') {
-      unitBuildCogs += amt;
-    }
-  }
+  const deduped = computeDeduplicatedModuleDCosts(buildItems, workPackages);
+  let monthlyTechStackCost = deduped.monthlyTechStackCost;
+  let oneOffBuildCost = deduped.oneOffBuildCost;
+  const unitBuildCogs = deduped.unitBuildCogs;
+  let hasExplicit = deduped.hasExplicitCosts;
 
   // Legacy property fallback if structured item arrays had no amounts
   if (!hasExplicit && modD?.buildVsBuy) {

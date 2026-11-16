@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   FileCheck2,
   BookmarkPlus,
-  Sparkles,
+  SlidersHorizontal,
   FileSpreadsheet,
   Cpu,
   ShoppingBag,
@@ -31,12 +31,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlanQuotesTrackerCard } from '@/components/workspace/three-quote-concierge-modal';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import type {
   ActiveStartupPlan,
   ModuleLStep4AppendicesSavedData,
   ModuleLAppendixBinderItem,
 } from '@/lib/auth/session-store';
 import { generateModuleLStep4AuditAction } from '@/app/actions/module-l';
+import { extractMasterDocumentVerifiedFacts } from '@/lib/export/master-document-brief';
+import { formatModuleCodeLabel } from '@/lib/export/enum-labels';
 
 interface ModuleLAppendicesBinderStepProps {
   plan: ActiveStartupPlan;
@@ -88,41 +92,53 @@ export function ModuleLAppendicesBinderStep({
   const [isAuditingAi, setIsAuditingAi] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
+  const verifiedFacts = useMemo(() => extractMasterDocumentVerifiedFacts(plan), [plan]);
+
   // Compute live readiness from preceding modules
   const defaultAppendices = useMemo<ModuleLAppendixBinderItem[]>(() => {
     // 1. Finance & Cashflow
     const hasFinance = Boolean(
-      plan.moduleJData?.step1OverheadsTax || plan.moduleHData?.step1RevenueModel
+      plan.moduleJData?.step1OverheadsTax || plan.moduleJData?.step4Statements
     );
     const financeStatus = hasFinance ? 'VERIFIED_READY' : 'PARTIAL_DATA';
 
     // 2. Product Architecture & Work Packages
     const hasProduct = Boolean(
-      plan.moduleDData?.productVehicle || plan.moduleDData?.buildVsBuy || plan.moduleDData?.workPackagesAndFlow
+      plan.moduleDData?.productVehicle ||
+        plan.moduleDData?.buildVsBuy ||
+        plan.moduleDData?.workPackagesAndFlow
     );
     const productStatus = hasProduct ? 'VERIFIED_READY' : 'PARTIAL_DATA';
 
     // 3. Operations & 3-Quote Procurement
-    const hasOps = Boolean(
-      plan.moduleEData?.premisesAndEquipment || plan.moduleEData?.riskRegister
-    );
+    const eqItems = plan.moduleEData?.premisesAndEquipment?.equipmentItems || [];
+    const hasUnquotedOver1k =
+      !isUK &&
+      eqItems.some(
+        (item) =>
+          (Number(item.totalCostExVat) || 0) >= 1000 &&
+          item.quoteComplianceStatus !== 'HAVE_3_WRITTEN_QUOTES' &&
+          item.quoteComplianceStatus !== 'ALREADY_OWNED_EXEMPT'
+      );
+    const hasOps =
+      Boolean(plan.moduleEData?.premisesAndEquipment || plan.moduleEData?.riskRegister) &&
+      !hasUnquotedOver1k;
     const opsStatus = hasOps ? 'VERIFIED_READY' : 'PARTIAL_DATA';
 
     // 4. Team CVs & 7-Hats
     const hasTeam = Boolean(
-      plan.moduleFData?.step2RoleMatrixData || plan.teamAndBudget?.teamStructureType
+      verifiedFacts.teamMembersCount > 0 || plan.moduleFData?.step2RoleMatrixData
     );
     const teamStatus = hasTeam ? 'VERIFIED_READY' : 'PARTIAL_DATA';
 
-    // 5. Customer Surveys & Telemetry
-    const hasSurveys = Boolean(
-      plan.moduleCData?.surveys && plan.moduleCData.surveys.length > 0
-    );
+    // 5. Customer Surveys & Telemetry (require real responses or logged interviews)
+    const hasSurveys =
+      verifiedFacts.realSurveyResponses > 0 || verifiedFacts.interviewsCount > 0;
     const surveyStatus = hasSurveys ? 'VERIFIED_READY' : 'PARTIAL_DATA';
 
     // 6. Corporate Setup & Banking
     const hasCorporate = Boolean(
-      plan.moduleGData?.step1?.legalStructure || plan.moduleGData?.step3?.hasDedicatedIban
+      verifiedFacts.legalEntityStructureLabel && verifiedFacts.hasDedicatedIban
     );
     const corporateStatus = hasCorporate ? 'VERIFIED_READY' : 'PARTIAL_DATA';
 
@@ -135,7 +151,7 @@ export function ModuleLAppendicesBinderStep({
         sourceModuleCode: 'MOD_J_FINANCE',
         signOffNote: hasFinance
           ? `Cashflow schedule reconciled with statutory payroll taxes and working capital buffer.`
-          : `Financial overhead posture and revenue crossover require final review in Module J.`,
+          : `Financial overhead posture and 36-month statements require completion in Module J.`,
       },
       {
         code: 'APPENDIX_B',
@@ -156,8 +172,10 @@ export function ModuleLAppendicesBinderStep({
         signOffNote: hasOps
           ? isUK
             ? `Capital depreciation schedule verified against Innovate UK asset guidelines.`
-            : `Equipment schedule conforms strictly to LEO 3-quote rule with zero general laptop infractions.`
-          : `Supplier quotation requirements and equipment schedules require sign-off in Module E.`,
+            : `Equipment schedule conforms to LEO €1,000+ 3-quote rule with zero general laptop infractions.`
+          : hasUnquotedOver1k
+            ? `Attach 3 written supplier quotes for capital items >= €1,000 in Module E Step 2.`
+            : `Supplier quotation requirements and equipment schedules require sign-off in Module E.`,
       },
       {
         code: 'APPENDIX_D',
@@ -167,7 +185,7 @@ export function ModuleLAppendicesBinderStep({
         sourceModuleCode: 'MOD_F_COFOUNDER_TEAM',
         signOffNote: hasTeam
           ? `Founding team 150-word profiles and 7 Startup Hats responsibility division confirmed.`
-          : `Promoter profiles and founder equity vesting need final confirmation in Module F.`,
+          : `Promoter profiles and founder role ownership need final confirmation in Module F.`,
       },
       {
         code: 'APPENDIX_E',
@@ -176,8 +194,8 @@ export function ModuleLAppendicesBinderStep({
         readinessStatus: surveyStatus,
         sourceModuleCode: 'MOD_C_SURVEYS_FEEDBACK',
         signOffNote: hasSurveys
-          ? `Primary customer survey data and willingness-to-pay tiers ready for assessor review.`
-          : `Customer discovery logs and survey evidence should be linked in Module C.`,
+          ? `${verifiedFacts.realSurveyResponses} survey response(s) and ${verifiedFacts.interviewsCount} interview(s) ready for assessor review.`
+          : `Collect survey responses or log customer interviews in Module C to verify primary demand.`,
       },
       {
         code: 'APPENDIX_F',
@@ -186,11 +204,11 @@ export function ModuleLAppendicesBinderStep({
         readinessStatus: corporateStatus,
         sourceModuleCode: 'MOD_G_LAUNCHPAD',
         signOffNote: hasCorporate
-          ? `Corporate LTD entity, dedicated business bank account, and official company email verified.`
-          : `Legal entity details and dedicated business banking status need sign-off in Module G.`,
+          ? `Corporate entity (${verifiedFacts.legalEntityStructureLabel}), dedicated business bank account, and domain setup verified.`
+          : `Legal entity details and dedicated business banking status need sign-off in Launchpad.`,
       },
     ];
-  }, [plan, isUK]);
+  }, [plan, isUK, verifiedFacts]);
 
   const [appendices, setAppendices] = useState<ModuleLAppendixBinderItem[]>(
     savedAppendices?.appendices && savedAppendices.appendices.length > 0
@@ -199,11 +217,16 @@ export function ModuleLAppendicesBinderStep({
   );
 
   const [declarationConfirmed, setDeclarationConfirmed] = useState<boolean>(
-    savedAppendices?.declarationConfirmed ?? true
+    savedAppendices?.declarationConfirmed ?? false
   );
 
   const [signatoryName, setSignatoryName] = useState<string>(
-    savedAppendices?.signatoryName || plan.teamAndBudget?.teamStructureType ? 'Founding Team' : 'Lead Founder'
+    savedAppendices?.signatoryName ||
+      (verifiedFacts.founderName && verifiedFacts.founderName !== 'Founder'
+        ? verifiedFacts.founderName
+        : plan.teamAndBudget?.teamStructureType === 'COFOUNDER_TEAM'
+          ? 'Founding Team'
+          : 'Lead Founder')
   );
 
   const [signatoryTitle, setSignatoryTitle] = useState<string>(
@@ -395,8 +418,8 @@ export function ModuleLAppendicesBinderStep({
             disabled={isAuditingAi || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-            {isAuditingAi ? 'Auditing Evidence Binder...' : 'AI Audit Evidence Binder'}
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            {isAuditingAi ? 'Auditing Evidence Binder...' : 'Audit Evidence Binder'}
           </Button>
         </div>
 
@@ -449,7 +472,7 @@ export function ModuleLAppendicesBinderStep({
             </button>
           </div>
           <p className="font-mono text-[11px] bg-white/70 p-2.5 rounded border border-emerald-200">
-            &quot;For LEO applications, any equipment or contractor package over €5,000 must include 3 independent, itemized quotes from unrelated suppliers. Quotes must show supplier registered business address, tax reference, and exact itemized specification.&quot;
+            &quot;For Irish LEO applications, any capital equipment or contractor package of €1,000 or more must include 3 independent, itemized written quotes from unrelated suppliers showing registered business address, tax reference, and exact itemized specification.&quot;
           </p>
         </div>
       )}
@@ -458,7 +481,7 @@ export function ModuleLAppendicesBinderStep({
       {aiTip && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
           <div className="flex items-start gap-2.5">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <ShieldCheck className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed text-amber-900">
               <span className="font-bold">Claims Officer &amp; Auditor Guidance: </span>
               {aiTip}
@@ -580,7 +603,7 @@ export function ModuleLAppendicesBinderStep({
                           }}
                           className="cursor-pointer border-slate-200 bg-slate-50 text-[10px] font-medium text-emerald-800 hover:bg-slate-100"
                         >
-                          {appendix.sourceModuleCode.replace('MOD_', '')}
+                          {formatModuleCodeLabel(appendix.sourceModuleCode)}
                           <ExternalLink className="ml-1 h-2.5 w-2.5 inline" />
                         </Badge>
                       </div>
@@ -653,9 +676,19 @@ export function ModuleLAppendicesBinderStep({
             className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700 shrink-0"
           />
           <span className="text-xs leading-relaxed text-slate-700">
-            I hereby certify that all figures, financial projections, promoter CV profiles, and supplier quotations contained in this business plan and attached Appendices A through F represent true, accurate, and verifiable records. I confirm that requested capital items comply with public procurement guidelines with no deadweight duplication or displacement.
+            I hereby certify that all figures, financial projections, founder CV profiles, and supplier quotes in this business plan and Appendices A–F represent accurate, verifiable records, and—where applying for public grants—confirm that requested items represent new project spend (no prior spend / deadweight) and do not merely displace existing local competitors.
           </span>
         </label>
+        <div className="flex flex-wrap items-center gap-2 pl-7">
+          <JargonTooltip term="DEADWEIGHT" label="What is Deadweight?" />
+          <JargonTooltip term="NON_DISPLACEMENT" label="What is Non-Displacement?" />
+        </div>
+
+        {!declarationConfirmed && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
+            Review and tick the certification checkbox above when you are ready to sign off and proceed to Step 5.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           <div>
@@ -667,7 +700,7 @@ export function ModuleLAppendicesBinderStep({
               value={signatoryName}
               onChange={(e) => setSignatoryName(e.target.value)}
               disabled={isVaultReadonly}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               placeholder="e.g. Jane Doe"
             />
           </div>
@@ -681,7 +714,7 @@ export function ModuleLAppendicesBinderStep({
               value={signatoryTitle}
               onChange={(e) => setSignatoryTitle(e.target.value)}
               disabled={isVaultReadonly}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
               placeholder="e.g. Founder & Chief Executive Officer"
             />
           </div>
@@ -698,29 +731,19 @@ export function ModuleLAppendicesBinderStep({
           className="text-xs text-slate-700"
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          Back to Step 3 (Narrative Compiler)
+          Back to Step 3 (Pre-Flight Audit)
         </Button>
 
-        <div className="flex items-center gap-2">
-          {onParkQuestionInSession && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const question = prompt(
-                  'Park an open question regarding your grant appendices:'
-                );
-                if (question && question.trim()) {
-                  onParkQuestionInSession(question.trim());
-                }
-              }}
-              className="text-xs text-slate-600 border-slate-200 hover:bg-slate-50"
-            >
-              <BookmarkPlus className="mr-1.5 h-3.5 w-3.5" />
-              Park an Open Question
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ParkOpenQuestionPopover
+            planId={plan.id}
+            moduleCode="MOD_L_BUSINESS_PLAN"
+            stepNumber={4}
+            suggestedQuestion="Gather remaining independent supplier quote or updated promoter CV for Appendices A–F."
+            onParkQuestion={onParkQuestionInSession}
+            disabled={isVaultReadonly}
+            align="end"
+          />
 
           <Button
             type="button"

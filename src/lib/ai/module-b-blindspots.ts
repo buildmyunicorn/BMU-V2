@@ -185,7 +185,7 @@ export function buildDynamicModuleBBlindSpots(
             title: `📈 4. Realistic Year 1–2 Target: ${totalYear1Customers.toLocaleString()} Customers = ${formatPlanCurrency(totalYear1Revenue, currency)}/yr (Step 3)`,
             explanation: `Breaking your Year 1–2 revenue goal (${formatPlanCurrency(totalYear1Revenue, currency)}/yr) down to ${totalYear1Customers.toLocaleString()} real customers (approx. ${Math.max(1, Math.ceil(totalYear1Customers / 12))} new customers per month) makes your plan credible to both grant assessors and investors.`,
             suggestedAction:
-              'Test your proposed price point in Module C (Customer Surveys) before locking in your final pricing tiers in Module F.',
+              'Test your proposed price point in Module C (Customer Surveys) before locking in your final pricing tiers in Module H.',
           };
 
   // ============================================================================

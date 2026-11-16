@@ -515,13 +515,13 @@ export function buildModuleAStandaloneHtmlDocument(
           .map(
             (item) => `
           <div class="card ${item.severity === 'WARNING' ? 'card-warning' : ''}">
-            <div class="card-label" style="color: ${item.severity === 'WARNING' ? '#b45309' : '#4f46e5'};">
+            <div class="card-label" style="color: ${item.severity === 'WARNING' ? '#b45309' : '#047857'};">
               ${escapeHtml(item.title)}
             </div>
             <div class="card-value" style="margin-bottom: 6px;">${escapeHtml(item.explanation)}</div>
             ${
               item.suggestedAction
-                ? `<div style="font-size: 12px; color: #312e81; background: #eef2ff; padding: 6px 8px; border-radius: 6px;"><strong>Action Step:</strong> ${escapeHtml(item.suggestedAction)}</div>`
+                ? `<div style="font-size: 12px; color: #0f172a; background: #ecfdf5; padding: 6px 8px; border-radius: 6px;"><strong>Action Step:</strong> ${escapeHtml(item.suggestedAction)}</div>`
                 : ''
             }
           </div>`
@@ -553,9 +553,9 @@ export function buildModuleAStandaloneHtmlDocument(
           <div class="card-label" style="color: #047857;">Immediate Qualified Grant &amp; Loan Pool</div>
           <div class="card-value" style="font-size: 16px; font-weight: 700; color: #065f46;">${escapeHtml(grantEval.immediateQualifiedPoolFormatted)} (${grantEval.qualifiesNowGrants.length} Schemes Qualify Right Now)</div>
         </div>
-        <div class="card" style="background: #eef2ff; border-color: #c7d2fe;">
-          <div class="card-label" style="color: #4338ca;">Unlockable Phase 2 Scale Pool</div>
-          <div class="card-value" style="font-size: 16px; font-weight: 700; color: #312e81;">${escapeHtml(grantEval.unlockableScalePoolFormatted)} (${grantEval.unlockableNextGrants.length} Schemes Unlockable Next)</div>
+        <div class="card" style="background: #ecfdf5; border-color: #a7f3d0;">
+          <div class="card-label" style="color: #065f46;">Unlockable Phase 2 Scale Pool</div>
+          <div class="card-value" style="font-size: 16px; font-weight: 700; color: #0f172a;">${escapeHtml(grantEval.unlockableScalePoolFormatted)} (${grantEval.unlockableNextGrants.length} Schemes Unlockable Next)</div>
         </div>
       </div>
       <div class="grid-2">

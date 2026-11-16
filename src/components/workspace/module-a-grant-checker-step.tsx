@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+  SlidersHorizontal,
   Award,
   Check,
   ChevronDown,
@@ -75,6 +76,8 @@ interface ModuleAGrantCheckerStepProps {
   isAllExpanded: boolean;
   onExpandStep: () => void;
   onCollapseStep: () => void;
+  stepNumber?: number;
+  nextStepLabel?: string;
 }
 
 export function ModuleAGrantCheckerStep({
@@ -102,6 +105,8 @@ export function ModuleAGrantCheckerStep({
   isAllExpanded,
   onExpandStep,
   onCollapseStep,
+  stepNumber = 6,
+  nextStepLabel = 'Next: Step 7 — Blind-Spot Review',
 }: ModuleAGrantCheckerStepProps) {
   const [showWhyAsking, setShowWhyAsking] = useState(false);
   const [showExample, setShowExample] = useState(false);
@@ -186,7 +191,7 @@ export function ModuleAGrantCheckerStep({
   if (!isOpen && !isAllExpanded) {
     return (
       <div
-        id="mod-a-step-7"
+        id={`mod-a-step-${stepNumber}`}
         onClick={onExpandStep}
         className="group scroll-mt-24 cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/60 via-white to-slate-50/40 p-4 shadow-xs transition-all hover:border-emerald-400 hover:shadow-sm"
       >
@@ -199,12 +204,12 @@ export function ModuleAGrantCheckerStep({
                   : 'bg-slate-900 text-white'
               }`}
             >
-              {isGrantsRevealed ? <Check className="h-4 w-4" /> : '7'}
+              {isGrantsRevealed ? <Check className="h-4 w-4" /> : stepNumber}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="truncate text-sm font-bold text-slate-900">
-                  Step 7: {countryFlag} Instant Grant &amp; Funding Eligibility Checker
+                  Step {stepNumber}: {countryFlag} Instant Grant &amp; Funding Eligibility Checker
                 </h2>
                 {isGrantsRevealed ? (
                   <Badge variant="success" className="shrink-0 text-[10px]">
@@ -230,7 +235,7 @@ export function ModuleAGrantCheckerStep({
               variant="ghost"
               className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
             >
-              <span>{isGrantsRevealed ? 'View Grants' : 'Check Grants'}</span>
+              <span>{isGrantsRevealed ? 'Edit Step' : 'Open Step'}</span>
               <ChevronDown className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
@@ -241,7 +246,7 @@ export function ModuleAGrantCheckerStep({
 
   return (
     <div
-      id="mod-a-step-7"
+      id={`mod-a-step-${stepNumber}`}
       className="scroll-mt-24 rounded-xl border border-emerald-200 bg-white p-4 shadow-xs sm:p-6"
     >
       {/* Header */}
@@ -249,10 +254,10 @@ export function ModuleAGrantCheckerStep({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
-              7
+              {stepNumber}
             </span>
             <h2 className="text-base font-bold text-slate-900">
-              Step 7: {countryFlag} Instant Grant &amp; Non-Dilutive Funding Checker
+              Step {stepNumber}: {countryFlag} Instant Grant &amp; Non-Dilutive Funding Checker
             </h2>
             <Badge variant="success" className="shrink-0 text-[10px]">
               {countryLabel}
@@ -262,12 +267,12 @@ export function ModuleAGrantCheckerStep({
             {isGrantsRevealed ? (
               <>
                 Here is your personalized {isIreland ? 'Irish' : 'UK'} grant &amp; funding breakdown for{' '}
-                <strong className="text-slate-900">{planTitle}</strong> based on Steps 1–5 and your 4 eligibility answers. Your qualified grants are automatically included in your Step 8 1-Page Brief.
+                <strong className="text-slate-900">{planTitle}</strong> based on Steps 1–5 and your 4 eligibility answers. Your qualified grants automatically feed into your Blind-Spot Review and Step 8 1-Page Brief.
               </>
             ) : (
               <>
                 We have pre-loaded your Concept Canvas, Export Scope, and Starting Budget from Steps 1–5. Click{' '}
-                <strong className="text-slate-900">Check What Grants I Qualify For</strong> below to answer 4 quick micro-questions and unlock your grant pool before generating your Step 8 1-Page Brief.
+                <strong className="text-slate-900">Check What Grants I Qualify For</strong> below to answer 4 quick micro-questions and unlock your grant pool before reviewing blind spots and your Step 8 1-Page Brief.
               </>
             )}
           </p>
@@ -435,7 +440,7 @@ export function ModuleAGrantCheckerStep({
                 onClick={onContinueToBrief}
                 className="w-full border-white/25 bg-white/10 px-4 py-3 text-xs font-semibold text-white hover:bg-white/20 sm:w-auto"
               >
-                Continue to Step 8: 1-Page Brief
+                {nextStepLabel}
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -737,7 +742,7 @@ export function ModuleAGrantCheckerStep({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-700" />
+                  <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
                   <h3 className="text-sm font-bold text-slate-900">
                     Tailored Grant Positioning Strategy for {planTitle}
                   </h3>
@@ -787,7 +792,7 @@ export function ModuleAGrantCheckerStep({
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                       Refresh AI Grant Pitch &amp; Sync Canvas
                     </>
                   )}
@@ -907,7 +912,7 @@ export function ModuleAGrantCheckerStep({
                 onClick={onContinueToBrief}
                 className="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
               >
-                View Startup Overview &amp; Summary Brief
+                {nextStepLabel}
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1365,7 +1370,7 @@ export function ModuleAGrantCheckerStep({
                     onClick={handleSaveWizardAndRevealGrants}
                     className="bg-emerald-600 px-4 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                     Save Answers &amp; Show My Grants
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>

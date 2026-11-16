@@ -306,13 +306,16 @@ export function evaluatePlanGrantCheckpoints(
   // -------------------------------------------------------------
   // 1. LEGAL ENTITY & AGE CHECKPOINT
   // -------------------------------------------------------------
-  const legalStatus = modG?.step1?.legalStructure || modA?.legalEntityStage;
+  const hasConfirmedModGLtd =
+    modG?.step1?.state === 'ALREADY_HAVE' &&
+    (modG.step1.legalStructure === 'LTD' ||
+      modG.step1.legalStructure === 'DAC' ||
+      modG.step1.legalStructure === 'LLP');
   const isIncorporated =
-    legalStatus === 'LTD' ||
-    legalStatus === 'DAC' ||
-    legalStatus === 'LLP' ||
-    legalStatus === 'LTD_UNDER_18M' ||
-    legalStatus === 'LTD_OVER_18M';
+    hasConfirmedModGLtd ||
+    modA?.legalEntityStage === 'LTD_UNDER_18M' ||
+    modA?.legalEntityStage === 'LTD_OVER_18M' ||
+    modJ?.step4Statements?.corporateIpReadinessStatus === 'LTD_INCORPORATED_IP_ASSIGNED';
 
   if (programKey === 'IE_LEO_PRIMING' || programKey === 'IE_EI_PSSF' || programKey === 'IE_REVENUE_SURE_TAX_RELIEF' || programKey === 'GB_HMRC_SEIS_ASSURANCE') {
     if (isIncorporated) {
@@ -367,11 +370,16 @@ export function evaluatePlanGrantCheckpoints(
   }
 
   // -------------------------------------------------------------
-  // 2. 3-QUOTE RULE ON CAPITAL & DEV ITEMS (> €5k / £5k)
+  // 2. 3-QUOTE RULE ON CAPITAL & DEV ITEMS (>= €1k IE LEO)
   // -------------------------------------------------------------
   const equipmentItems: EquipmentAssetItem[] = modE?.premisesAndEquipment?.equipmentItems || [];
   const highValueWithout3Quotes = equipmentItems.filter(
-    (item) => Number(item.totalCostExVat || 0) >= 5000 && item.quoteComplianceStatus !== 'HAVE_3_WRITTEN_QUOTES' && item.quoteComplianceStatus !== 'THREE_QUOTES_UPLOADED_READY'
+    (item) =>
+      Number(item.totalCostExVat || 0) >= 1000 &&
+      item.quoteComplianceStatus !== 'HAVE_3_WRITTEN_QUOTES' &&
+      item.quoteComplianceStatus !== 'THREE_QUOTES_UPLOADED_READY' &&
+      !item.supplierQuotesSummary?.trim() &&
+      !item.conciergeQuotesRequested
   );
 
   if (isIE && (programKey === 'IE_LEO_FEASIBILITY' || programKey === 'IE_LEO_PRIMING')) {
@@ -379,16 +387,16 @@ export function evaluatePlanGrantCheckpoints(
       checkpoints.push({
         id: 'chk_three_quotes',
         category: 'EQUIPMENT',
-        title: '3-Quote Rule for Purchases > €5,000',
+        title: '3-Quote Rule for Purchases ≥ €1,000',
         sourceModule: 'Module E (Equipment Schedule Step 2)',
         sourceModuleCode: 'MOD_E_OPERATIONS',
         targetStepNumber: 2,
         highlightTargetId: 'ops-step-2-equipment',
         status: 'WARNING',
         statusBadge: `${highValueWithout3Quotes.length} Item(s) Need 3 Quotes`,
-        findingSummary: `Found items over €5,000 without 3 independent supplier quotes logged (e.g., "${highValueWithout3Quotes[0].assetName}").`,
+        findingSummary: `Found items ≥ €1,000 without 3 independent supplier quotes logged (e.g., "${highValueWithout3Quotes[0].assetName}").`,
         assessorRuleDescription:
-          'LEO financial committees automatically disqualify items exceeding €5,000 unless 3 comparable supplier quotations are submitted with the form.',
+          'Irish LEO financial committees disqualify vouched items ≥ €1,000 unless 3 comparable written supplier quotations are submitted with the form.',
         remedyActionLabel: 'Add Quotes in Module E',
       });
     } else {
@@ -667,8 +675,12 @@ export function evaluatePlanGrantCheckpoints(
   // 8. CUSTOMER VALIDATION & PROOF POINTS
   // -------------------------------------------------------------
   const surveys = modC?.surveys || [];
+  const realSurveyResponsesCount = surveys.reduce(
+    (sum, s) => sum + (s.responses?.filter((r) => !r.isSimulated).length || 0),
+    0
+  );
   const interviewLogs = modC?.interviewLogs || [];
-  const hasValidationProof = surveys.length > 0 || interviewLogs.length > 0;
+  const hasValidationProof = realSurveyResponsesCount > 0 || interviewLogs.length > 0;
 
   if (hasValidationProof) {
     checkpoints.push({

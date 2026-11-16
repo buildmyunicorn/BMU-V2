@@ -146,7 +146,7 @@ export function buildLetterOfIntentStandaloneHtmlDocument(
       box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     }
     .print-btn {
-      background: #4f46e5;
+      background: #047857;
       color: #ffffff;
       border: none;
       padding: 8px 18px;
@@ -159,7 +159,7 @@ export function buildLetterOfIntentStandaloneHtmlDocument(
       gap: 6px;
     }
     .print-btn:hover {
-      background: #4338ca;
+      background: #065f46;
     }
     .page {
       max-width: 820px;
@@ -171,7 +171,7 @@ export function buildLetterOfIntentStandaloneHtmlDocument(
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     }
     .header {
-      border-bottom: 2px solid #4f46e5;
+      border-bottom: 2px solid #047857;
       padding-bottom: 20px;
       margin-bottom: 28px;
     }
@@ -180,7 +180,7 @@ export function buildLetterOfIntentStandaloneHtmlDocument(
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #4f46e5;
+      color: #047857;
       margin-bottom: 6px;
     }
     h1 {
@@ -239,17 +239,17 @@ export function buildLetterOfIntentStandaloneHtmlDocument(
       margin-bottom: 6px;
     }
     .highlight-card {
-      background: #eef2ff;
-      border-left: 4px solid #4f46e5;
+      background: #ecfdf5;
+      border-left: 4px solid #047857;
       padding: 12px 16px;
       border-radius: 0 8px 8px 0;
       margin: 12px 0;
       font-size: 13.5px;
-      color: #1e1b4b;
+      color: #0f172a;
       font-weight: 500;
     }
     .highlight-card strong {
-      color: #3730a3;
+      color: #065f46;
       display: block;
       font-size: 11px;
       text-transform: uppercase;

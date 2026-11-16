@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   FileText,
-  Sparkles,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
@@ -22,10 +21,12 @@ import {
   Layers,
   Save,
   SlidersHorizontal,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   ModuleLStep3NarrativeCompilerSavedData,
@@ -33,6 +34,11 @@ import type {
   ModuleLCompilerModeType,
 } from '@/lib/auth/session-store';
 import { generateModuleLStep3SectionAction } from '@/app/actions/module-l';
+import {
+  buildGroundedPlanFactPackString,
+  extractMasterDocumentVerifiedFacts,
+} from '@/lib/export/master-document-brief';
+import { formatModuleCodeShortLabel } from '@/lib/export/enum-labels';
 
 interface ModuleLNarrativeCompilerStepProps {
   plan: ActiveStartupPlan;
@@ -94,8 +100,28 @@ export function ModuleLNarrativeCompilerStep({
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
   const [expandedSectionIds, setExpandedSectionIds] = useState<string[]>(['sec-1', 'sec-2']);
 
-  // Built-in templates based on active compiler mode
+  // Built-in templates grounded in verified plan facts based on active compiler mode
   const defaultSectionsForMode = useMemo<ModuleLCompiledSectionItem[]>(() => {
+    const f = extractMasterDocumentVerifiedFacts(plan);
+    const promoterIntro =
+      f.teamMemberSummaries.length > 0
+        ? `${plan.title} is led by ${f.teamMemberSummaries.map((m) => `${m.name} (${m.roleTitle})`).join(', ')}.`
+        : `${plan.title} is led by ${f.founderName} in the ${plan.industryCategory || 'commercial'} sector.`;
+    const validationSentence =
+      f.realSurveyResponses > 0 || f.interviewsCount > 0
+        ? `Primary customer discovery includes ${f.realSurveyResponses} survey response(s) across ${f.surveysCount} survey(s) and ${f.interviewsCount} logged 1-on-1 interview(s)${f.surveyHeadlineInsight ? ` (${f.surveyHeadlineInsight})` : ''}.`
+        : `Customer discovery surveys and 1-on-1 interviews are structured in Module C to empirically validate willingness-to-pay prior to scale.`;
+    const marketSentence = f.beachheadSegment
+      ? `The priority beachhead segment is ${f.beachheadSegment}${f.somFormatted ? `, targeting an initial Serviceable Obtainable Market (SOM) of ${f.somFormatted}/yr` : ''}${f.samFormatted ? ` within a ${f.samFormatted}/yr reachable market` : ''}.`
+      : `Beachhead customer segmentation and bottom-up TAM/SAM/SOM sizing are structured in Module B across ${f.exportScopeLabel}.`;
+    const productSentence = f.proposedSolution
+      ? `${plan.title} delivers: ${f.proposedSolution}`
+      : `${plan.title} delivers a focused V1 solution${f.formFactorLabel ? ` (${f.formFactorLabel})` : ''} built to solve ${f.coreProblem || 'core customer workflow friction'}.`;
+    const hiringSentence =
+      f.plannedHiresCount > 0
+        ? `The 3-year employment roadmap schedules ${f.plannedHiresCount} planned hire(s) (${f.plannedHiresSummaries.map((h) => `${h.roleTitle} in ${h.targetQuarter}`).join(', ')}), budgeted with statutory ${isUK ? 'Employer NIC (13.8%) and Workplace Pension (3%)' : 'Employer PRSI (11.15%)'}.`
+        : `Year 1 operates lean and founder-led (${f.hatsAssignedCount}/7 operational roles assigned), expanding headcount as recurring revenue milestones are unlocked with full statutory ${isUK ? 'Employer NIC and Pension' : 'Employer PRSI (11.15%)'} provisions.`;
+
     if (compilerMode === 'IE_LEO_OFFICIAL_FORM') {
       return [
         {
@@ -104,10 +130,10 @@ export function ModuleLNarrativeCompilerStep({
           title: 'Promoter Background & Track Record',
           assessorQuestionPrompt:
             'Describe the relevant background, technical and commercial skills of the promoter(s) to execute this enterprise. Detail past management track record and domain expertise.',
-          scoringWeightPercent: 25,
+          scoringWeightPercent: 15,
           wordLimit: 400,
           sourceModules: ['MOD_A_IDEATION', 'MOD_F_COFOUNDER_TEAM'],
-          compiledResponseText: `${plan.title} is led by promoters with relevant domain background in the ${plan.industryCategory || 'commercial'} sector. Supported by the 7 Startup Hats division of responsibility and explicit skills matrix, the team brings direct domain competence across product engineering, sales execution, and statutory governance.`,
+          compiledResponseText: `${promoterIntro} Operational ownership spans ${f.hatsAssignedCount}/7 functional startup roles${f.unfairAdvantage ? `, reinforced by domain advantage: ${f.unfairAdvantage}` : ''}.`,
         },
         {
           id: 'sec-2',
@@ -115,10 +141,10 @@ export function ModuleLNarrativeCompilerStep({
           title: 'Product / Service Innovation & Technical Merit',
           assessorQuestionPrompt:
             'Detail the innovation, technical merit, and proprietary nature of the product/service. Explain why this solution is superior to incumbent alternatives.',
-          scoringWeightPercent: 20,
+          scoringWeightPercent: 15,
           wordLimit: 450,
           sourceModules: ['MOD_D_PRODUCT_BUILD'],
-          compiledResponseText: `The enterprise delivers an innovative solution built upon modern technical architecture. Unlike existing market alternatives that rely on fragmented manual workflows, ${plan.title} introduces structured automation and proprietary workflows that deliver measurable cost and time efficiencies.`,
+          compiledResponseText: `${productSentence}${f.workPackagesCount > 0 ? ` Delivery is structured across ${f.workPackagesCount} defined work package(s) (${currencySymbol}${f.totalWorkPackagesCost.toLocaleString()}).` : ''}`,
         },
         {
           id: 'sec-3',
@@ -126,10 +152,10 @@ export function ModuleLNarrativeCompilerStep({
           title: 'Market Sizing, Export Potential & Non-Displacement Defense',
           assessorQuestionPrompt:
             'Quantify the target addressable market (TAM/SAM/SOM). Detail international export potential or import substitution, and substantiate zero displacement of domestic competitors.',
-          scoringWeightPercent: 30,
+          scoringWeightPercent: 20,
           wordLimit: 450,
           sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
-          compiledResponseText: `Targeting an international beachhead segment, the enterprise addresses a validated market opportunity. Because sales are driven through borderless digital channels and international export expansion, the project satisfies Enterprise Ireland / LEO criteria with confirmed commercial additionality and zero domestic displacement.`,
+          compiledResponseText: `${marketSentence} Market scope (${f.exportScopeLabel}) is structured to generate net commercial additionality rather than displacing existing local operators.`,
         },
         {
           id: 'sec-4',
@@ -137,10 +163,10 @@ export function ModuleLNarrativeCompilerStep({
           title: 'Primary Customer Validation & Mom-Test Evidence',
           assessorQuestionPrompt:
             'Provide verifiable evidence of customer willingness to pay. Summarize customer discovery interviews, survey responses, waitlist pull, and pilot commitments.',
-          scoringWeightPercent: 25,
+          scoringWeightPercent: 15,
           wordLimit: 400,
           sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_H_REVENUE'],
-          compiledResponseText: `Empirical customer validation was conducted across target buyers utilizing Mom-Test bias-free methodologies. Customer surveys and discovery logs substantiate strong demand, with willingness-to-pay tiers aligning directly with our commercial pricing structure.`,
+          compiledResponseText: `${validationSentence}${f.blendedAveragePriceNet > 0 ? ` Commercial pricing is set at ${currencySymbol}${f.blendedAveragePriceNet.toLocaleString()} net (${f.revenueModelVehicleLabel || 'direct pricing'}).` : ''}`,
         },
         {
           id: 'sec-5',
@@ -148,10 +174,10 @@ export function ModuleLNarrativeCompilerStep({
           title: 'Operations, 3-Quote Procurement & Risk Controls',
           assessorQuestionPrompt:
             'Outline day-to-day operational mechanics, facilities, equipment schedule, and risk mitigation register. Confirm compliance with statutory procurement and 3-quote rules.',
-          scoringWeightPercent: 20,
+          scoringWeightPercent: 10,
           wordLimit: 400,
           sourceModules: ['MOD_E_OPERATIONS', 'MOD_G_LAUNCHPAD'],
-          compiledResponseText: `Operations follow standard operating protocols with dedicated risk register controls across technical, commercial, statutory, and cashflow categories. Capital expenditures conform strictly to LEO procurement guidelines, backed by 3 independent competitive quotes for major items.`,
+          compiledResponseText: `Operations run via ${f.premisesModeLabel || 'a lean operating setup'} (${currencySymbol}${f.monthlyPremisesCost.toLocaleString()}/mo premises overhead) with ${f.equipmentItemsCount} scheduled capital item(s) (${currencySymbol}${f.totalEquipmentCapexExVat.toLocaleString()} ex-VAT) and ${f.riskItemsCount} tracked risk register controls. Capital items >= €1,000 follow Irish LEO 3-quote procurement rules with zero general laptop grant claims.`,
         },
         {
           id: 'sec-6',
@@ -159,10 +185,10 @@ export function ModuleLNarrativeCompilerStep({
           title: '3-Year Job Creation Schedule & Salary Plan',
           assessorQuestionPrompt:
             'Schedule net new sustainable full-time jobs created across Years 1, 2, and 3. Provide average salary benchmarks and statutory employer tax allowances.',
-          scoringWeightPercent: 25,
+          scoringWeightPercent: 10,
           wordLimit: 350,
           sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_J_FINANCE'],
-          compiledResponseText: `The venture projects net new full-time employment creation across Years 1 to 3, supporting regional and national high-value employment. Salaries are benchmarked against industry standards with full statutory Employer PRSI (11.15%) budgeted.`,
+          compiledResponseText: hiringSentence,
         },
         {
           id: 'sec-7',
@@ -170,10 +196,10 @@ export function ModuleLNarrativeCompilerStep({
           title: '36-Month Financial Projections & Vouched Grant Ask',
           assessorQuestionPrompt:
             'Summarize Year 1–3 Profit & Loss, monthly cashflow trough, and exact utilization of requested grant funding. Detail matching funding source.',
-          scoringWeightPercent: 30,
+          scoringWeightPercent: 15,
           wordLimit: 400,
           sourceModules: ['MOD_H_REVENUE', 'MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
-          compiledResponseText: `Financial forecasts demonstrate a clear path to profitability with working capital provisions designed to withstand public grant claims lag. The requested funding directly accelerates export-ready product delivery and job creation, matched 50% by confirmed founder equity.`,
+          compiledResponseText: `36-month financials model ${currencySymbol}${f.monthlyFixedOverheadsTotal.toLocaleString()}/mo in fixed overheads${f.year1ProjectedNetTurnover > 0 ? ` and ${currencySymbol}${f.year1ProjectedNetTurnover.toLocaleString()} in projected Year 1 net turnover (${f.year1TargetCustomers} breakeven customer target)` : ''}.${f.skinInTheGameCash > 0 ? ` Founder matching cash of ${currencySymbol}${f.skinInTheGameCash.toLocaleString()} (${f.skinInTheGamePercent}%) cushions public grant in-arrears reimbursement timing.` : ''}`,
         },
       ];
     }
@@ -189,7 +215,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 11,
           wordLimit: 400,
           sourceModules: ['MOD_A_IDEATION', 'MOD_C_SURVEYS_FEEDBACK'],
-          compiledResponseText: `The project resolves a critical market challenge in the ${plan.industryCategory || 'technology'} domain where incumbent solutions create friction, excessive operational overhead, and unaddressed latency for customers.`,
+          compiledResponseText: `${plan.title} addresses ${f.coreProblem || `a validated operational bottleneck in the ${plan.industryCategory || 'commercial'} sector`}. ${validationSentence}`,
         },
         {
           id: 'sec-q2',
@@ -200,7 +226,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 12,
           wordLimit: 400,
           sourceModules: ['MOD_B_MARKET', 'MOD_D_PRODUCT_BUILD'],
-          compiledResponseText: `Our approach introduces a technical step-change over state-of-the-art incumbents, structuring core operational steps into an integrated, repeatable architecture with clear intellectual property defensibility.`,
+          compiledResponseText: `${productSentence}${f.unfairAdvantage ? ` Our defensible advantage over incumbent alternatives is: ${f.unfairAdvantage}.` : ''}`,
         },
         {
           id: 'sec-q3',
@@ -211,7 +237,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 11,
           wordLimit: 400,
           sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_G_LAUNCHPAD'],
-          compiledResponseText: `The team brings verified execution capability spanning technical development, commercial distribution, and governance. Core competencies are distributed across the 7 Startup Hats with advisory support in place.`,
+          compiledResponseText: `${promoterIntro} Core operational execution is mapped across ${f.hatsAssignedCount}/7 Startup Hats. ${hiringSentence}`,
         },
         {
           id: 'sec-q4',
@@ -222,7 +248,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 11,
           wordLimit: 400,
           sourceModules: ['MOD_B_MARKET', 'MOD_I_MARKETING'],
-          compiledResponseText: `Market sizing confirms substantial TAM across domestic and export territories. Route-to-market is structured through targeted digital acquisition, channel partnerships, and direct customer outreach.`,
+          compiledResponseText: `${marketSentence}${f.blendedAveragePriceNet > 0 ? ` Commercial exploitation prices the solution at ${currencySymbol}${f.blendedAveragePriceNet.toLocaleString()} net (${f.revenueModelVehicleLabel || 'direct sales'}).` : ''}`,
         },
         {
           id: 'sec-q5',
@@ -233,7 +259,10 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 12,
           wordLimit: 400,
           sourceModules: ['MOD_D_PRODUCT_BUILD', 'MOD_E_OPERATIONS'],
-          compiledResponseText: `Project execution is organized into defined Work Packages (WP1: Specification & Architecture, WP2: Core Engineering, WP3: Integration & Testing, WP4: Commercial Pilot Deployment) with clear milestone gates.`,
+          compiledResponseText:
+            f.workPackagesCount > 0
+              ? `Delivery is structured across ${f.workPackagesCount} defined Work Package(s) totaling ${currencySymbol}${f.totalWorkPackagesCost.toLocaleString()}, with milestone-gated deliverables and clear technical ownership.`
+              : `Project execution is organized into milestone-gated Work Packages (WP1: Specification & Architecture, WP2: Core Build, WP3: Integration & QA, WP4: Commercial Pilot Deployment).`,
         },
         {
           id: 'sec-q6',
@@ -244,7 +273,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 11,
           wordLimit: 400,
           sourceModules: ['MOD_E_OPERATIONS'],
-          compiledResponseText: `Risk management is governed by a 4-category register addressing Technical failure, Commercial adoption lag, Operational key-person dependency, and Statutory compliance, each linked to pre-planned mitigation triggers.`,
+          compiledResponseText: `Risk management is governed by a formal 4-category register (${f.riskItemsCount} tracked risk control(s) in Module E) covering Technical, Commercial, Operational, and Regulatory contingencies.`,
         },
         {
           id: 'sec-q7',
@@ -255,7 +284,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 11,
           wordLimit: 400,
           sourceModules: ['MOD_K_GRANTS_FUNDING', 'MOD_L_BUSINESS_PLAN'],
-          compiledResponseText: `Innovate UK support delivers undeniable additionality. Without public funding, the project would face an extended R&D cycle with reduced commercial scope; grant approval compresses time-to-market by 12 months.`,
+          compiledResponseText: `Non-dilutive R&D co-funding accelerates technical de-risking and pilot validation${f.skinInTheGameCash > 0 ? `, alongside ${currencySymbol}${f.skinInTheGameCash.toLocaleString()} (${f.skinInTheGamePercent}%) in committed match funding` : ''}, compressing time-to-market relative to bootstrapped organic cashflow.`,
         },
         {
           id: 'sec-q8',
@@ -266,7 +295,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 11,
           wordLimit: 400,
           sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_K_GRANTS_FUNDING'],
-          compiledResponseText: `Commercial deployment drives high-value UK employment, boosts domestic productivity, and generates taxable corporate and payroll revenues, creating a high return on public capital investment.`,
+          compiledResponseText: `${hiringSentence} Commercial rollout drives domestic productivity across ${f.exportScopeLabel}.`,
         },
         {
           id: 'sec-q9',
@@ -277,7 +306,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 10,
           wordLimit: 400,
           sourceModules: ['MOD_E_OPERATIONS', 'MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
-          compiledResponseText: `Project costs reflect prudent, market-benchmarked allocations. Subcontractor and staff days are directly tied to Work Package deliverables with verified capital depreciation applied.`,
+          compiledResponseText: `Project budgets reflect lean market benchmarks: ${currencySymbol}${f.monthlyFixedOverheadsTotal.toLocaleString()}/mo fixed operating overheads and ${currencySymbol}${f.totalEquipmentCapexExVat.toLocaleString()} ex-VAT in scheduled capital assets (${f.equipmentItemsCount} item(s)) with eligible R&D usage depreciation applied.`,
         },
       ];
     }
@@ -293,7 +322,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 500,
           sourceModules: ['MOD_A_IDEATION', 'MOD_F_COFOUNDER_TEAM', 'MOD_G_LAUNCHPAD'],
-          compiledResponseText: `${plan.title} is an active commercial enterprise established with official Companies House registration and dedicated business banking. The founding team brings direct sector experience ensuring robust commercial execution.`,
+          compiledResponseText: `${promoterIntro} ${productSentence} Operational readiness stands at ${f.opsReadinessPercent}% across Module G Launchpad pillars.`,
         },
         {
           id: 'sec-sul-2',
@@ -304,7 +333,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 500,
           sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_H_REVENUE', 'MOD_I_MARKETING'],
-          compiledResponseText: `Customer demand has been validated through structured discovery. Commercial pricing ensures healthy gross margins, while our First 10 Customers Playbook targets qualified prospects through direct outreach and warm network conversions.`,
+          compiledResponseText: `${validationSentence} ${marketSentence}${f.blendedAveragePriceNet > 0 ? ` Net average selling price is calibrated at ${currencySymbol}${f.blendedAveragePriceNet.toLocaleString()}.` : ''}`,
         },
         {
           id: 'sec-sul-3',
@@ -315,7 +344,10 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 450,
           sourceModules: ['MOD_F_COFOUNDER_TEAM'],
-          compiledResponseText: `A comprehensive Personal Survival Budget confirms minimal essential drawings during early trading. Household overheads are fully covered, guaranteeing that debt service of the Start Up Loan is insulated.`,
+          compiledResponseText:
+            f.monthlyNetSurvivalBurnTotal > 0
+              ? `Module F records a verified Personal Survival Budget requiring ${currencySymbol}${f.monthlyNetSurvivalBurnTotal.toLocaleString()}/mo in net founder drawings, ensuring household essentials and loan repayments remain insulated during ramp-up.`
+              : `Personal household drawings are kept lean during early trading and tracked in Module F Step 3 so monthly Start Up Loan repayments remain comfortably serviceable.`,
         },
         {
           id: 'sec-sul-4',
@@ -326,7 +358,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 500,
           sourceModules: ['MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
-          compiledResponseText: `Conservative cashflow projections show robust headroom with Debt Service Coverage Ratio comfortably exceeding underwriter benchmarks (DSCR ≥ 1.35x), providing substantial safety margins against trading variance.`,
+          compiledResponseText: `36-month financials model ${currencySymbol}${f.monthlyFixedOverheadsTotal.toLocaleString()}/mo in fixed overheads${f.year1ProjectedNetTurnover > 0 ? ` against ${currencySymbol}${f.year1ProjectedNetTurnover.toLocaleString()} in projected Year 1 net turnover` : ''}, maintaining conservative cashflow buffers for monthly debt service.`,
         },
       ];
     }
@@ -342,7 +374,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 450,
           sourceModules: ['MOD_A_IDEATION', 'MOD_G_LAUNCHPAD', 'MOD_K_GRANTS_FUNDING'],
-          compiledResponseText: `${plan.title} operates a qualifying commercial trade with permanent corporate establishment. The venture engages in active, non-excluded commercial activities satisfying all statutory advance assurance requirements.`,
+          compiledResponseText: `${promoterIntro} ${productSentence} Operational setup (${f.opsReadinessPercent}% Launchpad readiness) is structured as a qualifying active trade free from statutory excluded activities.`,
         },
         {
           id: 'sec-inv-2',
@@ -353,7 +385,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 450,
           sourceModules: ['MOD_K_GRANTS_FUNDING', 'MOD_L_BUSINESS_PLAN'],
-          compiledResponseText: `The enterprise satisfies the statutory Risk-to-Capital condition: raised capital is deployed directly into hiring, product development, and market penetration with long-term growth objectives rather than capital preservation.`,
+          compiledResponseText: `The enterprise satisfies the statutory Risk-to-Capital condition: raised funds are deployed directly into product engineering, customer acquisition, and team growth (${hiringSentence}) rather than capital preservation.`,
         },
         {
           id: 'sec-inv-3',
@@ -364,7 +396,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 500,
           sourceModules: ['MOD_B_MARKET', 'MOD_H_REVENUE', 'MOD_J_FINANCE'],
-          compiledResponseText: `Our competitive wedge unlocks rapid adoption with healthy unit economics. Seed capital will be allocated across engineering milestones, key talent recruitment, and customer acquisition to achieve cashflow breakeven.`,
+          compiledResponseText: `${marketSentence} ${validationSentence}${f.blendedAveragePriceNet > 0 ? ` Pricing is structured at ${currencySymbol}${f.blendedAveragePriceNet.toLocaleString()} net with ${currencySymbol}${f.monthlyFixedOverheadsTotal.toLocaleString()}/mo in baseline fixed overheads.` : ''}`,
         },
         {
           id: 'sec-inv-4',
@@ -375,7 +407,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: 25,
           wordLimit: 450,
           sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_K_GRANTS_FUNDING'],
-          compiledResponseText: `The founding cap table features standard 4-year vesting with 1-year cliffs. The team combines deep technical and domain execution capabilities targeting strategic acquisition or international scale.`,
+          compiledResponseText: `${promoterIntro} ${hiringSentence}`,
         },
       ];
     }
@@ -391,7 +423,7 @@ export function ModuleLNarrativeCompilerStep({
         scoringWeightPercent: 20,
         wordLimit: 400,
         sourceModules: ['MOD_A_IDEATION', 'MOD_K_GRANTS_FUNDING'],
-        compiledResponseText: `${plan.title} addresses critical customer pain points within the ${plan.industryCategory || 'commercial'} sector through modern technical architecture, supported by empirical customer validation and seasoned leadership.`,
+        compiledResponseText: `${promoterIntro} ${productSentence} ${validationSentence}`,
       },
       {
         id: 'sec-std-2',
@@ -402,7 +434,7 @@ export function ModuleLNarrativeCompilerStep({
         scoringWeightPercent: 20,
         wordLimit: 450,
         sourceModules: ['MOD_B_MARKET', 'MOD_C_SURVEYS_FEEDBACK'],
-        compiledResponseText: `A clearly defined beachhead customer segment experiences significant operational inefficiency with existing options. Customer discovery telemetry confirms strong demand and rapid willingness to switch.`,
+        compiledResponseText: `${marketSentence} ${validationSentence}`,
       },
       {
         id: 'sec-std-3',
@@ -413,7 +445,7 @@ export function ModuleLNarrativeCompilerStep({
         scoringWeightPercent: 20,
         wordLimit: 450,
         sourceModules: ['MOD_D_PRODUCT_BUILD', 'MOD_B_MARKET'],
-        compiledResponseText: `The product architecture combines user-centric simplicity with robust back-end capabilities, establishing a sustainable competitive wedge that creates high switching barriers for competing solutions.`,
+        compiledResponseText: `${productSentence}${f.unfairAdvantage ? ` Defensible competitive edge: ${f.unfairAdvantage}.` : ''}`,
       },
       {
         id: 'sec-std-4',
@@ -424,7 +456,7 @@ export function ModuleLNarrativeCompilerStep({
         scoringWeightPercent: 20,
         wordLimit: 400,
         sourceModules: ['MOD_H_REVENUE', 'MOD_I_MARKETING'],
-        compiledResponseText: `Our commercial go-to-market strategy leverages digital acquisition, targeted industry partnerships, and high-conversion outbound engagement to achieve rapid customer adoption with scalable CAC payback.`,
+        compiledResponseText: `${f.blendedAveragePriceNet > 0 ? `Commercial pricing averages ${currencySymbol}${f.blendedAveragePriceNet.toLocaleString()} net (${f.revenueModelVehicleLabel || 'direct sales'}) targeting ${f.year1TargetCustomers || 'initial'} Year 1 customers.` : 'Commercial pricing and First 10 Customers acquisition channels are structured across Modules H and I.'}`,
       },
       {
         id: 'sec-std-5',
@@ -478,7 +510,7 @@ export function ModuleLNarrativeCompilerStep({
   const handleCompileSectionAi = async (section: ModuleLCompiledSectionItem) => {
     setCompilingSectionId(section.id);
     try {
-      const planContextSummary = `Title: ${plan.title}. Industry: ${plan.industryCategory}. HQ: ${plan.hqCountryCode}. One-Liner: ${plan.oneLinerSummary}. Export: ${plan.exportPotential}. Audit Score: ${plan.moduleLData?.step2Audit?.overallAuditScore ?? 88}/100. Defense: ${executiveHook}`;
+      const planContextSummary = buildGroundedPlanFactPackString(plan, executiveHook);
 
       const res = await generateModuleLStep3SectionAction({
         planId: plan.id,
@@ -493,7 +525,7 @@ export function ModuleLNarrativeCompilerStep({
         scoringWeightPercent: section.scoringWeightPercent,
         wordLimit: section.wordLimit,
         sourceModules: section.sourceModules,
-        currentResponseText: section.compiledResponseText,
+        currentResponseText: section.isCustomEdited ? section.compiledResponseText : '',
         planContextSummary,
       });
 
@@ -512,7 +544,7 @@ export function ModuleLNarrativeCompilerStep({
   const handleCompileAllSectionsAi = async () => {
     setIsCompilingAll(true);
     try {
-      const planContextSummary = `Title: ${plan.title}. Industry: ${plan.industryCategory}. HQ: ${plan.hqCountryCode}. One-Liner: ${plan.oneLinerSummary}. Export: ${plan.exportPotential}. Defense: ${executiveHook}`;
+      const planContextSummary = buildGroundedPlanFactPackString(plan, executiveHook);
 
       const updatedSections: ModuleLCompiledSectionItem[] = [];
       for (const section of sections) {
@@ -529,7 +561,7 @@ export function ModuleLNarrativeCompilerStep({
           scoringWeightPercent: section.scoringWeightPercent,
           wordLimit: section.wordLimit,
           sourceModules: section.sourceModules,
-          currentResponseText: section.compiledResponseText,
+          currentResponseText: section.isCustomEdited ? section.compiledResponseText : '',
           planContextSummary,
         });
 
@@ -672,8 +704,8 @@ export function ModuleLNarrativeCompilerStep({
             disabled={isCompilingAll || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-            {isCompilingAll ? 'Synthesizing All Sections...' : 'AI Re-Synthesize All Sections'}
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            {isCompilingAll ? 'Synthesizing All Sections...' : 'Synthesize All Sections from Evidence'}
           </Button>
         </div>
 
@@ -734,7 +766,7 @@ export function ModuleLNarrativeCompilerStep({
       {aiTip && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
           <div className="flex items-start gap-2.5">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <ShieldCheck className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed text-amber-900">
               <span className="font-bold">Assessor Scoring Guidance: </span>
               {aiTip}
@@ -781,7 +813,7 @@ export function ModuleLNarrativeCompilerStep({
           value={executiveHook}
           onChange={(e) => setExecutiveHook(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-base sm:text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter master executive statement..."
         />
       </div>
@@ -910,9 +942,9 @@ export function ModuleLNarrativeCompilerStep({
                                   onNavigateToModule(modCode as any);
                                 }
                               }}
-                              className="cursor-pointer border-slate-200 bg-slate-100 text-[9px] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
+                               className="cursor-pointer border-slate-200 bg-slate-100 text-[9px] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
                             >
-                              {modCode.replace('MOD_', '')}
+                              {formatModuleCodeShortLabel(modCode)}
                             </Badge>
                           ))}
                         </div>
@@ -960,8 +992,8 @@ export function ModuleLNarrativeCompilerStep({
                           disabled={isCompiling || isVaultReadonly}
                           className="h-6 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
                         >
-                          <Sparkles className="mr-1 h-3 w-3 text-emerald-700" />
-                          {isCompiling ? 'Polishing...' : 'AI Polish for Assessor'}
+                          <SlidersHorizontal className="mr-1 h-3 w-3 text-emerald-700" />
+                          {isCompiling ? 'Synthesizing...' : 'Synthesize from Plan Evidence'}
                         </Button>
                       </div>
                     </div>
@@ -971,7 +1003,7 @@ export function ModuleLNarrativeCompilerStep({
                       value={section.compiledResponseText}
                       onChange={(e) => updateSectionText(section.id, e.target.value)}
                       disabled={isVaultReadonly}
-                      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
+                      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base sm:text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                       placeholder="Write or refine the compiled answer for this section..."
                     />
 
@@ -979,7 +1011,7 @@ export function ModuleLNarrativeCompilerStep({
                       <p className="text-[11px] text-rose-600 flex items-center gap-1 font-medium">
                         <AlertTriangle className="h-3 w-3 shrink-0" />
                         Warning: This section is {wordCount - limit} words over the {limit}
-                        -word official limit. Trim text or use &apos;AI Polish for Assessor&apos; to condense.
+                        -word official limit. Trim text or use &apos;Synthesize from Plan Evidence&apos; to condense.
                       </p>
                     )}
                   </div>
@@ -1000,29 +1032,19 @@ export function ModuleLNarrativeCompilerStep({
           className="text-xs text-slate-700"
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          Back to Step 2 (Contradiction Audit)
+          Back to Step 1 (Compiler Mode)
         </Button>
 
-        <div className="flex items-center gap-2">
-          {onParkQuestionInSession && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const question = prompt(
-                  'Park an open question or assumption for your grant narrative:'
-                );
-                if (question && question.trim()) {
-                  onParkQuestionInSession(question.trim());
-                }
-              }}
-              className="text-xs text-slate-600 border-slate-200 hover:bg-slate-50"
-            >
-              <BookmarkPlus className="mr-1.5 h-3.5 w-3.5" />
-              Park an Open Question
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ParkOpenQuestionPopover
+            planId={plan.id}
+            moduleCode="MOD_L_BUSINESS_PLAN"
+            stepNumber={2}
+            suggestedQuestion="Double-check customer quote or commercial assumption in our drafted business plan sections."
+            onParkQuestion={onParkQuestionInSession}
+            disabled={isVaultReadonly}
+            align="end"
+          />
 
           <Button
             type="button"
@@ -1031,7 +1053,7 @@ export function ModuleLNarrativeCompilerStep({
             disabled={isSaving || isVaultReadonly}
             className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
           >
-            {isSaving ? 'Saving Sections...' : 'Save & Continue to Step 4'}
+            {isSaving ? 'Saving Sections...' : 'Save & Continue to Step 3 (Pre-Flight Audit)'}
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         </div>

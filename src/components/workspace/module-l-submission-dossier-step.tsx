@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   FileText,
-  Sparkles,
   Download,
   Printer,
   Copy,
@@ -24,10 +23,12 @@ import {
   ChevronDown,
   ChevronUp,
   FileCheck2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   ModuleLStep5SubmissionBriefSavedData,
@@ -35,6 +36,8 @@ import type {
 } from '@/lib/auth/session-store';
 import { generateModuleLStep5DossierAction } from '@/app/actions/module-l';
 import { buildModuleLStandaloneHtmlDocument } from '@/lib/export/module-l-brief';
+import { extractMasterDocumentVerifiedFacts } from '@/lib/export/master-document-brief';
+import { formatCompilerModeLabel, humanizeEnumFallback } from '@/lib/export/enum-labels';
 
 interface ModuleLSubmissionDossierStepProps {
   plan: ActiveStartupPlan;
@@ -85,13 +88,27 @@ export function ModuleLSubmissionDossierStep({
         ? 'UK_INNOVATE_UK_9Q'
         : 'STANDARD_COMMERCIAL_PLAN');
 
+  const compilerModeLabel = formatCompilerModeLabel(
+    compilerMode,
+    plan.moduleLData?.step1Mode?.otherCompilerModeText
+  );
+  const isCommercialPlan = compilerMode === 'STANDARD_COMMERCIAL_PLAN';
+  const verifiedFacts = useMemo(() => extractMasterDocumentVerifiedFacts(plan), [plan]);
+
   const targetAgency =
     plan.moduleLData?.step1Mode?.targetAgencyOrCommitteeName ||
-    (isUK ? 'Innovate UK / British Business Bank' : 'Local Enterprise Office (LEO)');
+    (isCommercialPlan
+      ? 'Commercial Lenders, Partners & Stakeholders'
+      : isUK
+        ? 'Innovate UK / British Business Bank'
+        : 'Local Enterprise Office (LEO)');
 
   const targetAskAmount = plan.moduleLData?.step1Mode?.targetFundingAskAmount || 50000;
   const sections = plan.moduleLData?.step3Compiler?.sections || [];
   const appendices = plan.moduleLData?.step4Appendices?.appendices || [];
+  const isDeclarationConfirmed = Boolean(
+    plan.moduleLData?.step4Appendices?.declarationConfirmed
+  );
   const savedBrief = plan.moduleLData?.step5DossierBrief;
 
   // 4-Layer Support Strip States
@@ -112,25 +129,32 @@ export function ModuleLSubmissionDossierStep({
 
   // Default checklist items
   const defaultChecklist = [
-    `All ${sections.length > 0 ? sections.length : 7} official narrative questions compiled within mandated word limits.`,
-    `Confirmed matching funding (${currencySymbol}${(targetAskAmount * (isUK ? 0.3 : 0.5)).toLocaleString()}) verified in unencumbered account.`,
-    `Mandatory Appendices A through F attached and cross-referenced to operational data.`,
+    `All ${sections.length > 0 ? sections.length : 5} official narrative sections compiled within target word limits.`,
+    isCommercialPlan
+      ? `Opening cash balance and working-capital reserves reconciled against 36-month cashflow forecasts.`
+      : `Matching founder contribution (${currencySymbol}${Math.round(targetAskAmount * (isUK ? 0.3 : 0.5)).toLocaleString()}) verified in unencumbered business banking.`,
+    `Supporting Appendices A through F reviewed and cross-referenced to source operational data.`,
     isUK
-      ? 'Work Packages WP1..n and asset depreciation schedules match financial tables.'
-      : '3 independent supplier quotes ready for capital items over €5,000.',
-    'Statutory submission declaration formally signed off by corporate officer.',
+      ? 'Work Packages WP1..n and asset depreciation schedules match 36-month financial tables.'
+      : '3 independent written supplier quotes prepared for capital items of €1,000 or more.',
+    'Submission declaration formally confirmed and signed by an authorized company officer.',
   ];
 
   const defaultSummary =
-    `"${plan.title}" represents an evidence-backed, institutional-grade commercial submission formatted for ${compilerMode}. Supported by empirical customer discovery telemetry from Module C, robust unit economics from Module H, and verified statutory compliance across employer payroll burdens and 3-quote procurement schedules, the venture substantiates clear commercial additionality with zero domestic displacement.`;
+    `"${plan.title}" is an evidence-backed submission formatted for ${compilerModeLabel} (${targetAgency}). Cross-module checks reconcile unit pricing, ${isUK ? 'Employer NIC & Pension' : 'Employer PRSI'} payroll provisions, operational fulfillment, and capital requirements into a single coherent dossier.`;
 
   const [dossierSummary, setDossierSummary] = useState<string>(
-    savedBrief?.executiveDossierSummary || defaultSummary
+    savedBrief?.executiveDossierSummary
+      ? savedBrief.executiveDossierSummary.replace(
+          /IE_LEO_OFFICIAL_FORM|UK_INNOVATE_UK_9Q|UK_START_UP_LOANS_WORKBOOK|INVESTOR_SEIS_EIS_EII_PACK|STANDARD_COMMERCIAL_PLAN/g,
+          (m) => formatCompilerModeLabel(m)
+        )
+      : defaultSummary
   );
 
   const [readinessScore, setReadinessScore] = useState<number>(
     savedBrief?.committeeReadinessScore ??
-      Math.max(90, plan.moduleLData?.step2Audit?.overallAuditScore ?? 94)
+      (plan.moduleLData?.step2Audit?.overallAuditScore ?? 78)
   );
 
   const [checklist, setChecklist] = useState<string[]>(
@@ -147,11 +171,11 @@ export function ModuleLSubmissionDossierStep({
   );
 
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({
-    0: true,
-    1: true,
-    2: true,
-    3: true,
-    4: true,
+    0: sections.length > 0,
+    1: verifiedFacts.hasModuleJ || verifiedFacts.hasModuleK,
+    2: appendices.some((a) => a.readinessStatus === 'VERIFIED_READY'),
+    3: verifiedFacts.hasModuleE,
+    4: isDeclarationConfirmed,
   });
 
   const toggleChecklistItem = (idx: number) => {
@@ -248,7 +272,12 @@ export function ModuleLSubmissionDossierStep({
   const handleDownloadHtml = () => {
     const html = buildModuleLStandaloneHtmlDocument({
       planTitle: plan.title,
-      founderName: plan.teamAndBudget?.teamStructureType ? 'Founding Team' : 'Lead Founder',
+      founderName:
+        verifiedFacts.founderName && verifiedFacts.founderName !== 'Founder'
+          ? verifiedFacts.founderName
+          : plan.teamAndBudget?.teamStructureType === 'COFOUNDER_TEAM'
+            ? 'Founding Team'
+            : 'Lead Founder',
       industryCategory: plan.industryCategory || 'Startup Venture',
       hqCountryCode: plan.hqCountryCode || 'IE',
       baseCurrency: plan.baseCurrency || 'EUR',
@@ -279,7 +308,12 @@ export function ModuleLSubmissionDossierStep({
   const handlePrintPdf = () => {
     const html = buildModuleLStandaloneHtmlDocument({
       planTitle: plan.title,
-      founderName: 'Lead Founder',
+      founderName:
+        verifiedFacts.founderName && verifiedFacts.founderName !== 'Founder'
+          ? verifiedFacts.founderName
+          : plan.teamAndBudget?.teamStructureType === 'COFOUNDER_TEAM'
+            ? 'Founding Team'
+            : 'Lead Founder',
       industryCategory: plan.industryCategory || 'Startup Venture',
       hqCountryCode: plan.hqCountryCode || 'IE',
       baseCurrency: plan.baseCurrency || 'EUR',
@@ -310,8 +344,8 @@ export function ModuleLSubmissionDossierStep({
   const handleCopyText = () => {
     const lines: string[] = [];
     lines.push(`================================================================`);
-    lines.push(`OFFICIAL BUSINESS PLAN & GRANT SUBMISSION: ${plan.title.toUpperCase()}`);
-    lines.push(`Target Reviewer: ${targetAgency} | Mode: ${compilerMode}`);
+    lines.push(`OFFICIAL BUSINESS PLAN & SUBMISSION DOSSIER: ${plan.title.toUpperCase()}`);
+    lines.push(`Target Reviewer: ${targetAgency} | Format: ${compilerModeLabel}`);
     lines.push(`Pre-Flight Clearance Score: ${readinessScore}/100`);
     lines.push(`================================================================\n`);
 
@@ -379,8 +413,8 @@ export function ModuleLSubmissionDossierStep({
             disabled={isAuditingAi || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-            {isAuditingAi ? 'Auditing Final Dossier...' : 'AI Re-Calibrate Dossier'}
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            {isAuditingAi ? 'Calibrating Final Dossier...' : 'Calibrate Final Dossier'}
           </Button>
         </div>
 
@@ -477,10 +511,12 @@ export function ModuleLSubmissionDossierStep({
               </Badge>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-              Official Grant &amp; Business Plan Submission Dossier
+              {isCommercialPlan
+                ? 'Official Business Plan Dossier'
+                : 'Official Grant & Business Plan Submission Dossier'}
             </h2>
             <p className="text-xs text-slate-300/90 leading-relaxed">
-              Synthesized from across all 12 modules into the official {compilerMode.replace(/_/g, ' ')} structure.
+              Synthesized across your workspace modules into the {compilerModeLabel} structure.
             </p>
           </div>
 
@@ -488,38 +524,50 @@ export function ModuleLSubmissionDossierStep({
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300">
               Pre-Flight Clearance
             </span>
-            <div className="text-3xl font-extrabold text-emerald-400 my-0.5">
+            <div className="text-3xl font-extrabold text-emerald-400 my-0.5 font-mono tabular-nums">
               {readinessScore}%
             </div>
             <span className="text-[10px] text-emerald-200 font-medium">
-              Committee Ready
+              {readinessScore >= 80 ? 'Committee Ready' : 'Review Open Checks'}
             </span>
           </div>
         </div>
 
         {/* 4-Pillar Diagnostics Grid */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-200 pt-4">
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-200/20 pt-4">
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-slate-300 font-medium">Questions Answered</div>
-            <div className="text-base font-bold text-white mt-0.5">{sections.length} Sections</div>
-            <div className="text-[10px] text-slate-300/80">{totalWords} words</div>
+            <div className="text-[10px] text-slate-300 font-medium">Sections Compiled</div>
+            <div className="text-base font-bold text-white mt-0.5 font-mono tabular-nums">{sections.length} Sections</div>
+            <div className="text-[10px] text-slate-300/80 font-mono tabular-nums">{totalWords} words</div>
           </div>
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-slate-300 font-medium">Funding Target</div>
-            <div className="text-base font-bold text-emerald-300 mt-0.5">
+            <div className="text-[10px] text-slate-300 font-medium">
+              {isCommercialPlan ? 'Capital Requirement' : 'Funding Target'}
+            </div>
+            <div className="text-base font-bold text-emerald-300 mt-0.5 font-mono tabular-nums">
               {currencySymbol}{targetAskAmount.toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-300/80">Matched {isUK ? '70%' : '50%'}</div>
+            <div className="text-[10px] text-slate-300/80">
+              {isCommercialPlan ? 'Commercial financing' : `Co-funded (${isUK ? 'up to 70%' : '50% match'})`}
+            </div>
           </div>
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
             <div className="text-[10px] text-slate-300 font-medium">Appendices Attached</div>
-            <div className="text-base font-bold text-white mt-0.5">{appendices.length} Attached</div>
-            <div className="text-[10px] text-slate-300/80">Apps A through F</div>
+            <div className="text-base font-bold text-white mt-0.5 font-mono tabular-nums">{appendices.length} Attached</div>
+            <div className="text-[10px] text-slate-300/80">Appendices A–F</div>
           </div>
           <div className="rounded-lg bg-white/5 p-2.5 border border-white/10">
-            <div className="text-[10px] text-slate-300 font-medium">Statutory Sign-Off</div>
-            <div className="text-base font-bold text-emerald-300 mt-0.5">Certified</div>
-            <div className="text-[10px] text-slate-300/80">Declaration Confirmed</div>
+            <div className="text-[10px] text-slate-300 font-medium">Sign-Off Status</div>
+            <div
+              className={`text-base font-bold mt-0.5 ${
+                isDeclarationConfirmed ? 'text-emerald-300' : 'text-amber-300'
+              }`}
+            >
+              {isDeclarationConfirmed ? 'Certified' : 'Pending'}
+            </div>
+            <div className="text-[10px] text-slate-300/80">
+              {isDeclarationConfirmed ? 'Declaration Confirmed' : 'Confirm in Step 4'}
+            </div>
           </div>
         </div>
       </div>
@@ -553,7 +601,7 @@ export function ModuleLSubmissionDossierStep({
           value={dossierSummary}
           onChange={(e) => setDossierSummary(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-base sm:text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter executive committee evaluation synthesis..."
         />
       </div>
@@ -562,7 +610,7 @@ export function ModuleLSubmissionDossierStep({
       {aiTip && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
           <div className="flex items-start gap-2.5">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <ShieldCheck className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed text-amber-900">
               <span className="font-bold">Evaluation Committee Strategy: </span>
               {aiTip}
@@ -690,7 +738,7 @@ export function ModuleLSubmissionDossierStep({
                         : 'border-amber-200 bg-amber-50 text-amber-700'
                     }`}
                   >
-                    {app.readinessStatus.replace('_', ' ')}
+                    {humanizeEnumFallback(app.readinessStatus)}
                   </Badge>
                 </div>
               ))}
@@ -761,25 +809,16 @@ export function ModuleLSubmissionDossierStep({
           Back to Step 4 (Appendices Binder)
         </Button>
 
-        <div className="flex items-center gap-2">
-          {onParkQuestionInSession && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const question = prompt(
-                  'Park an open question regarding your final submission dossier:'
-                );
-                if (question && question.trim()) {
-                  onParkQuestionInSession(question.trim());
-                }
-              }}
-              className="text-xs text-slate-600 border-slate-200 hover:bg-slate-50"
-            >
-              Park Question
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ParkOpenQuestionPopover
+            planId={plan.id}
+            moduleCode="MOD_L_BUSINESS_PLAN"
+            stepNumber={5}
+            suggestedQuestion="Schedule final mentor or advisor walkthrough of our submission dossier before portal upload."
+            onParkQuestion={onParkQuestionInSession}
+            disabled={isVaultReadonly}
+            align="end"
+          />
 
           <Button
             type="button"

@@ -22,10 +22,12 @@ import {
   Building2,
   DollarSign,
   BookmarkCheck,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   ModuleKGrantKey,
@@ -246,7 +248,7 @@ export function ModuleKGrantAuditStep({
           disabled={isGeneratingAi || isVaultReadonly}
           className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+          <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isGeneratingAi ? 'Synthesizing Audit with AI...' : 'Generate AI Audit Overview'}
         </Button>
       </div>
@@ -628,7 +630,7 @@ export function ModuleKGrantAuditStep({
             disabled={isGeneratingAi || isVaultReadonly}
             className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
           >
-            <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
             {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Audit Overview'}
           </Button>
         </div>
@@ -637,7 +639,7 @@ export function ModuleKGrantAuditStep({
           value={aiAuditOverview}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAiAuditOverview(e.target.value)}
           placeholder={`e.g., Based on our cross-platform pre-flight audit for ${activeAudit.programDefinition.name}, ${plan.title} achieves a strong ${activeAudit.readinessScorePercent}% readiness score. The venture satisfies foundational export and entity requirements. However, 3 formal supplier quotes must be gathered in Module E prior to application submission to prevent automatic desk rejection...`}
-          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
 
@@ -666,7 +668,7 @@ export function ModuleKGrantAuditStep({
           value={founderNotes}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFounderNotes(e.target.value)}
           placeholder="e.g., Spoke with Siobhan at Galway LEO on Tuesday. She advised submitting the Feasibility study first for €12,500 prototype testing, then follow up with Priming once the MVP has 50 active users..."
-          className="flex min-h-[70px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+          className="flex min-h-[70px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
           disabled={isVaultReadonly}
         />
       </div>
@@ -683,7 +685,15 @@ export function ModuleKGrantAuditStep({
           ({activeAudit.readinessScorePercent}% Readiness Score)
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ParkOpenQuestionPopover
+            planId={plan.id}
+            moduleCode="MOD_K_GRANTS_FUNDING"
+            stepLabel="Module K • Step 1: Grant Audit"
+            defaultQuestion={`Check eligibility prerequisites for ${activeAudit.programDefinition.name} with our local advisor before applying.`}
+            disabled={isVaultReadonly}
+            align="end"
+          />
           <Button
             type="button"
             variant="outline"

@@ -37,6 +37,7 @@ import {
   Printer,
   ShieldAlert,
   Sliders,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PartnerSlot } from '@/components/workspace/partner-slot';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   FinanceViewLanguageMode,
@@ -793,14 +795,8 @@ export function resolveUpstreamFinancialBaseline(
   const monthlyFounderDrawingsY3 = comp.years[3].monthlyFounderDrawingsAvg;
 
   const y1Salaries = comp.years[1].monthlyTeamSalariesAndContractorsAvg;
-  const y2Salaries =
-    comp.hasExplicitHiringRoles || comp.years[2].monthlyTeamSalariesAndContractorsAvg > 0
-      ? comp.years[2].monthlyTeamSalariesAndContractorsAvg
-      : 3500;
-  const y3Salaries =
-    comp.hasExplicitHiringRoles || comp.years[3].monthlyTeamSalariesAndContractorsAvg > 0
-      ? comp.years[3].monthlyTeamSalariesAndContractorsAvg
-      : 7500;
+  const y2Salaries = comp.years[2].monthlyTeamSalariesAndContractorsAvg;
+  const y3Salaries = comp.years[3].monthlyTeamSalariesAndContractorsAvg;
 
   // 4. Module H: Monthly Accrual Revenue, Full Friction + COGS & Export Share
   const modHStep3 = plan.moduleHData?.step3BreakevenCalculator;
@@ -847,6 +843,7 @@ export function resolveUpstreamFinancialBaseline(
 
   const monthlyMarketingSpend = (() => {
     if (!modIBudget) return 250;
+    if (modIBudget.explicitlyUnsyncedFromModuleJ) return 0;
     if (Array.isArray(modIBudget.budgetLineItems) && modIBudget.budgetLineItems.length > 0) {
       return modIBudget.budgetLineItems.reduce((sum, item) => {
         if (isPaidAdsOptedOutInModI && item.bucket === 'PAID_MEDIA_ADS') {
@@ -1008,7 +1005,7 @@ export function ModuleJWorkspace({
     if (initialStep && initialStep >= 1 && initialStep <= 5) {
       return initialStep;
     }
-    return 0;
+    return 1;
   });
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
@@ -1198,7 +1195,9 @@ export function ModuleJWorkspace({
 
   const isStep1Complete = Boolean(
     (step1Data?.overheadLineItems?.length ?? 0) > 0 &&
-      (step1Data?.overheadsAndTaxNarrative?.trim()?.length ?? 0) >= 25
+      (step1Data?.lastSavedAt ||
+        plan.moduleJData?.step1OverheadsTax ||
+        (step1Data?.overheadsAndTaxNarrative?.trim()?.length ?? 0) >= 25)
   );
 
   // ---------------------------------------------------------------------------
@@ -1373,7 +1372,9 @@ export function ModuleJWorkspace({
 
   const isStep2Complete = Boolean(
     step2Data?.customerCollectionTiming &&
-      (step2Data?.workingCapitalNarrative?.trim()?.length ?? 0) >= 25
+      (step2Data?.lastSavedAt ||
+        plan.moduleJData?.step2WorkingCapital ||
+        (step2Data?.workingCapitalNarrative?.trim()?.length ?? 0) >= 25)
   );
 
   // ---------------------------------------------------------------------------
@@ -1712,7 +1713,9 @@ export function ModuleJWorkspace({
 
   const isStep3Complete = Boolean(
     (step3Data?.fundingSources?.length ?? 0) > 0 &&
-      (step3Data?.fundingGapNarrative?.trim()?.length ?? 0) >= 25
+      (step3Data?.lastSavedAt ||
+        plan.moduleJData?.step3CashflowGap ||
+        (step3Data?.fundingGapNarrative?.trim()?.length ?? 0) >= 25)
   );
 
   // ---------------------------------------------------------------------------
@@ -2143,7 +2146,9 @@ export function ModuleJWorkspace({
 
   const isStep4Complete = Boolean(
     step4Data?.activeStressScenario &&
-      (step4Data?.writtenFinancialAssumptionsBlock?.trim()?.length ?? 0) >= 25
+      (step4Data?.lastSavedAt ||
+        plan.moduleJData?.step4Statements ||
+        (step4Data?.writtenFinancialAssumptionsBlock?.trim()?.length ?? 0) >= 25)
   );
 
   // ---------------------------------------------------------------------------
@@ -2412,10 +2417,15 @@ export function ModuleJWorkspace({
     isDirtyStep1Ref.current = false;
     setSaveStatusStep1('saving');
     try {
+      const autoNarrative =
+        step1Data.overheadsAndTaxNarrative?.trim() ||
+        `${plan.title || 'Our startup'} maintains Year 1 fixed monthly operating bills of ${currencySymbol}${step1Metrics.monthlyFixedOpExY1.toLocaleString()}/mo alongside ${isUK ? 'UK Employer NIC & Workplace Pension' : 'Irish Employer PRSI'} (${step1Data.employerPayrollTaxRatePercent}%) and ${step1Data.standardVatRatePercent}% VAT provisions.`;
       const updatedStep1: FinancialOverheadsTaxStep1Data = {
         ...step1Data,
+        overheadsAndTaxNarrative: autoNarrative,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep1Data(updatedStep1);
       await onSaveStep1OverheadsTax?.(updatedStep1, 25);
       await saveModuleJStep1OverheadsTaxAction({
         planId: plan.id,
@@ -2547,10 +2557,15 @@ export function ModuleJWorkspace({
     isDirtyStep2Ref.current = false;
     setSaveStatusStep2('saving');
     try {
+      const autoNarrative =
+        step2Data.workingCapitalNarrative?.trim() ||
+        `${plan.title || 'Our startup'} collects customer payments on a ${step2Metrics.effectiveDebtorDays}-day settlement cycle, starting commercial billing in Month ${step2Data.monthToStartRevenue} with a peak working-capital lockup of ${currencySymbol}${step2Metrics.peakWorkingCapitalLockup.toLocaleString()}.`;
       const updatedStep2: WorkingCapitalTimingStep2Data = {
         ...step2Data,
+        workingCapitalNarrative: autoNarrative,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep2Data(updatedStep2);
       await onSaveStep2WorkingCapital?.(updatedStep2, 50);
       await saveModuleJStep2WorkingCapitalAction({
         planId: plan.id,
@@ -2712,13 +2727,18 @@ export function ModuleJWorkspace({
     isDirtyStep3Ref.current = false;
     setSaveStatusStep3('saving');
     try {
+      const autoNarrative =
+        step3Data.fundingGapNarrative?.trim() ||
+        `${plan.title || 'Our startup'} stacks ${currencySymbol}${step3Metrics.totalStackedFunding.toLocaleString()} in total funding against a Month ${step3Metrics.operatingCashTroughMonth} operating cash trough of ${currencySymbol}${Math.abs(step3Metrics.operatingCashTroughAmount).toLocaleString()} (plus a ${step3Data.safetyBufferPercent}% safety buffer).`;
       const updatedStep3: CashflowFundingGapStep3Data = {
         ...step3Data,
+        fundingGapNarrative: autoNarrative,
         recommendedCapitalRaise: step3Metrics.recommendedCapitalRaise,
         operatingCashTroughAmount: step3Metrics.operatingCashTroughAmount,
         lowestFundedBankBalance: step3Metrics.lowestFundedBankBalance,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep3Data(updatedStep3);
       await onSaveStep3CashflowGap?.(updatedStep3, 75);
       await saveModuleJStep3CashflowGapAction({
         planId: plan.id,
@@ -2836,10 +2856,17 @@ export function ModuleJWorkspace({
     isDirtyStep4Ref.current = false;
     setSaveStatusStep4('saving');
     try {
+      const y1 = step4Metrics.pnlYears[0];
+      const y3 = step4Metrics.pnlYears[2];
+      const autoNarrative =
+        step4Data.writtenFinancialAssumptionsBlock?.trim() ||
+        `${plan.title || 'Our startup'} projects net turnover growing from ${currencySymbol}${y1.grossTurnoverExVat.toLocaleString()} in Year 1 to ${currencySymbol}${y3.grossTurnoverExVat.toLocaleString()} in Year 3 (${y3.grossMarginPercent}% gross margin), maintaining a lowest stressed bank balance of ${currencySymbol}${step4Metrics.lowestStressedBankBalance.toLocaleString()} in Month ${step4Metrics.lowestStressedMonth}.`;
       const updatedStep4: StatementsStressTestStep4Data = {
         ...step4Data,
+        writtenFinancialAssumptionsBlock: autoNarrative,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep4Data(updatedStep4);
       await onSaveStep4Statements?.(updatedStep4, 85);
       await saveModuleJStep4StatementsAction({
         planId: plan.id,
@@ -3194,15 +3221,15 @@ export function ModuleJWorkspace({
   * { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; background: #f8fafc; margin: 0; padding: 28px 16px; line-height: 1.5; }
   .sheet { max-width: 980px; margin: 0 auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 16px; padding: 28px 32px; box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05); }
-  .top-banner { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%); color: #ffffff; border-radius: 12px; padding: 22px 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .top-banner { background: #0f172a; border-bottom: 3px solid #047857; color: #ffffff; border-radius: 12px; padding: 22px 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; }
   .top-banner h1 { font-size: 21px; margin: 4px 0 6px; color: #ffffff; letter-spacing: -0.01em; }
-  .top-banner p { margin: 0; font-size: 12px; color: #c7d2fe; }
+  .top-banner p { margin: 0; font-size: 12px; color: #cbd5e1; }
   .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.12); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); }
   .pill-emerald { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; border-color: rgba(16, 185, 129, 0.4); }
-  .print-btn { background: #ffffff; color: #1e1b4b; border: none; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-  .print-btn:hover { background: #eef2ff; }
-  h2 { font-size: 14px; margin: 26px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; color: #1e1b4b; text-transform: uppercase; letter-spacing: 0.05em; }
+  .print-btn { background: #ffffff; color: #0f172a; border: none; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .print-btn:hover { background: #ecfdf5; }
+  h2 { font-size: 14px; margin: 26px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; }
   h3 { font-size: 12px; margin: 16px 0 6px; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
   .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
   @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -3213,20 +3240,19 @@ export function ModuleJWorkspace({
   table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
   th, td { border: 1px solid #cbd5e1; padding: 7px 9px; text-align: right; }
   th:first-child, td:first-child { text-align: left; }
-  th { background: #1e1b4b; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+  th { background: #0f172a; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
   .sub-th th { background: #334155; }
   .bold-row { font-weight: 700; background: #f1f5f9; }
   .emerald-row { font-weight: 700; background: #ecfdf5; color: #065f46; }
-  .emerald-row { font-weight: 700; background: #f0fdf4; color: #064e3b; }
   .neg { color: #be123c; }
   .pos { color: #047857; }
   .card { border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 15px; margin-top: 10px; background: #f8fafc; font-size: 12.5px; }
-  .tip-box { border: 1px solid #c7d2fe; background: #eef2ff; color: #1e1b4b; border-radius: 10px; padding: 11px 14px; margin-top: 10px; font-size: 12px; }
+  .tip-box { border: 1px solid #a7f3d0; background: #ecfdf5; color: #064e3b; border-radius: 10px; padding: 11px 14px; margin-top: 10px; font-size: 12px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
   @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
   .bs-crit { border-left: 4px solid #e11d48; background: #fff1f2; }
   .bs-warn { border-left: 4px solid #f59e0b; background: #fffbeb; }
-  .bs-info { border-left: 4px solid #4f46e5; background: #eef2ff; }
+  .bs-info { border-left: 4px solid #047857; background: #ecfdf5; }
   .footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; }
   @media print {
     body { background: #ffffff; padding: 0; }
@@ -3515,8 +3541,8 @@ export function ModuleJWorkspace({
           <td style="text-align:left;">Directors Remuneration / Drawings (Module F)</td>
           <td>${currencySymbol}${step1Data.monthlyFounderDrawingsYear1.toLocaleString()}</td>
           <td>${currencySymbol}${(step1Data.monthlyFounderDrawingsYear1 * 12).toLocaleString()}</td>
-          <td>${currencySymbol}${(step1Data.monthlyFounderDrawingsYear1 * 12).toLocaleString()}</td>
-          <td>${currencySymbol}${(step1Data.monthlyFounderDrawingsYear1 * 12).toLocaleString()}</td>
+          <td>${currencySymbol}${(step1Metrics.monthlyFounderDrawingsY2 * 12).toLocaleString()}</td>
+          <td>${currencySymbol}${(step1Metrics.monthlyFounderDrawingsY3 * 12).toLocaleString()}</td>
           <td style="text-align:left;font-size:10px;">WORKING_CAPITAL</td>
         </tr>
         <tr class="bold-row">
@@ -3633,8 +3659,8 @@ export function ModuleJWorkspace({
         'Module F',
         String(step1Data.monthlyFounderDrawingsYear1),
         String(step1Data.monthlyFounderDrawingsYear1 * 12),
-        String(step1Data.monthlyFounderDrawingsYear1 * 12),
-        String(step1Data.monthlyFounderDrawingsYear1 * 12),
+        String(step1Metrics.monthlyFounderDrawingsY2 * 12),
+        String(step1Metrics.monthlyFounderDrawingsY3 * 12),
         'WORKING_CAPITAL',
       ]);
       rows.push([
@@ -3665,14 +3691,14 @@ export function ModuleJWorkspace({
         String(step1Metrics.totalMonthlyBurnY1 * 12),
         String(
           (step1Metrics.monthlyFixedOpExY2 +
-            step1Data.monthlyFounderDrawingsYear1 +
+            step1Metrics.monthlyFounderDrawingsY2 +
             step1Data.monthlyTeamSalariesYear2 +
             step1Metrics.monthlyEmployerTaxY2) *
             12
         ),
         String(
           (step1Metrics.monthlyFixedOpExY3 +
-            step1Data.monthlyFounderDrawingsYear1 +
+            step1Metrics.monthlyFounderDrawingsY3 +
             step1Data.monthlyTeamSalariesYear3 +
             step1Metrics.monthlyEmployerTaxY3) *
             12
@@ -3804,7 +3830,7 @@ export function ModuleJWorkspace({
   <p><strong>Tax &amp; VAT Posture:</strong> Employer Tax ${step1Data.employerPayrollTaxRatePercent}% | Corp Tax ${step1Data.corporationTaxRatePercent}% | VAT ${step1Data.standardVatRatePercent}% (${step1Data.vatRegistrationStrategy}) | Export Target: ${step1Data.exportRevenueSharePercent}%</p>
   <table border="1" cellpadding="6" cellspacing="0">
     <thead>
-      <tr style="background:#1e1b4b;color:#ffffff;font-weight:bold;">
+      <tr style="background:#0f172a;color:#ffffff;font-weight:bold;">
         <th>Plain-English Description</th>
         <th>Official Grant / Accountant Heading</th>
         <th>Upstream Source</th>
@@ -3843,8 +3869,8 @@ export function ModuleJWorkspace({
         <td>Module F (Survival Budget)</td>
         <td>${step1Data.monthlyFounderDrawingsYear1}</td>
         <td>${step1Data.monthlyFounderDrawingsYear1 * 12}</td>
-        <td>${step1Data.monthlyFounderDrawingsYear1 * 12}</td>
-        <td>${step1Data.monthlyFounderDrawingsYear1 * 12}</td>
+        <td>${step1Metrics.monthlyFounderDrawingsY2 * 12}</td>
+        <td>${step1Metrics.monthlyFounderDrawingsY3 * 12}</td>
         <td>WORKING_CAPITAL</td>
       </tr>
       <tr style="background:#f1f5f9;font-weight:bold;">
@@ -3857,7 +3883,7 @@ export function ModuleJWorkspace({
         <td>${step1Data.monthlyTeamSalariesYear3 * 12}</td>
         <td>ELIGIBLE_EMPLOYMENT_GRANT</td>
       </tr>
-      <tr style="background:#eef2ff;font-weight:bold;">
+      <tr style="background:#ecfdf5;font-weight:bold;">
         <td>Employer Payroll Taxes (${step1Data.employerPayrollTaxRatePercent}%)</td>
         <td>${isUK ? 'Employer Class 1 NIC (13.8%) + Pension (3%)' : 'Employer PRSI (11.15%)'}</td>
         <td>Module J Tax Auto-Pilot</td>
@@ -3895,7 +3921,7 @@ export function ModuleJWorkspace({
           </tr>`
         )
         .join('')}
-      <tr style="background:#eef2ff;font-weight:bold;">
+      <tr style="background:#ecfdf5;font-weight:bold;">
         <td>Total Year 1</td>
         <td>-</td>
         <td>${step2Metrics.totalInvoicedY1}</td>
@@ -3909,7 +3935,7 @@ export function ModuleJWorkspace({
   <p><strong>Pre-Funding Cash Trough:</strong> ${currencySymbol}${step3Metrics.operatingCashTroughAmount.toLocaleString()} (Month ${step3Metrics.operatingCashTroughMonth}) | <strong>Recommended Capital Raise (+${step3Data.safetyBufferPercent}% Buffer):</strong> ${currencySymbol}${step3Metrics.recommendedCapitalRaise.toLocaleString()} | <strong>Total Stacked Funding:</strong> ${currencySymbol}${step3Metrics.totalStackedFunding.toLocaleString()}</p>
   <table border="1" cellpadding="6" cellspacing="0">
     <thead>
-      <tr style="background:#1e1b4b;color:#ffffff;font-weight:bold;">
+      <tr style="background:#0f172a;color:#ffffff;font-weight:bold;">
         <th>Quarter (Years 1–3)</th>
         <th>Customer Cash Inflow (${currencySymbol})</th>
         <th>Total Operating &amp; Loan Outflow (${currencySymbol})</th>
@@ -3995,7 +4021,7 @@ export function ModuleJWorkspace({
         <td>-${step4Metrics.pnlYears[2].fixedOverheadsOpEx}</td>
         <td>-${step4Metrics.totals3Year.fixedOverheadsOpEx}</td>
       </tr>
-      <tr style="background:#eef2ff;font-weight:bold;">
+      <tr style="background:#f8fafc;font-weight:bold;">
         <td>Operating Profit Before Write-Offs &amp; Tax</td>
         <td>EBITDA (Operating Profit / Loss)</td>
         <td>${step4Metrics.pnlYears[0].ebitda}</td>
@@ -4035,7 +4061,7 @@ export function ModuleJWorkspace({
   <p>${step5Data.executiveFinancialSummaryNarrative || ''}</p>
   <table border="1" cellpadding="6" cellspacing="0">
     <thead>
-      <tr style="background:#312e81;color:#ffffff;font-weight:bold;">
+      <tr style="background:#0f172a;color:#ffffff;font-weight:bold;">
         <th>Severity</th>
         <th>Underwriter Check</th>
         <th>Diagnostic Finding</th>
@@ -4407,7 +4433,7 @@ export function ModuleJWorkspace({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate / Calibrate with AI
                   </>
                 )}
@@ -4489,7 +4515,7 @@ export function ModuleJWorkspace({
 
             {aiMessageStep1 && (
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800">
-                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                <SlidersHorizontal className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>{aiMessageStep1}</span>
               </div>
             )}
@@ -4503,7 +4529,7 @@ export function ModuleJWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <SlidersHorizontal className="h-4 w-4 text-emerald-700 shrink-0" />
                     <h3 className="text-sm font-bold text-slate-900">
                       You Already Did 85% of the Maths! (Live Upstream Auto-Import)
                     </h3>
@@ -4759,7 +4785,7 @@ export function ModuleJWorkspace({
                     }
                     className="h-8 border-emerald-200 bg-emerald-50/60 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
                     {showAccountingPartnerDrawer
                       ? 'Hide Cloud Bookkeeping Perks'
                       : 'Need Cloud Bookkeeping / Xero?'}
@@ -5557,11 +5583,11 @@ export function ModuleJWorkspace({
                   <Label className="text-xs font-bold text-slate-900">
                     1.5{' '}
                     {isPlainMode
-                      ? 'Written Summary of Your Monthly Costs & Taxes (For Your Business Plan)'
-                      : 'Written Operating Cost & Statutory Tax Justification (Grant Narrative)'}
+                      ? 'Written Assumption Summary (Auto-Drafted from Your Numbers — Edit Anytime)'
+                      : 'Written Operating Cost & Statutory Tax Justification (Auto-Drafted — Edit Anytime)'}
                   </Label>
                   <p className="text-[11px] text-slate-500">
-                    Click <strong>&quot;Auto-Generate / Calibrate with AI&quot;</strong> above or edit below to explain why your Year 1–3 bills are realistic.
+                    Optional to edit — we auto-draft this summary from your live numbers when you save, or click <strong>&quot;Synthesize Summary&quot;</strong> to enrich it.
                   </p>
                 </div>
                 <Button
@@ -5572,8 +5598,8 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep1 || isVaultReadonly}
                   className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep1 ? 'Synthesizing...' : 'Write Summary with AI'}
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                  {isGeneratingAiStep1 ? 'Synthesizing...' : 'Synthesize Summary'}
                 </Button>
               </div>
 
@@ -5664,7 +5690,7 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep1 || isVaultReadonly}
                   className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
-                  <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                   AI Calibrate Step 1
                 </Button>
               </div>
@@ -5844,7 +5870,7 @@ export function ModuleJWorkspace({
                 disabled={isGeneratingAiStep2 || isVaultReadonly}
                 className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
-                <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                 {isGeneratingAiStep2
                   ? 'Calibrating Working Capital...'
                   : 'Auto-Generate / Calibrate with AI'}
@@ -6523,11 +6549,11 @@ export function ModuleJWorkspace({
                   <Label className="text-xs font-bold text-slate-900">
                     2.5{' '}
                     {isPlainMode
-                      ? 'Written Summary of Your Payment Timing & Seasonality (For Your Business Plan)'
-                      : 'Written Working Capital, Debtor Cycle & Seasonality Justification'}
+                      ? 'Written Assumption Summary (Auto-Drafted from Your Numbers — Edit Anytime)'
+                      : 'Written Working Capital & Debtor Cycle Justification (Auto-Drafted — Edit Anytime)'}
                   </Label>
                   <p className="text-[11px] text-slate-500">
-                    Explain when customers pay you, how you manage stock/build lead times, and why your monthly sales ramp is realistic.
+                    Optional to edit — auto-drafted on save from your payment timing, stock lead times, and monthly sales ramp.
                   </p>
                 </div>
                 <Button
@@ -6538,8 +6564,8 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep2 || isVaultReadonly}
                   className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep2 ? 'Synthesizing...' : 'Write Summary with AI'}
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                  {isGeneratingAiStep2 ? 'Synthesizing...' : 'Synthesize Summary'}
                 </Button>
               </div>
 
@@ -6626,7 +6652,7 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep2 || isVaultReadonly}
                   className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
-                  <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                   AI Calibrate Step 2
                 </Button>
               </div>
@@ -6816,7 +6842,7 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
                   className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep3
                     ? 'Calibrating Cash Trough...'
                     : 'Calibrate Cashflow & Funding Stack with AI'}
@@ -6917,7 +6943,7 @@ export function ModuleJWorkspace({
           <CardContent className="space-y-6 pt-6">
             {aiMessageStep3 && (
               <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900">
-                <Sparkles className="h-4 w-4 text-emerald-700 shrink-0" />
+                <SlidersHorizontal className="h-4 w-4 text-emerald-700 shrink-0" />
                 <span>{aiMessageStep3}</span>
               </div>
             )}
@@ -7815,11 +7841,11 @@ export function ModuleJWorkspace({
                   <Label className="text-xs font-bold text-slate-900">
                     3.6{' '}
                     {isPlainMode
-                      ? 'Written Summary of Your Funding Need & Grant Bridge (For Your Business Plan)'
-                      : 'Written 36-Month Cash Trough, Capital Stack & Grant Reimbursement Bridge Narrative'}
+                      ? 'Written Assumption Summary (Auto-Drafted from Your Numbers — Edit Anytime)'
+                      : 'Written 36-Month Cash Trough & Grant Bridge Narrative (Auto-Drafted — Edit Anytime)'}
                   </Label>
                   <p className="text-[11px] text-slate-500">
-                    Explain how much funding you are raising, why your cash trough occurs in Month {step3Metrics.operatingCashTroughMonth}, and how you bridge grant reimbursement delays.
+                    Optional to edit — auto-drafted on save from your Month {step3Metrics.operatingCashTroughMonth} cash trough and funding bridge.
                   </p>
                 </div>
                 <Button
@@ -7830,8 +7856,8 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
                   className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep3 ? 'Synthesizing...' : 'Write Summary with AI'}
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                  {isGeneratingAiStep3 ? 'Synthesizing...' : 'Synthesize Summary'}
                 </Button>
               </div>
 
@@ -7920,7 +7946,7 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep3 || isVaultReadonly}
                   className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
-                  <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                   AI Calibrate Step 3
                 </Button>
               </div>
@@ -7979,7 +8005,7 @@ export function ModuleJWorkspace({
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
                   {isPlainMode
-                    ? 'Step 4: 3-Year Profit & Loss, 36-Month Cashflow Table, Stress-Tester & IP Placeholder'
+                    ? 'Step 4: 3-Year Profit & Loss, 36-Month Cashflow Table, Stress-Tester & IP Readiness'
                     : 'Step 4: Official 3-Year P&L Statement, 36-Month Cashflow Schedule, Sensitivity Stress-Test & IP Shield'}
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -8038,7 +8064,7 @@ export function ModuleJWorkspace({
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base font-bold text-slate-900">
                       {isPlainMode
-                        ? 'Step 4: 3-Year Profit & Loss, 36-Month Cashflow Table, Stress-Tester & IP Placeholder'
+                        ? 'Step 4: 3-Year Profit & Loss, 36-Month Cashflow Table, Stress-Tester & IP Readiness'
                         : 'Step 4: Official 3-Year P&L Statement, 36-Month Cashflow Schedule, Sensitivity Stress-Test & IP Shield'}
                     </CardTitle>
                     <Badge
@@ -8131,7 +8157,7 @@ export function ModuleJWorkspace({
                 disabled={isGeneratingAiStep4 || isVaultReadonly}
                 className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
-                <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                 {isGeneratingAiStep4
                   ? 'Drafting Assumptions...'
                   : 'Auto-Generate / Calibrate with AI'}
@@ -8198,7 +8224,7 @@ export function ModuleJWorkspace({
             {aiMessageStep4 && (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs text-slate-900">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-700" />
+                  <SlidersHorizontal className="h-4 w-4 shrink-0 text-emerald-700" />
                   <span>{aiMessageStep4}</span>
                 </div>
                 <button
@@ -9004,7 +9030,7 @@ export function ModuleJWorkspace({
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-emerald-700" />
                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-950">
-                      4. Corporate Structure, IP Assignment &amp; Banking Perks (Placeholder)
+                      4. Corporate Structure, IP Assignment &amp; Banking Readiness
                     </Label>
                     <Badge
                       variant="outline"
@@ -9102,7 +9128,7 @@ export function ModuleJWorkspace({
 
               <div>
                 <Label className="text-xs font-semibold text-slate-800">
-                  Corporate / IP &amp; Banking Placeholder Notes (Included in Grant Appendix)
+                  Corporate / IP &amp; Banking Notes (Included in Grant Appendix)
                 </Label>
                 <Input
                   type="text"
@@ -9333,12 +9359,12 @@ export function ModuleJWorkspace({
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     {isPlainMode
-                      ? '5. Written Note Explaining Your 3-Year Financial Numbers (Required by Grants)'
-                      : '5. Formal Notes to the 3-Year Financial Statements & Sensitivity Analysis'}
+                      ? '5. Written Assumption Summary (Auto-Drafted from Your Numbers — Edit Anytime)'
+                      : '5. Formal Notes to the 3-Year Financial Statements (Auto-Drafted — Edit Anytime)'}
                   </Label>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {isPlainMode
-                      ? 'Every grant and loan form asks for a short paragraph explaining how your 3-year sales, margins, and stress-test work. Click "Auto-Generate with AI" to write this from your live numbers.'
+                      ? 'Optional to edit — we auto-draft this paragraph from your live 3-year numbers when you save, or click "Synthesize Assumptions Note" to enrich it.'
                       : 'Summarizes your 3-Year revenue trajectory, gross margin, EBITDA scaling, statutory tax assumptions, and downside stress-test solvency for Module L.'}
                   </p>
                 </div>
@@ -9350,10 +9376,10 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep4 || isVaultReadonly}
                   className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-slate-50"
                 >
-                  <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep4
                     ? 'Synthesizing...'
-                    : 'Auto-Generate Assumptions Note with AI'}
+                    : 'Synthesize Assumptions Note'}
                 </Button>
               </div>
 
@@ -9426,7 +9452,7 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep4 || isVaultReadonly}
                   className="text-xs border-slate-200 text-emerald-800 hover:bg-slate-50"
                 >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                   AI Calibrate Step 4
                 </Button>
               </div>
@@ -9630,7 +9656,7 @@ export function ModuleJWorkspace({
                 disabled={isGeneratingAiStep5 || isVaultReadonly}
                 className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
               >
-                <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                 {isGeneratingAiStep5
                   ? 'Auditing 3-Year Financials...'
                   : 'Re-Run AI Underwriter Audit & Brief'}
@@ -9682,7 +9708,7 @@ export function ModuleJWorkspace({
             {aiMessageStep5 && (
               <div className="mt-3 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-900">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
                   {aiMessageStep5}
                 </span>
                 <button
@@ -9845,7 +9871,7 @@ export function ModuleJWorkspace({
                   disabled={isGeneratingAiStep5 || isVaultReadonly}
                   className="h-7 border-slate-200 bg-slate-50 text-[11px] font-medium text-emerald-800 hover:bg-slate-100"
                 >
-                  <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                   {isGeneratingAiStep5 ? 'Refreshing...' : 'Refresh Blind-Spot Audit'}
                 </Button>
               </div>
@@ -10086,6 +10112,14 @@ export function ModuleJWorkspace({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_J_FINANCE"
+                  stepLabel="Module J • Financial Overview"
+                  defaultQuestion="Confirm accountant sign-off or final VAT/working-capital assumptions before submitting our grant application."
+                  disabled={isVaultReadonly}
+                  align="end"
+                />
                 <Button
                   type="button"
                   size="sm"

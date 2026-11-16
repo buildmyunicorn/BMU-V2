@@ -166,8 +166,8 @@ export function isEntitlementInVaultMode(
 }
 
 /**
- * Checks if a user can access a specific Startup Preflight Module (MOD_A through MOD_I).
- * FREE_HOOK has full access to Module A (Steps 1-8), and triggers the paywall on Modules B-I.
+ * Checks if a user can access a specific Startup Preflight Module (MOD_A through MOD_L).
+ * FREE_HOOK has full access to Module A (Steps 1-8), and triggers the paywall on Modules B-L.
  */
 export function canAccessModule(
   entitlement: EntitlementSnapshot,

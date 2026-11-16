@@ -2,6 +2,10 @@ import {
   escapeDocumentHtml as escapeHtml,
   renderBmuStandaloneHtmlDocument,
 } from '@/lib/export/document-shell';
+import {
+  formatCompilerModeLabel,
+  humanizeEnumFallback,
+} from '@/lib/export/enum-labels';
 import type {
   ActiveStartupPlan,
   ModuleLStep1ModeSavedData,
@@ -31,11 +35,24 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
   const isUK = data.hqCountryCode === 'GB';
   const currencySymbol = isUK ? '£' : '€';
   const compilerMode = data.step1Mode?.compilerMode || (isUK ? 'UK_INNOVATE_UK_9Q' : 'IE_LEO_OFFICIAL_FORM');
+  const compilerModeLabel = formatCompilerModeLabel(
+    compilerMode,
+    data.step1Mode?.otherCompilerModeText
+  );
+  const isCommercialPlan = compilerMode === 'STANDARD_COMMERCIAL_PLAN';
   const targetAgency =
     data.step1Mode?.targetAgencyOrCommitteeName ||
-    (isUK ? 'Innovate UK / British Business Bank' : 'Local Enterprise Office (LEO)');
+    (isCommercialPlan
+      ? 'Commercial Lenders, Partners & Stakeholders'
+      : isUK
+        ? 'Innovate UK / British Business Bank'
+        : 'Local Enterprise Office (LEO)');
   const askAmount = data.step1Mode?.targetFundingAskAmount || 50000;
-  const readinessScore = data.step5Brief?.committeeReadinessScore ?? 94;
+  const readinessScore =
+    data.step5Brief?.committeeReadinessScore ??
+    data.step2Audit?.overallAuditScore ??
+    78;
+  const isDeclarationConfirmed = Boolean(data.step4Appendices?.declarationConfirmed);
 
   const sections = data.step3Compiler?.sections || [];
   const appendices = data.step4Appendices?.appendices || [];
@@ -46,7 +63,7 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
       <div style="margin-bottom: 24px; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
           <div>
-            <span style="display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; background: #e0e7ff; color: #3730a3; margin-bottom: 6px;">
+            <span style="display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; background: #ecfdf5; color: #065f46; margin-bottom: 6px;">
               Section ${escapeHtml(String(sec.sectionNumber))}
             </span>
             <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">
@@ -59,7 +76,7 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
           </div>
         </div>
 
-        <div style="background: #f8fafc; border-left: 3px solid #6366f1; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #475569; font-style: italic;">
+        <div style="background: #f8fafc; border-left: 3px solid #047857; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #475569; font-style: italic;">
           <strong>Assessor Rubric Prompt:</strong> ${escapeHtml(sec.assessorQuestionPrompt)}
         </div>
 
@@ -75,7 +92,7 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
     .map(
       (app: ModuleLAppendixBinderItem) => `
       <tr style="border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 10px 14px; font-weight: 700; color: #4338ca; vertical-align: top;">
+        <td style="padding: 10px 14px; font-weight: 700; color: #047857; vertical-align: top;">
           ${escapeHtml(app.code.replace('APPENDIX_', 'App '))}
         </td>
         <td style="padding: 10px 14px; font-size: 12px; font-weight: 600; color: #0f172a; vertical-align: top;">
@@ -87,7 +104,7 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
               ? 'background: #dcfce7; color: #166534;'
               : 'background: #fef3c7; color: #92400e;'
           }">
-            ${escapeHtml(app.readinessStatus.replace('_', ' '))}
+            ${escapeHtml(humanizeEnumFallback(app.readinessStatus))}
           </span>
         </td>
         <td style="padding: 10px 14px; font-size: 11px; color: #475569; vertical-align: top; line-height: 1.4;">
@@ -110,36 +127,36 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
 
   const bodyContent = `
     <!-- Hero Header -->
-    <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #ffffff; padding: 32px; border-radius: 12px; margin-bottom: 28px;">
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 32px; border-radius: 12px; margin-bottom: 28px;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
         <div>
-          <span style="display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; tracking-wider; background: rgba(255, 255, 255, 0.15); border-radius: 20px; margin-bottom: 10px;">
-            Official Business Plan &amp; Grant Submission Dossier
+          <span style="display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border-radius: 20px; margin-bottom: 10px;">
+            Official Business Plan &amp; Submission Dossier
           </span>
           <h1 style="margin: 0 0 6px 0; font-size: 26px; font-weight: 800; color: #ffffff;">
             ${escapeHtml(data.planTitle)}
           </h1>
-          <p style="margin: 0; font-size: 13px; color: #c7d2fe;">
-            Target Reviewer: <strong>${escapeHtml(targetAgency)}</strong> &bull; Jurisdiction: <strong>${escapeHtml(data.hqCountryCode)}</strong> &bull; Mode: <strong>${escapeHtml(compilerMode)}</strong>
+          <p style="margin: 0; font-size: 13px; color: #cbd5e1;">
+            Target Reviewer: <strong>${escapeHtml(targetAgency)}</strong> &bull; Jurisdiction: <strong>${escapeHtml(data.hqCountryCode)}</strong> &bull; Format: <strong>${escapeHtml(compilerModeLabel)}</strong>
           </p>
         </div>
-        <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; padding: 14px 20px; text-align: center; min-width: 140px;">
-          <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #a5b4fc; letter-spacing: 0.05em;">
+        <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 10px; padding: 14px 20px; text-align: center; min-width: 140px;">
+          <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #cbd5e1; letter-spacing: 0.05em;">
             Pre-Flight Clearance
           </div>
           <div style="font-size: 32px; font-weight: 800; color: #34d399; margin: 2px 0;">
             ${readinessScore}%
           </div>
-          <div style="font-size: 10px; color: #e0e7ff;">
-            Committee Ready
+          <div style="font-size: 10px; color: #a7f3d0;">
+            ${readinessScore >= 80 ? 'Committee Ready' : 'In Review'}
           </div>
         </div>
       </div>
     </div>
 
     <!-- Executive Underwriter Synthesis -->
-    <div style="background: #ffffff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 22px; margin-bottom: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <h2 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 700; color: #1e1b4b; text-transform: uppercase; letter-spacing: 0.03em;">
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 22px; margin-bottom: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <h2 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.03em;">
         Executive Committee Evaluation Synthesis
       </h2>
       <p style="font-size: 13px; line-height: 1.6; color: #334155; margin: 0 0 14px 0;">
@@ -159,24 +176,24 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
     <!-- Key Metrics Schedule -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px;">
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
-        <div style="font-size: 11px; color: #64748b; font-weight: 600;">Grant / Funding Target Ask</div>
+        <div style="font-size: 11px; color: #64748b; font-weight: 600;">${isCommercialPlan ? 'Target Capital Requirement' : 'Grant / Funding Target Ask'}</div>
         <div style="font-size: 20px; font-weight: 800; color: #047857; margin-top: 4px;">${currencySymbol}${askAmount.toLocaleString()}</div>
-        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Vouched eligible capex</div>
+        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${isCommercialPlan ? 'Modeled financing requirement' : 'Vouched eligible expenditure'}</div>
       </div>
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
         <div style="font-size: 11px; color: #64748b; font-weight: 600;">Compiled Questions / Sections</div>
-        <div style="font-size: 20px; font-weight: 800; color: #4338ca; margin-top: 4px;">${sections.length} Sections</div>
-        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Within official word caps</div>
+        <div style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 4px;">${sections.length} Sections</div>
+        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Structured rubric responses</div>
       </div>
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
         <div style="font-size: 11px; color: #64748b; font-weight: 600;">Evidence Appendices Attached</div>
-        <div style="font-size: 20px; font-weight: 800; color: #0284c7; margin-top: 4px;">${appendices.length} Appendices</div>
+        <div style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 4px;">${appendices.length} Appendices</div>
         <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Appendices A through F</div>
       </div>
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
         <div style="font-size: 11px; color: #64748b; font-weight: 600;">Statutory Sign-Off</div>
-        <div style="font-size: 20px; font-weight: 800; color: #059669; margin-top: 4px;">Certified</div>
-        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Authorized Officer Signed</div>
+        <div style="font-size: 20px; font-weight: 800; color: ${isDeclarationConfirmed ? '#059669' : '#b45309'}; margin-top: 4px;">${isDeclarationConfirmed ? 'Certified' : 'Pending Sign-Off'}</div>
+        <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${isDeclarationConfirmed ? 'Authorized Officer Signed' : 'Confirm in Step 4'}</div>
       </div>
     </div>
 
@@ -184,8 +201,8 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
     ${
       data.step3Compiler?.executiveHookStatement
         ? `
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #4338ca; border-radius: 8px; padding: 16px 20px; margin-bottom: 28px;">
-        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #4338ca; margin-bottom: 4px;">
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #047857; border-radius: 8px; padding: 16px 20px; margin-bottom: 28px;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #047857; margin-bottom: 4px;">
           Master Submission Hook &amp; Pre-Flight Defense
         </div>
         <div style="font-size: 13px; line-height: 1.6; color: #0f172a; font-weight: 500;">
@@ -230,9 +247,13 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
         Statutory Declaration &amp; Submission Certification
       </div>
       <p style="font-size: 12px; line-height: 1.6; color: #475569; margin: 0 0 16px 0;">
-        I hereby certify that all figures, financial projections, promoter profiles, and supplier quotations contained in this submission dossier represent true, accurate, and verifiable records. I confirm that requested capital items comply with public procurement guidelines with no deadweight duplication or displacement.
+        ${
+          isCommercialPlan
+            ? 'I hereby certify that all figures, financial projections, team profiles, and supporting records contained in this business plan represent true, accurate, and verifiable information prepared in good faith.'
+            : 'I hereby certify that all figures, financial projections, founder profiles, and supplier quotations contained in this submission dossier represent true, accurate, and verifiable records. I confirm that requested grant items follow competitive quote rules, relate to new project spend (no prior/deadweight spend), and focus on growth beyond local competitor displacement.'
+        }
       </p>
-      <div style="display: flex; gap: 32px; border-top: 1px solid #f1f5f9; pt: 14px; font-size: 12px; color: #334155;">
+      <div style="display: flex; gap: 32px; border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 12px; color: #334155;">
         <div>
           <span style="color: #64748b;">Authorized Signatory:</span> <strong>${escapeHtml(data.step4Appendices?.signatoryName || 'Lead Founder')}</strong>
         </div>
@@ -240,7 +261,7 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
           <span style="color: #64748b;">Title:</span> <strong>${escapeHtml(data.step4Appendices?.signatoryTitle || 'Founder & CEO')}</strong>
         </div>
         <div>
-          <span style="color: #64748b;">Date Certified:</span> <strong>${escapeHtml(new Date().toLocaleDateString())}</strong>
+          <span style="color: #64748b;">Status:</span> <strong>${escapeHtml(isDeclarationConfirmed ? `Certified (${new Date().toLocaleDateString()})` : 'Pending Formal Sign-Off')}</strong>
         </div>
       </div>
     </div>
@@ -271,7 +292,7 @@ export function buildModuleLStandaloneHtmlDocument(data: ModuleLBriefExportData)
       month: 'short',
       year: 'numeric',
     }),
-    scopeValue: compilerMode,
+    scopeValue: compilerModeLabel,
     sectionsHtml: bodyContent,
     footerCtaHtml: `<strong>Congratulations on Completing All 12 Modules of Startup Preflight!</strong>
       Your official submission dossier and verified evidence appendices are assembled and committee-ready. You can print to PDF, download the standalone HTML dossier, or export to your Master Blueprint.`,

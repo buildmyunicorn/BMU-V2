@@ -68,6 +68,7 @@ export interface ModuleDBriefData {
 export const PRODUCT_TRACK_LABELS: Record<ProductTrackType, string> = {
   SAAS_SOFTWARE_AI: 'Software / SaaS / AI Platform',
   PHYSICAL_PRODUCT_ECOM: 'Physical Product / Craft / E-Commerce',
+  LOCAL_SERVICE_BRICK_MORTAR: 'Local Service, Hospitality, Clinic or Trade',
   EDUCATION_PROGRAM_COHORT: 'Education / Guided Support Platform',
   MARKETPLACE_PLATFORM: 'Two-Sided Marketplace / Booking Platform',
   PRODUCTIZED_SERVICE_AGENCY: 'Productized Service / Agency',
@@ -491,7 +492,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
         </div>
         <div class="card">
           <div class="card-label">Readiness Confidence &amp; Target Launch Window</div>
-          <div class="card-stat" style="font-size: 16px; color: #4338ca;">${escapeHtml(readinessLabel)}</div>
+          <div class="card-stat" style="font-size: 16px; color: #065f46;">${escapeHtml(readinessLabel)}</div>
           <div class="card-value" style="margin-top: 4px; font-size: 12px; color: #64748b;">
             <strong>Target Launch Window:</strong> ${escapeHtml(timelineLabel)}<br/>
             <strong>Product Track:</strong> ${escapeHtml(trackLabel)}
@@ -500,13 +501,13 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
       </div>
 
       <div class="quote-box" style="margin-bottom: 12px;">
-        <strong style="color: #312e81; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Executive Product Summary &amp; Value Delivery</strong>
+        <strong style="color: #0f172a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Executive Product Summary &amp; Value Delivery</strong>
         <p style="font-size: 13px; color: #1e293b; line-height: 1.55;">
           ${escapeHtml(step6Data.executiveProductBriefSummary || step1Data.ahaMomentNarrative || 'Focused Version 1 product blueprint designed around proven customer demand.')}
         </p>
         ${
           step1Data.ahaMomentNarrative
-            ? `<div style="margin-top: 8px; font-size: 12px; color: #3730a3; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+            ? `<div style="margin-top: 8px; font-size: 12px; color: #065f46; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
                 <strong>60-Second Customer "Aha! Moment":</strong> ${escapeHtml(step1Data.ahaMomentNarrative)}
               </div>`
             : ''
@@ -576,7 +577,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
         step2Data.rentToOwnBridgeStrategy
           ? `<div class="card card-highlight">
               <div class="card-label">Rent-to-Own Audience Bridge Strategy (Email &amp; Data Ownership)</div>
-              <div class="card-value" style="font-size: 12px; color: #1e1b4b; line-height: 1.5;">
+              <div class="card-value" style="font-size: 12px; color: #0f172a; line-height: 1.5;">
                 ${escapeHtml(step2Data.rentToOwnBridgeStrategy)}
               </div>
             </div>`
@@ -589,7 +590,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
       <div class="section-title">2. Ruthless 3-Bucket V1 Scope Filter (Anti-Scope-Creep Engine)</div>
       ${
         step3Data.scopeDisciplineRule
-          ? `<div style="font-size: 11px; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px;">
+          ? `<div style="font-size: 11px; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px;">
               <strong>Active Discipline Rule:</strong> ${escapeHtml(step3Data.scopeDisciplineRule.replace(/_/g, ' '))}${step3Data.otherScopeDisciplineRuleText ? ` (${escapeHtml(step3Data.otherScopeDisciplineRuleText)})` : ''}
             </div>`
           : ''
@@ -610,15 +611,15 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
             }
           </ul>
         </div>
-        <div class="card" style="border-color: #c7d2fe; background: #eef2ff;">
-          <div class="card-label" style="color: #3730a3;">🟡 Version 1.5 — Fast-Follow (${v15Items.length})</div>
-          <ul style="margin: 6px 0 0 16px; padding: 0; font-size: 12px; color: #1e1b4b;">
+        <div class="card" style="border-color: #a7f3d0; background: #ecfdf5;">
+          <div class="card-label" style="color: #065f46;">🟡 Version 1.5 — Fast-Follow (${v15Items.length})</div>
+          <ul style="margin: 6px 0 0 16px; padding: 0; font-size: 12px; color: #0f172a;">
             ${
               v15Items.length > 0
                 ? v15Items
                     .map(
                       (it) =>
-                        `<li style="margin-bottom: 4px;"><strong>${escapeHtml(it.title)}</strong>${it.categoryTag ? ` <span style="font-size: 10px; opacity: 0.8;">[${escapeHtml(it.categoryTag)}]</span>` : ''} <span style="font-size: 10px; color: #4f46e5;">(${escapeHtml(it.effortImpact)} effort)</span>${it.rationaleOrNote ? `<br/><span style="font-size: 11px; color: #475569;">${escapeHtml(it.rationaleOrNote)}</span>` : ''}</li>`
+                        `<li style="margin-bottom: 4px;"><strong>${escapeHtml(it.title)}</strong>${it.categoryTag ? ` <span style="font-size: 10px; opacity: 0.8;">[${escapeHtml(it.categoryTag)}]</span>` : ''} <span style="font-size: 10px; color: #047857;">(${escapeHtml(it.effortImpact)} effort)</span>${it.rationaleOrNote ? `<br/><span style="font-size: 11px; color: #475569;">${escapeHtml(it.rationaleOrNote)}</span>` : ''}</li>`
                     )
                     .join('')
                 : '<li>None deferred to V1.5 yet.</li>'
@@ -722,7 +723,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
       <div class="grid-2">
         <div class="card card-highlight">
           <div class="card-label">Core IP &amp; Proprietary Moat Narrative</div>
-          <div class="card-value" style="font-size: 12px; color: #1e1b4b; line-height: 1.5;">
+          <div class="card-value" style="font-size: 12px; color: #0f172a; line-height: 1.5;">
             ${escapeHtml(step4Data.secretSauceInHouseNarrative || 'Core proprietary algorithms, domain datasets, or custom workflows retained strictly in-house.')}
           </div>
         </div>
@@ -740,7 +741,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
       <div class="section-title">4. System Flow &amp; Work Package Roadmap (WP1–WP${step5Data.workPackages.length || 4})</div>
       ${
         step5Data.executionCadenceRule
-          ? `<div style="font-size: 11px; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px;">
+          ? `<div style="font-size: 11px; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px;">
               <strong>Cadence Rule:</strong> ${escapeHtml(step5Data.executionCadenceRule.replace(/_/g, ' '))}${step5Data.otherExecutionCadenceRuleText ? ` (${escapeHtml(step5Data.otherExecutionCadenceRuleText)})` : ''}
             </div>`
           : ''
@@ -755,7 +756,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
                   .map(
                     (st, idx) => `
                     <div class="card" style="background: #f8fafc; border-color: #cbd5e1; padding: 10px 12px;">
-                      <div style="font-weight: 700; font-size: 12px; color: #312e81;">Stage ${st.stageNumber || idx + 1}: ${escapeHtml(st.stageTitle)}</div>
+                      <div style="font-weight: 700; font-size: 12px; color: #0f172a;">Stage ${st.stageNumber || idx + 1}: ${escapeHtml(st.stageTitle)}</div>
                       ${st.stageSubtitle ? `<div style="font-size: 11px; color: #64748b;">${escapeHtml(st.stageSubtitle)}</div>` : ''}
                       <div style="margin-top: 4px; font-size: 11px; color: #1e293b;"><strong>Stack/Tools:</strong> ${escapeHtml(st.keyToolsOrMaterials || st.whatHappensHere || '—')}</div>
                       <div style="margin-top: 2px; font-size: 11px; color: #047857;">&rarr; <strong>Output:</strong> ${escapeHtml(st.outputOrHandoff || st.outputOrHandOff || '—')}</div>
@@ -849,7 +850,7 @@ export function buildModuleDStandaloneHtmlBrief(data: ModuleDBriefData): string 
                       </span>
                       <span style="font-size: 11px; color: #64748b; margin-left: 4px;">[${escapeHtml(bs.category.replace(/_/g, ' '))}]</span>
                       <div style="font-size: 11px; color: #475569; margin-top: 2px;">${escapeHtml(bs.whyItMatters)}</div>
-                      <div style="font-size: 11px; color: #4338ca; margin-top: 2px;">&bull; <strong>Recommended Action:</strong> ${escapeHtml(bs.recommendedActionOrFix)}</div>
+                      <div style="font-size: 11px; color: #065f46; margin-top: 2px;">&bull; <strong>Recommended Action:</strong> ${escapeHtml(bs.recommendedActionOrFix)}</div>
                       ${
                         bs.founderMitigationNote
                           ? `<div style="font-size: 11px; color: #047857; margin-top: 2px; background: #f0fdf4; padding: 4px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">

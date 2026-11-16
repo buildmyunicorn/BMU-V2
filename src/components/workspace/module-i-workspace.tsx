@@ -24,6 +24,7 @@ import {
   Bookmark,
   Send,
   Sliders,
+  SlidersHorizontal,
   DollarSign,
   ShieldCheck,
   Zap,
@@ -59,6 +60,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   BrandPositioningStep1Data,
@@ -451,13 +453,17 @@ export function ModuleIWorkspace({
   initialStep,
   highlightTarget,
 }: ModuleIWorkspaceProps) {
-  // Step expansion state: 0 = all collapsed by default, 1..5, or 'ALL'
+  // Step expansion state: default to Step 1 open so founders land directly in action
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 5) {
       return initialStep;
     }
-    return 0;
+    return 1;
   });
+  const [step3SubTab, setStep3SubTab] = useState<
+    'PILOT_PIPELINE' | 'OUTREACH_CADENCE' | 'TOOLKIT_LOI'
+  >('PILOT_PIPELINE');
+  const [step4PlainEnglishView, setStep4PlainEnglishView] = useState<boolean>(true);
 
   // Handle deep-link scrolling and highlight
   useEffect(() => {
@@ -579,7 +585,8 @@ export function ModuleIWorkspace({
   });
 
   const isStep1Complete = Boolean(
-    (step1Data?.elevatorHook140?.trim()?.length ?? 0) > 10 &&
+    Boolean(step1Data?.lastSavedAt || plan.moduleIData?.step1Positioning) &&
+      (step1Data?.elevatorHook140?.trim()?.length ?? 0) > 10 &&
       Boolean(step1Data?.positioningFormula?.targetCustomer?.trim()) &&
       Boolean(step1Data?.positioningFormula?.customerProblem?.trim()) &&
       Boolean(step1Data?.positioningFormula?.solutionCategory?.trim()) &&
@@ -708,6 +715,7 @@ export function ModuleIWorkspace({
   });
 
   const isStep2Complete = Boolean(
+    Boolean(step2Data?.lastSavedAt || plan.moduleIData?.step2FourPs) &&
     (step2Data?.productP1?.coreDeliverableSummary?.trim()?.length ?? 0) > 5 &&
     (step2Data?.productP1?.packagingType !== 'OTHER' || (step2Data?.productP1?.otherPackagingTypeText?.trim() ?? '').length > 0) &&
     (step2Data?.priceP2?.headlinePricePoint?.trim()?.length ?? 0) > 0 &&
@@ -861,15 +869,13 @@ export function ModuleIWorkspace({
   });
 
   const isStep3Complete = Boolean(
+    Boolean(step3Data?.lastSavedAt || plan.moduleIData?.step3First10) &&
     (step3Data?.acquisitionArchetype !== 'OTHER' || (step3Data?.otherAcquisitionArchetypeText?.trim() ?? '').length > 0) &&
     (step3Data?.pilotOffer?.pilotStructure?.trim()?.length ?? 0) > 5 &&
     (step3Data?.pilotOffer?.quidProQuoFounderAsk?.trim()?.length ?? 0) > 5 &&
-    (step3Data?.targetPipeline?.length ?? 0) >= 3 &&
+    (step3Data?.targetPipeline?.length ?? 0) >= 1 &&
     (step3Data?.outreachScripts?.advisoryScript?.trim()?.length ?? 0) > 20 &&
-    (step3Data?.followUpCadence?.day14Breakup?.trim()?.length ?? 0) > 10 &&
-    (step3Data?.objectionBusters?.vendorRisk?.trim()?.length ?? 0) > 10 &&
-    (step3Data?.letterOfIntent?.targetCompanyName?.trim()?.length ?? 0) > 1 &&
-    (step3Data?.letterOfIntent?.primarySuccessKpi?.trim()?.length ?? 0) > 5
+    (step3Data?.followUpCadence?.day14Breakup?.trim()?.length ?? 0) > 10
   );
 
   // -------------------------------------------------------------
@@ -972,7 +978,8 @@ export function ModuleIWorkspace({
       weeklyFounderMarketingHours: 8,
       paidAdsViabilityDecision: 'ACTIVE' as PaidAdsViabilityDecision,
       excludePaidAdsFromModuleJ: false,
-      syncedToModuleJOverheads: false,
+      explicitlyUnsyncedFromModuleJ: false,
+      syncedToModuleJOverheads: true,
       cacAndBudgetNarrative: `To reach our Module H breakeven target of ${defaultTargetCustomers} paying customers per month, our reverse-engineered funnel requires ${reqLeads.toLocaleString()} qualified leads (${defaultLeadConv}% conversion) from ${reqTouches.toLocaleString()} top-of-funnel visitors/outreach touches (${defaultVisitorConv}% visitor-to-lead conversion). Blending ${100 - defaultPaidShare}% founder-led organic outreach with ${defaultPaidShare}% paid acquisition (${currencySymbol}${totalSpend.toLocaleString()}/mo budget) yields a Cash CAC of ${currencySymbol}${cashCac} against an LTV of ${currencySymbol}${ltv.toLocaleString()} (${ltvCac}x LTV:CAC), paying back acquisition cost in ${payback} months.`,
     };
 
@@ -981,6 +988,9 @@ export function ModuleIWorkspace({
       return {
         ...defaultStep4,
         ...existing,
+        syncedToModuleJOverheads: existing.explicitlyUnsyncedFromModuleJ
+          ? false
+          : existing.syncedToModuleJOverheads ?? true,
         budgetLineItems:
           Array.isArray(existing.budgetLineItems) && existing.budgetLineItems.length > 0
             ? existing.budgetLineItems
@@ -1314,13 +1324,13 @@ export function ModuleIWorkspace({
   ]);
 
   const isStep4Complete = Boolean(
-    (Number(step4Data?.targetMonthlyNewCustomers) || 0) >= 1 &&
+    Boolean(step4Data?.lastSavedAt || plan.moduleIData?.step4Budget) &&
+      (Number(step4Data?.targetMonthlyNewCustomers) || 0) >= 1 &&
       (step4Data?.goalPreset !== 'OTHER' ||
         (step4Data?.otherGoalPresetText?.trim() ?? '').length > 0) &&
       (step4Data?.ltvPurchaseModel !== 'OTHER' ||
         (step4Data?.otherLtvPurchaseModelText?.trim() ?? '').length > 0) &&
-      (step4Data?.budgetLineItems?.length ?? 0) >= 1 &&
-      (step4Data?.cacAndBudgetNarrative?.trim()?.length ?? 0) > 15
+      (step4Data?.budgetLineItems?.length ?? 0) >= 1
   );
 
   const completedCoreStepsCount =
@@ -1432,6 +1442,7 @@ export function ModuleIWorkspace({
         ...step1Data,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep1Data(updatedStep1);
       if (onSaveStep1Positioning) {
         await onSaveStep1Positioning(updatedStep1, isStep1Complete ? 25 : 15);
       }
@@ -1729,6 +1740,7 @@ export function ModuleIWorkspace({
         ...step2Data,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep2Data(updatedStep2);
       if (onSaveStep2FourPs) {
         await onSaveStep2FourPs(updatedStep2, isStep2Complete ? 45 : 30);
       }
@@ -1978,6 +1990,7 @@ export function ModuleIWorkspace({
         ...step3Data,
         lastSavedAt: new Date().toISOString(),
       };
+      setStep3Data(updatedStep3);
       if (onSaveStep3First10) {
         await onSaveStep3First10(updatedStep3, isStep3Complete ? 65 : 50);
       }
@@ -2576,6 +2589,7 @@ export function ModuleIWorkspace({
       weeklyFounderMarketingHours: step4LiveMetrics.weeklyFounderHours,
       lastSavedAt: new Date().toISOString(),
     };
+    setStep4Data(updatedStep4);
 
     try {
       if (onSaveStep4Budget) {
@@ -3207,7 +3221,7 @@ export function ModuleIWorkspace({
                 Module I • Go-To-Market &amp; Customer Acquisition
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
-                <Sparkles className="mr-1 h-3 w-3" />
+                <SlidersHorizontal className="mr-1 h-3 w-3" />
                 {completedCoreStepsCount} of 4 Core Steps Ready
               </Badge>
             </div>
@@ -3442,7 +3456,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate Hook &amp; Pillars with AI
                   </>
                 )}
@@ -3452,16 +3466,26 @@ export function ModuleIWorkspace({
             {/* Micro-Coaching Card (Collapsible) */}
             {activeWhyCard === 1 && (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
-                <div className="flex items-start gap-2">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                  <div className="space-y-1">
-                    <p className="font-semibold text-slate-950">
-                      Why does positioning come before spending marketing money?
-                    </p>
-                    <p className="text-emerald-900">
-                      Most early-stage founders waste money on Facebook or Google ads before they can clearly explain their product in one sentence. If a customer or grant assessor doesn’t understand what you do in 3 seconds, they bounce. A rigorous positioning formula forces clarity, aligns all landing pages, and prevents you from competing on price alone.
-                    </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-slate-950">
+                        Why does positioning come before spending marketing money?
+                      </p>
+                      <p className="text-emerald-900">
+                        Most early-stage founders waste money on Facebook or Google ads before they can clearly explain their product in one sentence. If a customer or grant assessor doesn’t understand what you do in 3 seconds, they bounce. A rigorous positioning formula forces clarity, aligns all landing pages, and prevents you from competing on price alone.
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWhyCard(null)}
+                    className="shrink-0 text-slate-400 hover:text-slate-700 text-xs"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             )}
@@ -3469,19 +3493,29 @@ export function ModuleIWorkspace({
             {/* Example Card (Collapsible) */}
             {activeExampleCard === 1 && (
               <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <div className="space-y-1">
-                    <p className="font-semibold text-emerald-900">
-                      Real-World Example (B2B SaaS / Preflight):
-                    </p>
-                    <p className="text-emerald-800">
-                      <strong className="text-emerald-950">140-Char Hook:</strong> &quot;Startup Preflight is the flight simulator for founders—stress-testing your unit economics and compiling grant applications in minutes.&quot;
-                    </p>
-                    <p className="text-emerald-800">
-                      <strong className="text-emerald-950">Formula:</strong> For early-stage European founders who waste months drafting business plans, Startup Preflight is a structured operating system that stress-tests financials and auto-compiles grant applications. Unlike generic templates and expensive consultants, we deliver automated blind-spot audits.
-                    </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-emerald-900">
+                        Real-World Example (B2B SaaS / Preflight):
+                      </p>
+                      <p className="text-emerald-800">
+                        <strong className="text-emerald-950">140-Char Hook:</strong> &quot;Startup Preflight is the flight simulator for founders—stress-testing your unit economics and compiling grant applications in minutes.&quot;
+                      </p>
+                      <p className="text-emerald-800">
+                        <strong className="text-emerald-950">Formula:</strong> For early-stage European founders who waste months drafting business plans, Startup Preflight is a structured operating system that stress-tests financials and auto-compiles grant applications. Unlike generic templates and expensive consultants, we deliver automated blind-spot audits.
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveExampleCard(null)}
+                    className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             )}
@@ -3489,7 +3523,7 @@ export function ModuleIWorkspace({
             {/* Success / Assessor Notification */}
             {aiSuccessMessage && (
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800">
-                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                <SlidersHorizontal className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>{aiSuccessMessage}</span>
               </div>
             )}
@@ -3558,10 +3592,10 @@ export function ModuleIWorkspace({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-bold text-slate-900">
-                    2. Classic Positioning Formula (Geoffrey Moore Framework)
+                    2. Fill-in-the-Blank Value Proposition
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Auto-synthesizes your competitive wedge into a bulletproof commercial statement for investors and grant evaluators.
+                    Fill in the blanks below to assemble a crisp, jargon-free statement explaining who you help, what problem you solve, and why customers pick you.
                   </p>
                 </div>
                 <Badge variant="outline" className="border-slate-200 text-emerald-800 text-[10px]">
@@ -4106,7 +4140,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate 4Ps with AI
                   </>
                 )}
@@ -4116,16 +4150,26 @@ export function ModuleIWorkspace({
             {/* Micro-Coaching Card (Collapsible) */}
             {activeWhyCard === 2 && (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-900">
-                <div className="flex items-start gap-2">
-                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                  <div className="space-y-1">
-                    <p className="font-semibold text-slate-950">
-                      Why does the 4Ps model matter to grant bodies (LEO, Innovate UK) and early investors?
-                    </p>
-                    <p className="text-emerald-900">
-                      Assessors want proof that you have a viable commercial route to market, not just a product idea. Most failed startups build something and then try 5 different channels with no focus or budget. The modern 4Ps strategy forces you to commit to ONE primary beachhead channel, identify your biggest checkout friction point, and articulate why your price is a total bargain compared to the cost of customer inaction.
-                    </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-slate-950">
+                        Why does the 4Ps model matter to grant bodies (LEO, Innovate UK) and early investors?
+                      </p>
+                      <p className="text-emerald-900">
+                        Assessors want proof that you have a viable commercial route to market, not just a product idea. Most failed startups build something and then try 5 different channels with no focus or budget. The modern 4Ps strategy forces you to commit to ONE primary beachhead channel, identify your biggest checkout friction point, and articulate why your price is a total bargain compared to the cost of customer inaction.
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWhyCard(null)}
+                    className="shrink-0 text-slate-400 hover:text-slate-700 text-xs"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             )}
@@ -4133,29 +4177,39 @@ export function ModuleIWorkspace({
             {/* Example Card (Collapsible) */}
             {activeExampleCard === 2 && (
               <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <div className="space-y-2">
-                    <p className="font-semibold text-emerald-900">
-                      Real-World 4Ps Examples:
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-                      <div className="rounded border border-emerald-200 bg-white/60 p-2.5">
-                        <p className="font-bold text-emerald-900">Example A: B2B SaaS (Startup Preflight)</p>
-                        <p className="text-emerald-800 mt-0.5"><strong>Product:</strong> Self-serve cloud workspace with automated compliance checks and exportable briefs.</p>
-                        <p className="text-emerald-800"><strong>Price:</strong> €79 one-off pass. Bargain vs. €3,000+ consultant fees.</p>
-                        <p className="text-emerald-800"><strong>Place:</strong> Direct Web self-serve. Mitigation: Pre-filled industry benchmarks.</p>
-                        <p className="text-emerald-800"><strong>Promotion:</strong> Founder-Led Organic on LinkedIn with weekly teardown posts.</p>
-                      </div>
-                      <div className="rounded border border-emerald-200 bg-white/60 p-2.5">
-                        <p className="font-bold text-emerald-900">Example B: Premium D2C Functional Drink</p>
-                        <p className="text-emerald-800 mt-0.5"><strong>Product:</strong> 12-pack functional drink cans with recyclable matte packaging.</p>
-                        <p className="text-emerald-800"><strong>Price:</strong> €36/pack (€3/can). Cheaper than daily specialty cafe coffee (€4.50).</p>
-                        <p className="text-emerald-800"><strong>Place:</strong> Shopify D2C store + specialty cafes. Mitigation: Free shipping on 2+ packs.</p>
-                        <p className="text-emerald-800"><strong>Promotion:</strong> Micro-influencer gifting to 50 CrossFit creators monthly.</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="space-y-2">
+                      <p className="font-semibold text-emerald-900">
+                        Real-World 4Ps Examples:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                        <div className="rounded border border-emerald-200 bg-white/60 p-2.5">
+                          <p className="font-bold text-emerald-900">Example A: B2B SaaS (Startup Preflight)</p>
+                          <p className="text-emerald-800 mt-0.5"><strong>Product:</strong> Self-serve cloud workspace with automated compliance checks and exportable briefs.</p>
+                          <p className="text-emerald-800"><strong>Price:</strong> €79 one-off pass. Bargain vs. €3,000+ consultant fees.</p>
+                          <p className="text-emerald-800"><strong>Place:</strong> Direct Web self-serve. Mitigation: Pre-filled industry benchmarks.</p>
+                          <p className="text-emerald-800"><strong>Promotion:</strong> Founder-Led Organic on LinkedIn with weekly teardown posts.</p>
+                        </div>
+                        <div className="rounded border border-emerald-200 bg-white/60 p-2.5">
+                          <p className="font-bold text-emerald-900">Example B: Premium D2C Functional Drink</p>
+                          <p className="text-emerald-800 mt-0.5"><strong>Product:</strong> 12-pack functional drink cans with recyclable matte packaging.</p>
+                          <p className="text-emerald-800"><strong>Price:</strong> €36/pack (€3/can). Cheaper than daily specialty cafe coffee (€4.50).</p>
+                          <p className="text-emerald-800"><strong>Place:</strong> Shopify D2C store + specialty cafes. Mitigation: Free shipping on 2+ packs.</p>
+                          <p className="text-emerald-800"><strong>Promotion:</strong> Micro-influencer gifting to 50 CrossFit creators monthly.</p>
+                        </div>
                       </div>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveExampleCard(null)}
+                    className="shrink-0 text-emerald-600 hover:text-emerald-800 text-xs"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             )}
@@ -4163,7 +4217,7 @@ export function ModuleIWorkspace({
             {/* Success / Assessor Notification */}
             {aiSuccessMessageStep2 && (
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800">
-                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                <SlidersHorizontal className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>{aiSuccessMessageStep2}</span>
               </div>
             )}
@@ -5188,7 +5242,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-1 h-3.5 w-3.5" />
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
                     Auto-Generate Playbook with AI
                   </>
                 )}
@@ -5259,7 +5313,7 @@ export function ModuleIWorkspace({
             {/* AI Success Notification */}
             {aiSuccessMessageStep3 && (
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800">
-                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>{aiSuccessMessageStep3}</span>
               </div>
             )}
@@ -5279,6 +5333,50 @@ export function ModuleIWorkspace({
           </CardHeader>
 
           <CardContent className="space-y-8 pt-6">
+            {/* Step 3 3-Tab Sub-Navigation Toolbar */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2">
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                {[
+                  {
+                    id: 'PILOT_PIPELINE' as const,
+                    label: 'Tab A: Pilot Offer & First 10 List',
+                    sub: `${step3Data.targetPipeline.length} prospects • Pilot offer & guarantee`,
+                  },
+                  {
+                    id: 'OUTREACH_CADENCE' as const,
+                    label: 'Tab B: Outreach & Follow-Up Scripts',
+                    sub: '3 outreach templates + 4-touch cadence',
+                  },
+                  {
+                    id: 'TOOLKIT_LOI' as const,
+                    label: 'Tab C: Optional Sales Toolkit',
+                    sub: 'Objection prep & B2B Pilot LOI generator',
+                  },
+                ].map((tab) => {
+                  const isActive = step3SubTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setStep3SubTab(tab.id)}
+                      className={`rounded-lg border px-3 py-2 text-left transition-all ${
+                        isActive
+                          ? 'border-emerald-700 bg-white text-slate-900 shadow-2xs ring-1 ring-emerald-700'
+                          : 'border-transparent bg-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">{tab.label}</div>
+                      <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                        {tab.sub}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {step3SubTab === 'PILOT_PIPELINE' && (
+              <div className="space-y-8">
             {/* --------------------------------------------------------- */}
             {/* 3.0: MODULE C LEAD HARVESTING BRIDGE                      */}
             {/* --------------------------------------------------------- */}
@@ -5807,8 +5905,25 @@ export function ModuleIWorkspace({
                   );
                 })}
               </div>
-            </div>
 
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStep3SubTab('OUTREACH_CADENCE')}
+                  className="border-emerald-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                >
+                  Next Tab: Outreach &amp; Follow-Up Scripts
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+              </div>
+            )}
+
+            {step3SubTab === 'OUTREACH_CADENCE' && (
+              <div className="space-y-8">
             {/* --------------------------------------------------------- */}
             {/* 3.4: COLD & WARM OUTREACH SCRIPT ENGINE                   */}
             {/* --------------------------------------------------------- */}
@@ -6048,9 +6163,20 @@ export function ModuleIWorkspace({
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <span className="text-[11px] font-bold text-slate-900">Touch 4: Day 14</span>
-                    <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[9px] px-1.5 py-0.5">Breakup</Badge>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopyText(step3Data.followUpCadence.day14Breakup, 'BREAKUP')
+                        }
+                        className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        {copiedScriptKey === 'BREAKUP' ? 'Copied ✓' : 'Copy'}
+                      </button>
+                      <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[9px] px-1.5 py-0.5">Breakup</Badge>
+                    </div>
                   </div>
                   <textarea
                     value={step3Data.followUpCadence.day14Breakup}
@@ -6071,61 +6197,34 @@ export function ModuleIWorkspace({
                 </div>
               </div>
 
-              {/* Polite Breakup Highlight Card */}
-              <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/60 via-white to-amber-50/40 p-4 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-amber-600" />
-                    <span className="text-xs font-bold text-slate-900">
-                      The Polite Breakup Email Template (Generates 30%+ Response Rates)
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      handleCopyText(step3Data.followUpCadence.day14Breakup, 'BREAKUP');
-                    }}
-                    className="h-7 text-xs border-amber-300 hover:bg-amber-100/50"
-                  >
-                    {copiedScriptKey === 'BREAKUP' ? (
-                      <>
-                        <Check className="mr-1 h-3.5 w-3.5 text-emerald-600" />
-                        Copied Breakup Email!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-1 h-3.5 w-3.5 text-amber-700" />
-                        Copy Breakup Email
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <div>
-                  <Label className="text-[10px] font-medium text-slate-500">
-                    Full Breakup Script (Ready to Copy &amp; Send)
-                  </Label>
-                  <textarea
-                    value={step3Data.followUpCadence.day14Breakup}
-                    onChange={(e) =>
-                      setStep3Data((prev) => ({
-                        ...prev,
-                        followUpCadence: {
-                          ...prev.followUpCadence,
-                          day14Breakup: e.target.value,
-                        },
-                      }))
-                    }
-                    rows={4}
-                    disabled={isVaultReadonly}
-                    className="w-full mt-1 rounded-md border border-slate-300 bg-white p-2.5 font-mono text-base sm:text-xs text-slate-900 leading-relaxed focus:border-emerald-600 focus:outline-hidden"
-                  />
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setStep3SubTab('PILOT_PIPELINE')}
+                  className="text-xs text-slate-600"
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Back to Pilot Offer &amp; First 10 List
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStep3SubTab('TOOLKIT_LOI')}
+                  className="border-emerald-200 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                >
+                  Optional Tab: Objection Prep &amp; B2B LOI
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
+              </div>
+            )}
 
+            {step3SubTab === 'TOOLKIT_LOI' && (
+              <div className="space-y-8">
             {/* --------------------------------------------------------- */}
             {/* 3.6: TOP 3 EARLY-STAGE OBJECTION BUSTERS                  */}
             {/* --------------------------------------------------------- */}
@@ -6157,7 +6256,7 @@ export function ModuleIWorkspace({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
                       <span>✨ AI Suggest Objections &amp; Rebuttals</span>
                     </>
                   )}
@@ -6195,7 +6294,7 @@ export function ModuleIWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-3 w-3 text-emerald-700" />
+                          <SlidersHorizontal className="h-3 w-3 text-emerald-700" />
                           <span>Suggest Rebuttal</span>
                         </>
                       )}
@@ -6295,7 +6394,7 @@ export function ModuleIWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-3 w-3 text-emerald-700" />
+                          <SlidersHorizontal className="h-3 w-3 text-emerald-700" />
                           <span>Suggest Rebuttal</span>
                         </>
                       )}
@@ -6375,7 +6474,7 @@ export function ModuleIWorkspace({
                 <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs hover:border-emerald-300 transition-colors">
                   <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <Sparkles className="h-4 w-4 shrink-0 text-emerald-700" />
+                      <SlidersHorizontal className="h-4 w-4 shrink-0 text-emerald-700" />
                       <Badge variant="outline" className="border-slate-200 bg-emerald-50 text-[10px] font-semibold text-emerald-800">
                         Friction #3: Feature Gap
                       </Badge>
@@ -6395,7 +6494,7 @@ export function ModuleIWorkspace({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-3 w-3 text-emerald-700" />
+                          <SlidersHorizontal className="h-3 w-3 text-emerald-700" />
                           <span>Suggest Rebuttal</span>
                         </>
                       )}
@@ -6477,6 +6576,15 @@ export function ModuleIWorkspace({
             {/* 3.7: 1-CLICK NON-BINDING LETTER OF INTENT (LOI) GENERATOR */}
             {/* --------------------------------------------------------- */}
             <div className="space-y-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs text-emerald-950">
+                <div className="flex items-start gap-2">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                  <p className="leading-relaxed">
+                    <strong>B2C vs. B2B Note:</strong> Selling directly to consumers (D2C retail, food, hospitality, or consumer apps)? Everyday consumers don&apos;t sign Letters of Intent—your <strong>Module C Waitlist &amp; Survey responses</strong> act as your demand proof instead. Use this LOI generator only if you sell to businesses, stockists, clinics, schools, or commercial partners.
+                  </p>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -6785,6 +6893,8 @@ export function ModuleIWorkspace({
                 </div>
               </div>
             </div>
+              </div>
+            )}
 
             {/* --------------------------------------------------------- */}
             {/* STEP 3 PARKING LOT: OPEN QUESTIONS                        */}
@@ -6832,7 +6942,7 @@ export function ModuleIWorkspace({
             {/* STEP 3 BOTTOM ACTION TOOLBAR                              */}
             {/* --------------------------------------------------------- */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   variant="outline"
@@ -6847,11 +6957,18 @@ export function ModuleIWorkspace({
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                      Regenerate with AI
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                      Calibrate Playbook
                     </>
                   )}
                 </Button>
+                <ParkOpenQuestionPopover
+                  planId={plan.id}
+                  moduleCode="MOD_I_MARKETING"
+                  stepLabel="Module I • Step 3"
+                  suggestedQuestion="Which 10 specific named prospects or local stockists can we reach out to personally this week?"
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -6980,7 +7097,7 @@ export function ModuleIWorkspace({
                         variant="outline"
                         className="shrink-0 border-slate-200 bg-emerald-50 text-emerald-800 text-[10px]"
                       >
-                        <Sparkles className="mr-1 h-2.5 w-2.5" />
+                        <SlidersHorizontal className="mr-1 h-2.5 w-2.5" />
                         {step4Data.aiEngineUsed === 'gemini-2.5-flash'
                           ? 'Gemini 2.5 Flash'
                           : 'Smart Synthesizer'}
@@ -7047,7 +7164,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Calibrate with Preflight AI
                   </>
                 )}
@@ -7123,41 +7240,55 @@ export function ModuleIWorkspace({
               </div>
             )}
 
-            {/* AI Success Notification */}
-            {aiSuccessMessageStep4 && (
-              <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                <span>{aiSuccessMessageStep4}</span>
-              </div>
-            )}
-
-            {/* AI Assessor Insight Tip */}
-            {aiAssessorTipStep4 && (
-              <div className="mt-3 rounded-lg border border-slate-200 bg-emerald-50/80 p-3 text-xs text-slate-950">
-                <div className="flex items-start gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                  <div>
-                    <span className="font-semibold text-slate-950">Grant &amp; Investor Assessor Tip: </span>
-                    <span className="text-slate-900">{aiAssessorTipStep4}</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </CardHeader>
 
           <CardContent className="space-y-8 pt-6">
+            {/* Founder Plain-English vs Assessor Acronym View Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+              <div className="text-xs text-slate-700">
+                <strong className="text-slate-900">Label Style:</strong>{' '}
+                {step4PlainEnglishView
+                  ? 'Showing everyday plain-English labels (no marketing degree needed).'
+                  : 'Showing formal investor & grant assessor marketing acronyms (CPC, CPL, AOV, CAC, LTV).'}
+              </div>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setStep4PlainEnglishView(true)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    step4PlainEnglishView
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Founder View (Plain English)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep4PlainEnglishView(false)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    !step4PlainEnglishView
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Assessor Acronyms (CAC / LTV)
+                </button>
+              </div>
+            </div>
+
             {/* AI Auto-Synthesize Banner */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/80 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50/80 p-4">
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-xs">
-                  <Wand2 className="h-4 w-4" />
+                  <SlidersHorizontal className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-xs font-bold text-slate-900">
-                    AI Funnel &amp; Grant-Compliant Budget Calibrator
+                    Funnel &amp; Grant-Compliant Budget Calibrator
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-600">
-                    Auto-calibrate realistic conversion rates, CPC benchmarks, 3-bucket marketing line items, and a grant-ready CAC justification narrative tailored to your {plan.industryCategory || 'startup'} model.
+                    Calibrate realistic conversion rates, click-cost benchmarks, 3-bucket marketing line items, and an assessor-ready marketing summary tailored to your {plan.industryCategory || 'startup'} model.
                   </p>
                 </div>
               </div>
@@ -7171,12 +7302,12 @@ export function ModuleIWorkspace({
                 {isGeneratingAiStep4 ? (
                   <>
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    Calibrating Funnel &amp; CAC...
+                    Calibrating Funnel...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                    Auto-Calibrate with Preflight AI
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
+                    Calibrate with Evidence
                   </>
                 )}
               </Button>
@@ -7240,9 +7371,11 @@ export function ModuleIWorkspace({
 
                 <div className="rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
-                    Net Customer Price
+                    {step4PlainEnglishView
+                      ? 'Avg. Spend per Order / Mo'
+                      : 'Net Customer Price (AOV)'}
                   </div>
-                  <div className="mt-1 text-base font-bold text-slate-900">
+                  <div className="mt-1 text-base font-bold text-slate-900 font-mono tabular-nums">
                     {currencySymbol}
                     {upstreamEconomics.netPricePerCustomer.toLocaleString()}
                   </div>
@@ -7793,7 +7926,9 @@ export function ModuleIWorkspace({
                   <div className="grid grid-cols-2 gap-3 pt-1">
                     <div>
                       <Label className="text-[11px] font-medium text-slate-600">
-                        Avg. Cost Per Click / Touch ({currencySymbol})
+                        {step4PlainEnglishView
+                          ? `Cost for 1 Website Click (${currencySymbol})`
+                          : `Avg. Cost Per Click / Touch — CPC (${currencySymbol})`}
                       </Label>
                       <Input
                         type="number"
@@ -8106,10 +8241,10 @@ export function ModuleIWorkspace({
                     )}{' '}
                     Touches
                   </Badge>
-                  <Badge className="bg-emerald-500/25 border-emerald-400/40 text-emerald-200 text-[10px]">
-                    Cash CAC: {currencySymbol}
-                    {step4LiveMetrics.cashCac.toLocaleString()} • LTV:CAC:{' '}
-                    {step4LiveMetrics.ltvToCacRatio}x
+                  <Badge className="bg-emerald-500/25 border-emerald-400/40 text-emerald-200 text-[10px] font-mono tabular-nums">
+                    {step4PlainEnglishView
+                      ? `Cost to Win 1 Customer: ${currencySymbol}${step4LiveMetrics.cashCac.toLocaleString()} • Profit Return: ${step4LiveMetrics.ltvToCacRatio}x`
+                      : `Cash CAC: ${currencySymbol}${step4LiveMetrics.cashCac.toLocaleString()} • LTV:CAC: ${step4LiveMetrics.ltvToCacRatio}x`}
                   </Badge>
                 </div>
               </div>
@@ -8184,10 +8319,15 @@ export function ModuleIWorkspace({
                     </div>
 
                     <div className="flex items-center justify-between rounded bg-slate-900/60 px-2.5 py-1.5 text-slate-200">
-                      <span>Cost Per Lead (CPL):</span>
-                      <span className="font-semibold text-slate-300">
+                      <span>
+                        {step4PlainEnglishView
+                          ? 'Cost for 1 Lead / Enquiry:'
+                          : 'Cost Per Lead (CPL):'}
+                      </span>
+                      <span className="font-semibold text-slate-300 font-mono tabular-nums">
                         {currencySymbol}
-                        {step4LiveMetrics.cashCostPerLead.toLocaleString()} Cash CPL
+                        {step4LiveMetrics.cashCostPerLead.toLocaleString()}{' '}
+                        {step4PlainEnglishView ? 'per lead' : 'Cash CPL'}
                       </span>
                     </div>
                   </div>
@@ -8300,7 +8440,7 @@ export function ModuleIWorkspace({
                           {isOptedOutOfPaid
                             ? 'Grant-Safe Mode'
                             : step4LiveMetrics.isUnitEconomicsUnderwater
-                            ? 'Audit Red Flag'
+                            ? 'Organic Channels Recommended'
                             : 'Active Blended'}
                         </Badge>
                       </div>
@@ -8462,7 +8602,7 @@ export function ModuleIWorkspace({
                       </span>
                       {step4LiveMetrics.ltvToCacRatio < 1.5 ? (
                         <Badge className="bg-rose-100 text-rose-800 border-rose-300 text-[10px] font-semibold">
-                          Cash Furnace (&lt;1.5x)
+                          Ad Spend &gt; Return (&lt;1.5x)
                         </Badge>
                       ) : step4LiveMetrics.ltvToCacRatio < 3.0 ? (
                         <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold">
@@ -8498,13 +8638,28 @@ export function ModuleIWorkspace({
                     </div>
                   </div>
 
-                  <p className="mt-4 border-t border-slate-200/60 pt-2.5 text-[11px] text-slate-600 leading-normal">
-                    {step4LiveMetrics.ltvToCacRatio < 3.0
-                      ? step4LiveMetrics.activeLtvModel === 'SINGLE_ONE_TIME_PURCHASE'
-                        ? 'Tip: For 1-time purchases, bundle a higher-AOV tier in Mod H, lower paid CAC, or add a repeat consumable/upsell.'
-                        : 'Tip: Increase retention/repeat orders, raise net price in Mod H, or shift toward higher-converting warm channels.'
-                      : 'Strong unit economics: Each customer generates >3x their acquisition cost in net Pocket Profit.'}
-                  </p>
+                  <div className="mt-4 border-t border-slate-200/60 pt-2.5 space-y-2">
+                    <p className="text-[11px] text-slate-600 leading-normal">
+                      {step4LiveMetrics.ltvToCacRatio < 3.0
+                        ? step4LiveMetrics.activeLtvModel === 'SINGLE_ONE_TIME_PURCHASE'
+                          ? 'Tip: For 1-time purchases, paid ads often cost more than the first sale. Bundle a higher-price tier in Mod H, add repeat orders, or focus on organic outreach first.'
+                          : 'Tip: Increase retention/repeat orders, raise net price in Mod H, or shift toward higher-converting warm channels.'
+                        : 'Strong unit economics: Each customer generates >3x their acquisition cost in net Pocket Profit.'}
+                    </p>
+                    {!isOptedOutOfPaid && step4LiveMetrics.ltvToCacRatio < 1.5 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isVaultReadonly}
+                        onClick={() => handleTogglePaidAdsStrategy(false)}
+                        className="h-7 w-full border-emerald-300 bg-emerald-50 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100"
+                      >
+                        <ShieldCheck className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                        Switch to 100% Organic (Zero Ad Spend)
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Card 3: CAC Payback Period (or Day-1 Profit After CAC for One-Time Purchases) */}
@@ -8632,7 +8787,7 @@ export function ModuleIWorkspace({
                       </span>
                       {step4LiveMetrics.weeklyFounderHours > 25 ? (
                         <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold">
-                          Bandwidth Overload!
+                          Heavy Time Load (&gt;25h/wk)
                         </Badge>
                       ) : (
                         <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold">
@@ -8659,7 +8814,7 @@ export function ModuleIWorkspace({
 
                   <p className="mt-4 border-t border-slate-100 pt-2.5 text-[11px] text-slate-500 leading-normal">
                     {step4LiveMetrics.weeklyFounderHours > 25
-                      ? 'Warning: >25 hrs/week of manual outreach risks starving product build (Mod D). Increase conversion or automate.'
+                      ? 'Tip: Spending >25 hrs/week on manual outreach leaves less time for product & delivery. Consider warm partnerships or higher-converting channels.'
                       : 'Realistic weekly founder marketing commitment alongside product and operations.'}
                   </p>
                 </div>
@@ -8958,10 +9113,17 @@ export function ModuleIWorkspace({
                   type="button"
                   disabled={isVaultReadonly}
                   onClick={() =>
-                    setStep4Data((prev) => ({
-                      ...prev,
-                      syncedToModuleJOverheads: !prev.syncedToModuleJOverheads,
-                    }))
+                    setStep4Data((prev) => {
+                      const nextSynced = !prev.syncedToModuleJOverheads;
+                      return {
+                        ...prev,
+                        syncedToModuleJOverheads: nextSynced,
+                        explicitlyUnsyncedFromModuleJ: !nextSynced,
+                        lastSyncedToModuleJAt: nextSynced
+                          ? new Date().toISOString()
+                          : prev.lastSyncedToModuleJAt,
+                      };
+                    })
                   }
                   className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all ${
                     step4Data.syncedToModuleJOverheads
@@ -9262,7 +9424,7 @@ export function ModuleIWorkspace({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                     Auto-Generate / Audit Commercial Defense with AI
                   </>
                 )}
@@ -9798,7 +9960,7 @@ export function ModuleIWorkspace({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Audit Marketing Blind Spots with AI
                       </>
                     )}
@@ -9926,7 +10088,7 @@ export function ModuleIWorkspace({
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
                         Generate with AI
                       </>
                     )}
@@ -10055,7 +10217,7 @@ export function ModuleIWorkspace({
                     onClick={handleGenerateAiMarketingBrief}
                     className="h-7 text-xs border-slate-200 bg-white font-medium text-emerald-800 hover:bg-emerald-50"
                   >
-                    <Sparkles className="mr-1.5 h-3 w-3 text-emerald-700" />
+                    <SlidersHorizontal className="mr-1.5 h-3 w-3 text-emerald-700" />
                     {isOptedOutOfPaid ? 'Regenerate Brief (Opt-Out Mode)' : 'Regenerate Brief (Blended Mode)'}
                   </Button>
                 </div>

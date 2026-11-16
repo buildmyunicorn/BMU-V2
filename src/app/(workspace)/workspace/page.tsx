@@ -50,8 +50,12 @@ import {
   ArrowLeft,
   Landmark,
   BrainCircuit,
+  SlidersHorizontal,
+  Settings,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import { createStripeCheckoutSessionAction } from '@/app/actions/stripe';
 import {
   Card,
@@ -75,6 +79,7 @@ import {
   type ModuleCode,
 } from '@/lib/entitlements';
 import {
+  DEFAULT_COUNTRY_RULES,
   getCountryRulePack,
   getGrantsForCountry,
   getPlanTrackCapabilities,
@@ -185,10 +190,14 @@ import {
   generateModuleAConceptCanvasAction,
   saveModuleACanvasEditsAction,
   parkOpenQuestionAction,
+  updateStartupPlanSettingsAction,
   deleteStartupPlanAction,
   cloneStartupPlanAction,
   generateModuleAGrantPositioningAdviceAction,
+  type OpenQuestionModuleCode,
 } from '@/app/actions/module-a';
+import { askStartupPlanAction } from '@/app/actions/ask-startup';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import {
   isGrantCheckerSupportedForCountry,
   getDefaultGrantEligibilityCheck,
@@ -216,6 +225,7 @@ import {
   saveCustomerInterviewLogsAction,
   extractMomTestInterviewWithAiAction,
   saveModuleCBlindSpotsAction,
+  parkModuleCOpenQuestionAction,
 } from '@/app/actions/module-c';
 import {
   saveModuleDStep1ProductVehicleAction,
@@ -262,7 +272,10 @@ import { ModuleCWorkspace } from '@/components/workspace/module-c-workspace';
 import { ModuleDWorkspace } from '@/components/workspace/module-d-workspace';
 import { ModuleEWorkspace } from '@/components/workspace/module-e-workspace';
 import { ModuleFWorkspace } from '@/components/workspace/module-f-workspace';
-import { ModuleGWorkspace } from '@/components/workspace/module-g-workspace';
+import {
+  ModuleGWorkspace,
+  computeModuleGPillarReadiness,
+} from '@/components/workspace/module-g-workspace';
 import { ModuleHWorkspace } from '@/components/workspace/module-h-workspace';
 import { ModuleIWorkspace } from '@/components/workspace/module-i-workspace';
 import { ModuleJWorkspace } from '@/components/workspace/module-j-workspace';
@@ -373,14 +386,6 @@ const MODULES_LIST: Array<{
     progress: 0,
   },
   {
-    code: 'MOD_G_LAUNCHPAD',
-    short: 'Module G',
-    title: 'Getting Set Up (Launchpad & Operations)',
-    subtitle: 'Legal Entity, Domain & Email, Banking, VAT/Payroll, Insurance & IP',
-    icon: ShieldCheck,
-    progress: 0,
-  },
-  {
     code: 'MOD_H_REVENUE',
     short: 'Module H',
     title: 'Selling, Sales Assumptions & Pocket Profit',
@@ -409,7 +414,15 @@ const MODULES_LIST: Array<{
     short: 'Module K',
     title: 'Grants, Loans & Tax Relief Hub',
     subtitle: 'IE LEO / EI / SURE & UK Start Up Loans / Innovate UK / SEIS Matcher',
-    icon: Sparkles,
+    icon: Landmark,
+    progress: 0,
+  },
+  {
+    code: 'MOD_G_LAUNCHPAD',
+    short: 'Module G',
+    title: 'Getting Set Up (Launchpad & Operations)',
+    subtitle: 'Legal Entity, Domain & Email, Banking, VAT/Payroll, Insurance & IP',
+    icon: ShieldCheck,
     progress: 0,
   },
   {
@@ -560,11 +573,32 @@ export default function WorkspacePage() {
   const [clonePlanError, setClonePlanError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [collapsedStages, setCollapsedStages] = useState<Record<number, boolean>>({
-    1: true,
+    1: false,
     2: true,
     3: true,
     4: true,
   });
+
+  useEffect(() => {
+    const stageByModule: Record<ModuleCode, number> = {
+      MOD_A_IDEATION: 1,
+      MOD_B_MARKET: 1,
+      MOD_C_SURVEYS_FEEDBACK: 1,
+      MOD_D_PRODUCT_BUILD: 2,
+      MOD_E_OPERATIONS: 2,
+      MOD_F_COFOUNDER_TEAM: 2,
+      MOD_H_REVENUE: 3,
+      MOD_I_MARKETING: 3,
+      MOD_J_FINANCE: 3,
+      MOD_K_GRANTS_FUNDING: 4,
+      MOD_G_LAUNCHPAD: 4,
+      MOD_L_BUSINESS_PLAN: 4,
+    };
+    const activeStage = stageByModule[activeModule] || 1;
+    setCollapsedStages((prev) =>
+      prev[activeStage] ? { ...prev, [activeStage]: false } : prev
+    );
+  }, [activeModule]);
 
   function toggleStageCollapse(stageNum: number) {
     setCollapsedStages((prev) => ({
@@ -574,8 +608,27 @@ export default function WorkspacePage() {
   }
   const [showWhyCard, setShowWhyCard] = useState(true);
   const [showExamples, setShowExamples] = useState(false);
+  const [showStep2WhyCard, setShowStep2WhyCard] = useState(false);
+  const [showStep2Examples, setShowStep2Examples] = useState(false);
   const [showImStuckHelper, setShowImStuckHelper] = useState(false);
   const [askUnicornOpen, setAskUnicornOpen] = useState(false);
+  const [askSidekickQuery, setAskSidekickQuery] = useState('');
+  const [isSidekickAsking, setIsSidekickAsking] = useState(false);
+  const [sidekickAnswer, setSidekickAnswer] = useState<{
+    question: string;
+    answerMarkdown: string;
+    suggestedFollowUps: string[];
+  } | null>(null);
+  const [sidekickError, setSidekickError] = useState<string | null>(null);
+  const [isPlanSettingsOpen, setIsPlanSettingsOpen] = useState(false);
+  const [settingsTitle, setSettingsTitle] = useState('');
+  const [settingsSummary, setSettingsSummary] = useState('');
+  const [settingsCountry, setSettingsCountry] = useState<SupportedCountryCode>('IE');
+  const [settingsIndustry, setSettingsIndustry] = useState('');
+  const [settingsTrackMode, setSettingsTrackMode] = useState<'GRANT_AND_INVESTOR' | 'COMMERCIAL_ONLY'>('GRANT_AND_INVESTOR');
+  const [isSavingPlanSettings, setIsSavingPlanSettings] = useState(false);
+  const [planSettingsError, setPlanSettingsError] = useState<string | null>(null);
+  const hasAutoOpenedModuleAStepRef = useRef<string | null>(null);
   const [paywallModalFeature, setPaywallModalFeature] = useState<string | null>(
     null
   );
@@ -2479,6 +2532,149 @@ export default function WorkspacePage() {
         planId: currentPlan.id,
         questionText: clean,
       });
+    }
+  }
+
+  async function handleParkModuleCQuestion(questionText: string) {
+    const clean = questionText.trim();
+    if (!clean) return;
+    if (!openQuestions.includes(clean)) {
+      const next = [...openQuestions, clean];
+      setOpenQuestions(next);
+      const updatedPlans = session.plans.map((p) =>
+        p.id === currentPlan.id ? { ...p, openQuestions: next } : p
+      );
+      const nextSession = { ...session, plans: updatedPlans };
+      setSession(nextSession);
+      saveBmuSession(nextSession);
+      await parkModuleCOpenQuestionAction({
+        planId: currentPlan.id,
+        questionText: clean,
+      });
+    }
+  }
+
+  function openPlanSettingsModal() {
+    setSettingsTitle(currentPlan.title || '');
+    setSettingsSummary(currentPlan.oneLinerSummary || '');
+    setSettingsCountry(selectedCountry);
+    setSettingsIndustry(currentPlan.industryCategory || 'B2B SaaS / AI App');
+    setSettingsTrackMode(
+      currentPlan.fundingTrackMode === 'COMMERCIAL_ONLY'
+        ? 'COMMERCIAL_ONLY'
+        : 'GRANT_AND_INVESTOR'
+    );
+    setPlanSettingsError(null);
+    setIsPlanSettingsOpen(true);
+  }
+
+  async function handleSavePlanSettingsInPlace(e: React.FormEvent) {
+    e.preventDefault();
+    const cleanTitle = settingsTitle.trim();
+    if (!cleanTitle) {
+      setPlanSettingsError('Please enter a plan title.');
+      return;
+    }
+    setIsSavingPlanSettings(true);
+    setPlanSettingsError(null);
+    try {
+      const targetRulePack = getCountryRulePack(settingsCountry);
+      const nextCurrency = targetRulePack.defaultCurrency;
+      const cleanIndustry = settingsIndustry.trim() || 'General Business';
+      const cleanSummary = settingsSummary.trim();
+
+      const res = await updateStartupPlanSettingsAction({
+        planId: currentPlan.id,
+        title: cleanTitle,
+        oneLinerSummary: cleanSummary,
+        hqCountryCode: settingsCountry,
+        baseCurrency: nextCurrency,
+        industryCategory: cleanIndustry,
+        fundingTrackMode: settingsTrackMode,
+      });
+
+      if (!res.ok) {
+        setPlanSettingsError(res.error || 'Could not update plan settings.');
+        return;
+      }
+
+      setSelectedCountry(settingsCountry);
+      setSession((prev) => {
+        const updatedPlans = prev.plans.map((p) =>
+          p.id === currentPlan.id
+            ? {
+                ...p,
+                title: cleanTitle,
+                oneLinerSummary: cleanSummary,
+                hqCountryCode: settingsCountry,
+                baseCurrency: nextCurrency,
+                industryCategory: (cleanIndustry || p.industryCategory) as typeof p.industryCategory,
+                fundingTrackMode: settingsTrackMode,
+              }
+            : p
+        );
+        const nextSession = { ...prev, plans: updatedPlans };
+        saveBmuSession(nextSession);
+        return nextSession;
+      });
+      setIsPlanSettingsOpen(false);
+      setSynthesisBanner(
+        `Updated plan settings for "${cleanTitle}" (${targetRulePack.countryName} • ${nextCurrency}).`
+      );
+    } finally {
+      setIsSavingPlanSettings(false);
+    }
+  }
+
+  async function handleAskPreflightSidekick(promptOverride?: string) {
+    const q = (promptOverride ?? askSidekickQuery).trim();
+    if (!q || isSidekickAsking) return;
+    setIsSidekickAsking(true);
+    setSidekickError(null);
+    try {
+      const activeModLabel =
+        MODULES_LIST.find((m) => m.code === activeModule)?.title || activeModule;
+      const contextualQuestion = `[Viewing ${activeModule} — ${activeModLabel}${
+        activeModule === 'MOD_A_IDEATION' && typeof openStep === 'number' && openStep > 0
+          ? `, Step ${openStep}`
+          : ''
+      }] ${q}`;
+
+      const result = await askStartupPlanAction({
+        planId: currentPlan.id,
+        question: contextualQuestion,
+        persona: 'CO_FOUNDER_COACH' as any,
+        planSnapshot: {
+          ...currentPlan,
+          hqCountryCode: selectedCountry,
+          brainDumpText,
+          conceptCanvas: effectiveCanvas,
+          founderMotivation,
+          teamAndBudget,
+          founderRealityCheck,
+          thingsToConsider: liveThingsToConsider,
+          openQuestions,
+        },
+      });
+
+      if (!result.success || !result.answer) {
+        setSidekickError(
+          result.error || 'Unable to generate an answer right now. Please try again.'
+        );
+        return;
+      }
+      setSidekickAnswer({
+        question: q,
+        answerMarkdown: result.answer.answerMarkdown,
+        suggestedFollowUps: result.answer.suggestedFollowUps || [],
+      });
+      if (!promptOverride) {
+        setAskSidekickQuery('');
+      }
+    } catch {
+      setSidekickError('Temporary connection issue — please try again.');
+    } finally {
+      setIsSidekickAsking(false);
     }
   }
 
@@ -5123,13 +5319,12 @@ export default function WorkspacePage() {
       isComplete: Boolean(
         teamAndBudget?.teamStructureType &&
           teamAndBudget?.skillCoverage &&
-          teamAndBudget?.startingBudgetBracket &&
-          (teamAndBudget?.teamAndFundingNotes?.trim()?.length ?? 0) > 5
+          teamAndBudget?.startingBudgetBracket
       ),
       summary:
-        (teamAndBudget?.teamAndFundingNotes?.trim()?.length ?? 0) > 5
+        teamAndBudget?.teamStructureType && teamAndBudget?.startingBudgetBracket
           ? `${TEAM_STRUCTURE_LABELS[teamAndBudget.teamStructureType]?.replace(/^[^\w]+/, '') || 'Team'} • ${formatStartingBudgetBracket(teamAndBudget.startingBudgetBracket, countryPack.defaultCurrency)}`
-          : 'Add your team & budget plan notes in Step 4',
+          : 'Select your team setup & starting budget in Step 4',
     },
     {
       stepNumber: 5,
@@ -5139,46 +5334,72 @@ export default function WorkspacePage() {
           founderRealityCheck?.personalIncomeUrgency &&
           (Array.isArray(founderRealityCheck?.dealbreakers) ? founderRealityCheck.dealbreakers.length : 0) > 0 &&
           founderRealityCheck?.growthTradeoff &&
-          founderRealityCheck?.biggestWorryPreset &&
-          (founderRealityCheck?.biggestWorryNotes?.trim()?.length ?? 0) > 5
+          founderRealityCheck?.biggestWorryPreset
       ),
       summary:
-        (founderRealityCheck?.biggestWorryNotes?.trim()?.length ?? 0) > 5
+        founderRealityCheck?.biggestWorryPreset
           ? `${Array.isArray(founderRealityCheck?.dealbreakers) ? founderRealityCheck.dealbreakers.length : 0} dealbreaker(s) • ${GROWTH_TRADEOFF_LABELS[founderRealityCheck?.growthTradeoff]?.replace(/^[^\w]+/, '') || 'Custom Tradeoff'}`
-          : 'Write a quick note on your #1 worry in Step 5',
-    },
-    {
-      stepNumber: 6,
-      label: 'Co-Founder Blind-Spot Review',
-      isComplete:
-        (liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5,
-      summary:
-        filledCanvasBoxesCount === 5
-          ? `${liveThingsToConsider?.length ?? 0} tailored blind-spot cards reviewed`
-          : `${liveThingsToConsider?.length ?? 0} live cards adapting as you answer Steps 1–5`,
+          : 'Select your fit check & #1 worry in Step 5',
     },
     ...(isGrantCheckerSupported && liveGrantEvaluation
       ? [
           {
-            stepNumber: 7,
+            stepNumber: 6,
             label: 'Grant & Funding Eligibility Check',
             isComplete: Boolean(grantEligibilityCheck?.lastCheckedAt),
             summary: grantEligibilityCheck?.lastCheckedAt
               ? `${liveGrantEvaluation.qualifiesNowGrants.length} Qualified Now (${liveGrantEvaluation.immediateQualifiedPoolFormatted}) • ${liveGrantEvaluation.unlockableNextGrants.length} Phase 2`
-              : 'Click "Check What Grants I Qualify For" in Step 7',
+              : 'Click "Check What Grants I Qualify For" in Step 6',
+          },
+          {
+            stepNumber: 7,
+            label: 'Co-Founder Blind-Spot Review',
+            isComplete:
+              (liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5,
+            summary:
+              filledCanvasBoxesCount === 5
+                ? `${liveThingsToConsider?.length ?? 0} tailored blind-spot cards reviewed`
+                : `${liveThingsToConsider?.length ?? 0} live cards adapting as you answer Steps 1–6`,
           },
         ]
-      : []),
+      : [
+          {
+            stepNumber: 6,
+            label: 'Co-Founder Blind-Spot Review',
+            isComplete:
+              (liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5,
+            summary:
+              filledCanvasBoxesCount === 5
+                ? `${liveThingsToConsider?.length ?? 0} tailored blind-spot cards reviewed`
+                : `${liveThingsToConsider?.length ?? 0} live cards adapting as you answer Steps 1–5`,
+          },
+        ]),
   ];
 
   const totalReadinessStepsCount = moduleAReadinessSteps.length;
   const completedReadinessCount = moduleAReadinessSteps.filter(
     (s) => s.isComplete
   ).length;
+  const blindSpotStepNumber = isGrantCheckerSupported ? 7 : 6;
+  const blindSpotStepId = `mod-a-step-${blindSpotStepNumber}`;
   const briefStepNumber = isGrantCheckerSupported ? 8 : 7;
   const briefStepId = isGrantCheckerSupported ? 'mod-a-step-8' : 'mod-a-step-7';
 
-  // Granular live progress percentage across all 20 required inputs in Module A (Steps 1-6)
+  // Auto-open the first incomplete step on plan entry instead of leaving all steps collapsed
+  useEffect(() => {
+    if (
+      activeModule === 'MOD_A_IDEATION' &&
+      !isDashboardOpen &&
+      openStep === 0 &&
+      hasAutoOpenedModuleAStepRef.current !== currentPlan.id
+    ) {
+      hasAutoOpenedModuleAStepRef.current = currentPlan.id;
+      const firstIncomplete = moduleAReadinessSteps.find((s) => !s.isComplete);
+      setOpenStep(firstIncomplete ? firstIncomplete.stepNumber : briefStepNumber);
+    }
+  }, [activeModule, isDashboardOpen, openStep, currentPlan.id, briefStepNumber, moduleAReadinessSteps]);
+
+  // Granular live progress percentage across all required inputs in Module A (excluding optional note fields)
   const moduleACheckpoints = [
     (brainDumpText?.trim()?.length ?? 0) >= 20,
     (effectiveCanvas?.coreProblem?.trim()?.length ?? 0) > 5,
@@ -5192,13 +5413,11 @@ export default function WorkspacePage() {
     Boolean(teamAndBudget?.teamStructureType),
     Boolean(teamAndBudget?.skillCoverage),
     Boolean(teamAndBudget?.startingBudgetBracket),
-    (teamAndBudget?.teamAndFundingNotes?.trim()?.length ?? 0) > 5,
     Boolean(founderRealityCheck?.industryConnection),
     Boolean(founderRealityCheck?.personalIncomeUrgency),
     (Array.isArray(founderRealityCheck?.dealbreakers) ? founderRealityCheck.dealbreakers.length : 0) > 0,
     Boolean(founderRealityCheck?.growthTradeoff),
     Boolean(founderRealityCheck?.biggestWorryPreset),
-    (founderRealityCheck?.biggestWorryNotes?.trim()?.length ?? 0) > 5,
     (liveThingsToConsider?.length ?? 0) >= 6,
   ];
   const moduleAProgressPercent = Math.round(
@@ -6226,16 +6445,17 @@ export default function WorkspacePage() {
               </Button>
             </Link>
 
-            <Link href="/onboarding" title="Plan Settings">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="px-2 text-xs text-slate-600 sm:px-3"
-              >
-                <UserCheck className="h-3.5 w-3.5 text-slate-500" />
-                <span className="hidden sm:inline">Plan Settings</span>
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              title="Edit Plan Settings"
+              onClick={openPlanSettingsModal}
+              className="px-2 text-xs text-slate-600 sm:px-3"
+            >
+              <Settings className="h-3.5 w-3.5 text-slate-500" />
+              <span className="hidden sm:inline">Plan Settings</span>
+            </Button>
 
             <Link
               href="/login"
@@ -6378,12 +6598,11 @@ export default function WorkspacePage() {
                     },
                     {
                       stage: 2,
-                      title: 'Stage 2: Product, Team & Setup',
+                      title: 'Stage 2: Product, Operations & Team',
                       moduleCodes: [
                         'MOD_D_PRODUCT_BUILD',
                         'MOD_E_OPERATIONS',
                         'MOD_F_COFOUNDER_TEAM',
-                        'MOD_G_LAUNCHPAD',
                       ],
                     },
                     {
@@ -6394,9 +6613,13 @@ export default function WorkspacePage() {
                     {
                       stage: 4,
                       title: isGrantCheckerSupportedForCountry(selectedCountry)
-                        ? 'Stage 4: Grants & Business Plan'
-                        : 'Stage 4: Blueprint & Plan Studio',
-                      moduleCodes: ['MOD_K_GRANTS_FUNDING', 'MOD_L_BUSINESS_PLAN'],
+                        ? 'Stage 4: Grants, Launchpad & Plan'
+                        : 'Stage 4: Capital, Launchpad & Plan',
+                      moduleCodes: [
+                        'MOD_K_GRANTS_FUNDING',
+                        'MOD_G_LAUNCHPAD',
+                        'MOD_L_BUSINESS_PLAN',
+                      ],
                     },
                   ];
 
@@ -6669,6 +6892,150 @@ export default function WorkspacePage() {
               </button>
             </div>
           )}
+
+          {/* Incoming "Carried Forward Bridge" Context Pill for Modules B–L */}
+          {!isDashboardOpen &&
+            !isMasterDocumentOpen &&
+            !isBusinessPlanStudioOpen &&
+            !isGrantCenterOpen &&
+            !isAskStartupOpen &&
+            activeModule !== 'MOD_A_IDEATION' && (() => {
+              const targetSummary =
+                effectiveCanvas?.targetCustomer?.trim()?.slice(0, 65) ||
+                currentPlan.industryCategory ||
+                'your target customer';
+              const nonSimResponses = (currentPlan.moduleCData?.surveys || []).reduce(
+                (sum, s) =>
+                  sum +
+                  (s.responses || []).filter((r) => !r.isSimulated).length,
+                0
+              );
+              const waitlistLeads = (currentPlan.moduleCData?.surveys || []).reduce(
+                (sum, s) =>
+                  sum +
+                  (s.responses || []).filter(
+                    (r) =>
+                      !r.isSimulated &&
+                      (r.joinedWaitlist ||
+                        Boolean(r.respondentEmail && r.respondentEmail.includes('@')))
+                  ).length,
+                0
+              );
+              const interviewCount = (currentPlan.moduleCData?.interviewLogs || []).length;
+              const survivalDrawings = (
+                currentPlan.moduleFData?.step3SurvivalBudgetData?.founderBudgets || []
+              ).reduce(
+                (sum, b) =>
+                  sum +
+                  Math.max(
+                    0,
+                    (Number(b.housingAndUtilities) || 0) +
+                      (Number(b.groceriesAndEssentials) || 0) +
+                      (Number(b.transportAndCommute) || 0) +
+                      (Number(b.debtAndLoanCommitments) || 0) +
+                      (Number(b.dependentsAndFamily) || 0) -
+                      (Number(b.incomeOffsetCushion) || 0)
+                  ),
+                0
+              );
+
+              const bridgeByModule: Partial<
+                Record<
+                  ModuleCode,
+                  {
+                    upstreamCode: ModuleCode;
+                    upstreamLabel: string;
+                    summary: string;
+                  }
+                >
+              > = {
+                MOD_B_MARKET: {
+                  upstreamCode: 'MOD_A_IDEATION',
+                  upstreamLabel: 'Module A',
+                  summary: `Building on Module A: Taking your first customer group ("${targetSummary}") and testing competitor habits & market size.`,
+                },
+                MOD_C_SURVEYS_FEEDBACK: {
+                  upstreamCode: 'MOD_B_MARKET',
+                  upstreamLabel: 'Module B',
+                  summary: `Building on Module B: Turning your buyer persona & competitor gaps into a bias-free customer survey & early waitlist.`,
+                },
+                MOD_D_PRODUCT_BUILD: {
+                  upstreamCode: 'MOD_C_SURVEYS_FEEDBACK',
+                  upstreamLabel: 'Module C',
+                  summary: `Building on Module C: Using your ${nonSimResponses} real survey response${nonSimResponses === 1 ? '' : 's'}, ${interviewCount} interview${interviewCount === 1 ? '' : 's'} & ${waitlistLeads} waitlist lead${waitlistLeads === 1 ? '' : 's'} to keep V1 lean.`,
+                },
+                MOD_E_OPERATIONS: {
+                  upstreamCode: 'MOD_D_PRODUCT_BUILD',
+                  upstreamLabel: 'Module D',
+                  summary: `Building on Module D: Mapping step-by-step fulfillment, premises, equipment quotes & risk controls around your V1 build.`,
+                },
+                MOD_F_COFOUNDER_TEAM: {
+                  upstreamCode: 'MOD_E_OPERATIONS',
+                  upstreamLabel: 'Module E',
+                  summary: `Building on Module E: Assigning clear human ownership, survival budget & lean hiring around your daily operations.`,
+                },
+                MOD_H_REVENUE: {
+                  upstreamCode: 'MOD_F_COFOUNDER_TEAM',
+                  upstreamLabel: 'Modules D–F',
+                  summary: `Building on Modules D–F: Combining your product unit costs${
+                    survivalDrawings > 0
+                      ? ` and ${formatPlanCurrency(survivalDrawings, countryPack.defaultCurrency)}/mo survival budget`
+                      : ''
+                  } to calculate real Pocket Profit per sale.`,
+                },
+                MOD_I_MARKETING: {
+                  upstreamCode: 'MOD_H_REVENUE',
+                  upstreamLabel: 'Module H',
+                  summary: `Building on Module H: Designing your positioning, First 10 Customers playbook & marketing budget around your target sales volume.`,
+                },
+                MOD_J_FINANCE: {
+                  upstreamCode: 'MOD_I_MARKETING',
+                  upstreamLabel: 'Modules F, H & I',
+                  summary: `Building on Modules F, H & I: Auto-pulling your pricing, wages & marketing spend into a 36-month cashflow & funding gap forecast.`,
+                },
+                MOD_K_GRANTS_FUNDING: {
+                  upstreamCode: 'MOD_J_FINANCE',
+                  upstreamLabel: 'Module J',
+                  summary: `Building on Module J: Matching your cashflow trough, hiring plan & export profile against non-dilutive grants, loans & tax reliefs.`,
+                },
+                MOD_G_LAUNCHPAD: {
+                  upstreamCode: 'MOD_K_GRANTS_FUNDING',
+                  upstreamLabel: 'Module K',
+                  summary: `Building on Module K: Sequencing incorporation, domain/email, business banking & insurance without tripping grant age clocks.`,
+                },
+                MOD_L_BUSINESS_PLAN: {
+                  upstreamCode: 'MOD_G_LAUNCHPAD',
+                  upstreamLabel: 'Modules A–K & Launchpad',
+                  summary: `Building on Modules A–K & Launchpad: Assembling your verified answers, financials & quotes into an official submission-ready plan.`,
+                },
+              };
+
+              const bridge = bridgeByModule[activeModule];
+              if (!bridge) return null;
+
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3.5 py-2 text-xs text-slate-800 shadow-2xs no-print print:hidden">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-emerald-300 bg-white text-[10px] font-bold text-emerald-800"
+                    >
+                      Carried Forward
+                    </Badge>
+                    <span className="truncate font-medium text-slate-800">
+                      {bridge.summary}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigateToModuleWithHistory(bridge.upstreamCode)}
+                    className="shrink-0 text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline"
+                  >
+                    ← View {bridge.upstreamLabel}
+                  </button>
+                </div>
+              );
+            })()}
 
           {/* Full-Width Navigation Strip when in Master Document, Business Plan Studio, Grant Center, or Ask My Startup */}
           {!isDashboardOpen &&
@@ -7076,6 +7443,11 @@ export default function WorkspacePage() {
               }}
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
+              onRequestUpgrade={() =>
+                setPaywallModalFeature(
+                  'Multi-Seat Co-Founder Alignment & Cap Table Pack'
+                )
+              }
               onSaveStep1PromoterProfiles={async (promoterProfiles, progress = 20) => {
                 return runWithAutosaveTracking(async () => {
                   setSession((prev) => {
@@ -7306,16 +7678,16 @@ export default function WorkspacePage() {
               onContinueToModuleG={() => {
                 const access = canAccessModule(
                   activeEntitlement,
-                  'MOD_G_LAUNCHPAD'
+                  'MOD_H_REVENUE'
                 );
                 if (!access.allowed) {
-                  setPendingModuleAfterUnlock('MOD_G_LAUNCHPAD');
+                  setPendingModuleAfterUnlock('MOD_H_REVENUE');
                   setPaywallModalFeature(
-                    `Module G: Launchpad & Operations Hub — ${access.reason}`
+                    `Module H: Selling, Sales Assumptions & Pocket Profit — ${access.reason}`
                   );
                   return;
                 }
-                navigateToModuleWithHistory('MOD_G_LAUNCHPAD');
+                navigateToModuleWithHistory('MOD_H_REVENUE');
               }}
             />
           ) : activeModule === 'MOD_G_LAUNCHPAD' ? (
@@ -7333,32 +7705,8 @@ export default function WorkspacePage() {
               onSave={async (modGData) => {
                 return runWithAutosaveTracking(async () => {
                   const nowIso = new Date().toISOString();
-                  const isS1 =
-                    modGData.step1.state === 'ALREADY_HAVE'
-                      ? !!modGData.step1.registeredEntityName.trim() && !!modGData.step1.registrationNumber.trim()
-                      : !!modGData.step1.targetFormationTimeline;
-                  const isS2 =
-                    modGData.step2.state === 'ALREADY_HAVE'
-                      ? !!modGData.step2.primaryDomain.trim() && !!modGData.step2.officialBusinessEmail.trim()
-                      : !!modGData.step2.primaryDomain.trim() || !!modGData.step2.emailProvider;
-                  const isS3 =
-                    modGData.step3.state === 'ALREADY_HAVE'
-                      ? !!modGData.step3.bankProvider && (modGData.step3.hasDedicatedIban || !!modGData.step3.ibanLast4.trim())
-                      : !!modGData.step3.targetOpeningTimeline;
-                  const isS4 =
-                    modGData.step4.state === 'ALREADY_HAVE'
-                      ? !!modGData.step4.softwareChoice || modGData.step4.hasAccountant
-                      : !!modGData.step4.vatStatus;
-                  const isS5 =
-                    modGData.step5.state === 'ALREADY_HAVE'
-                      ? modGData.step5.hasPublicLiability || modGData.step5.hasProfessionalIndemnity || !!modGData.step5.currentInsurerName.trim()
-                      : !!modGData.step5.targetCoverageTimeline;
-                  const isS6 =
-                    modGData.step6.state === 'ALREADY_HAVE'
-                      ? modGData.step6.hasIpAssignmentSigned || modGData.step6.hasPrivacyPolicy
-                      : !!modGData.step6.legalAdvisorOrPlatform || modGData.step6.hasIpAssignmentSigned;
-                  const doneCount = [isS1, isS2, isS3, isS4, isS5, isS6].filter(Boolean).length;
-                  const completionPct = Math.round((doneCount / 6) * 100);
+                  const { completionPercentage: completionPct } =
+                    computeModuleGPillarReadiness(modGData);
 
                   const savedPayload = {
                     ...modGData,
@@ -7387,22 +7735,22 @@ export default function WorkspacePage() {
                   });
                 });
               }}
-              onBackToModuleF={() => {
-                navigateToModuleWithHistory('MOD_F_COFOUNDER_TEAM', 6, 'module-f-step-6');
+              onBackToModuleK={() => {
+                navigateToModuleWithHistory('MOD_K_GRANTS_FUNDING', 5, 'module-k-step-5');
               }}
-              onContinueToModuleH={() => {
+              onContinueToModuleL={() => {
                 const access = canAccessModule(
                   activeEntitlement,
-                  'MOD_H_REVENUE'
+                  'MOD_L_BUSINESS_PLAN'
                 );
                 if (!access.allowed) {
-                  setPendingModuleAfterUnlock('MOD_H_REVENUE');
+                  setPendingModuleAfterUnlock('MOD_L_BUSINESS_PLAN');
                   setPaywallModalFeature(
-                    `Module H: Selling, Sales Assumptions & Pocket Profit — ${access.reason}`
+                    `Module L: Official Plan & Grant Compiler — ${access.reason}`
                   );
                   return;
                 }
-                navigateToModuleWithHistory('MOD_H_REVENUE');
+                navigateToModuleWithHistory('MOD_L_BUSINESS_PLAN');
               }}
             />
           ) : activeModule === 'MOD_H_REVENUE' ? (
@@ -7558,7 +7906,7 @@ export default function WorkspacePage() {
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
               onBackToModuleG={() => {
-                navigateToModuleWithHistory('MOD_G_LAUNCHPAD', 7, 'mod-g-step-7');
+                navigateToModuleWithHistory('MOD_F_COFOUNDER_TEAM', 6, 'module-f-step-6');
               }}
               onNavigateToModule={(modCode, targetStep, highlightId) => {
                 const access = canAccessModule(activeEntitlement, modCode);
@@ -8152,16 +8500,16 @@ export default function WorkspacePage() {
               onContinueToModuleL={() => {
                 const access = canAccessModule(
                   activeEntitlement,
-                  'MOD_L_BUSINESS_PLAN'
+                  'MOD_G_LAUNCHPAD'
                 );
                 if (!access.allowed) {
-                  setPendingModuleAfterUnlock('MOD_L_BUSINESS_PLAN');
+                  setPendingModuleAfterUnlock('MOD_G_LAUNCHPAD');
                   setPaywallModalFeature(
-                    `Module L: Official Plan & Grant Compiler — ${access.reason}`
+                    `Module G: Launchpad & Operations Hub — ${access.reason}`
                   );
                   return;
                 }
-                navigateToModuleWithHistory('MOD_L_BUSINESS_PLAN');
+                navigateToModuleWithHistory('MOD_G_LAUNCHPAD');
               }}
               onNavigateToModule={(modCode, targetStep, highlightId) => {
                 const access = canAccessModule(activeEntitlement, modCode);
@@ -8190,8 +8538,31 @@ export default function WorkspacePage() {
                 openQuestions,
               }}
               selectedCountry={selectedCountry}
+              founderName={session.user.name}
+              whiteLabelEnabled={activeEntitlement.whiteLabelExportEnabled}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               initialStep={moduleNavTarget?.step}
+              onUpdatePlanModuleLData={(updatedModuleL) => {
+                void runWithAutosaveTracking(async () => {
+                  const nowIso = new Date().toISOString();
+                  setSession((prev) => {
+                    const updatedPlans = prev.plans.map((p) => {
+                      if (p.id !== currentPlan.id) return p;
+                      return {
+                        ...p,
+                        updatedAtIso: nowIso,
+                        moduleLData: updatedModuleL,
+                      };
+                    });
+                    const updatedSession: BmuLocalSession = {
+                      ...prev,
+                      plans: updatedPlans,
+                    };
+                    saveBmuSession(updatedSession);
+                    return updatedSession;
+                  });
+                });
+              }}
               onSaveStep1Mode={async (step1Data, progress = 20) => {
                 return runWithAutosaveTracking(async () => {
                   setSession((prev) => {
@@ -8368,7 +8739,7 @@ export default function WorkspacePage() {
               }}
               onParkQuestionInSession={handleParkSpecificQuestion}
               onBackToModuleK={() => {
-                navigateToModuleWithHistory('MOD_K_GRANTS_FUNDING', 5, 'module-k-step-5');
+                navigateToModuleWithHistory('MOD_G_LAUNCHPAD', 7, 'mod-g-step-7');
               }}
               onOpenMasterBlueprint={() => {
                 setIsMasterDocumentOpen(true);
@@ -8521,7 +8892,7 @@ export default function WorkspacePage() {
               onCheckMomTestQuestionWithAi={handleCheckMomTestQuestionWithAi}
               onSuggestNextQuestionWithAi={handleSuggestNextQuestionWithAi}
               onAnalyzeResultsWithAi={handleAnalyzeSurveyResultsWithAi}
-              onParkQuestion={handleParkModuleBQuestion}
+              onParkQuestion={handleParkModuleCQuestion}
               onBackToModuleB={() => {
                 navigateToModuleWithHistory('MOD_B_MARKET', 5, 'module-b-step-5');
               }}
@@ -8568,7 +8939,7 @@ export default function WorkspacePage() {
               onSaveStep5Complete={handleSaveModuleBStep5}
               onParkQuestion={handleParkModuleBQuestion}
               onBackToModuleA={() => {
-                navigateToModuleWithHistory('MOD_A_IDEATION', 8, 'module-a-step-8');
+                navigateToModuleWithHistory('MOD_A_IDEATION', briefStepNumber, briefStepId);
               }}
               onContinueToModuleC={() => {
                 const modCAccess = canAccessModule(
@@ -8678,21 +9049,23 @@ export default function WorkspacePage() {
                       stepNum: 5,
                       done: moduleAReadinessSteps[4]?.isComplete ?? false,
                     },
-                    {
-                      step: 'Step 6',
-                      title: 'Blind Spots',
-                      targetId: 'mod-a-step-6',
-                      stepNum: 6,
-                      done: moduleAReadinessSteps[5]?.isComplete ?? false,
-                    },
                     ...(isGrantCheckerSupported
                       ? [
                           {
-                            step: 'Step 7',
+                            step: 'Step 6',
                             title: 'Grant Checker',
+                            targetId: 'mod-a-step-6',
+                            stepNum: 6,
+                            done: Boolean(grantEligibilityCheck?.lastCheckedAt),
+                          },
+                          {
+                            step: 'Step 7',
+                            title: 'Blind Spots',
                             targetId: 'mod-a-step-7',
                             stepNum: 7,
-                            done: Boolean(grantEligibilityCheck?.lastCheckedAt),
+                            done:
+                              (liveThingsToConsider?.length ?? 0) >= 6 &&
+                              filledCanvasBoxesCount === 5,
                           },
                           {
                             step: 'Overview',
@@ -8705,6 +9078,15 @@ export default function WorkspacePage() {
                           },
                         ]
                       : [
+                          {
+                            step: 'Step 6',
+                            title: 'Blind Spots',
+                            targetId: 'mod-a-step-6',
+                            stepNum: 6,
+                            done:
+                              (liveThingsToConsider?.length ?? 0) >= 6 &&
+                              filledCanvasBoxesCount === 5,
+                          },
                           {
                             step: 'Overview',
                             title: 'Startup Summary',
@@ -8814,7 +9196,11 @@ export default function WorkspacePage() {
                         variant="ghost"
                         className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                       >
-                        <span>Edit Step</span>
+                        <span>
+                          {moduleAReadinessSteps[0]?.isComplete
+                            ? 'Edit Step'
+                            : 'Open Step'}
+                        </span>
                         <ChevronDown className="ml-1 h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -8894,8 +9280,17 @@ export default function WorkspacePage() {
                         }`}
                       >
                         <Lightbulb className="h-3.5 w-3.5 text-emerald-600" />
-                        📝 Example ({currentPlan.industryCategory})
+                        Example ({currentPlan.industryCategory})
                       </button>
+
+                      <ParkOpenQuestionPopover
+                        planId={currentPlan.id}
+                        moduleCode="MOD_A_IDEATION"
+                        stepNumber={1}
+                        suggestedQuestion={`Clarify with 3 potential customers in ${countryPack.countryName} how often they experience this problem and what workaround they use today.`}
+                        onParked={handleParkSpecificQuestion}
+                        disabled={activeEntitlement.isVaultReadonly}
+                      />
                     </div>
 
                     {/* Inline Jargon Pill */}
@@ -8934,11 +9329,19 @@ export default function WorkspacePage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            setBrainDumpText(
-                              `Independent grocers lose ${formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk in expired fresh food because staff check dates manually on Friday nights. Our mobile app scans shelf labels and automatically triggers 40% markdown alerts 48 hours before expiry.`
-                            )
-                          }
+                          onClick={() => {
+                            const exampleText = `Independent grocers lose ${formatPlanCurrency(1800, countryPack.defaultCurrency)}/wk in expired fresh food because staff check dates manually on Friday nights. Our mobile app scans shelf labels and automatically triggers 40% markdown alerts 48 hours before expiry.`;
+                            if (
+                              brainDumpText.trim().length > 15 &&
+                              brainDumpText.trim() !== exampleText &&
+                              !window.confirm(
+                                'Replace your current Brain Dump text with this example?'
+                              )
+                            ) {
+                              return;
+                            }
+                            setBrainDumpText(exampleText);
+                          }}
                           className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
                         >
                           Use This Example →
@@ -8957,11 +9360,20 @@ export default function WorkspacePage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            setBrainDumpText(
-                              'Local dental clinics miss 30% of new patient calls during lunch hours and evenings. We provide a 24/7 AI WhatsApp booking concierge that books hygiene & emergency slots directly into their calendar.'
-                            )
-                          }
+                          onClick={() => {
+                            const exampleText =
+                              'Local dental clinics miss 30% of new patient calls during lunch hours and evenings. We provide a 24/7 AI WhatsApp booking concierge that books hygiene & emergency slots directly into their calendar.';
+                            if (
+                              brainDumpText.trim().length > 15 &&
+                              brainDumpText.trim() !== exampleText &&
+                              !window.confirm(
+                                'Replace your current Brain Dump text with this example?'
+                              )
+                            ) {
+                              return;
+                            }
+                            setBrainDumpText(exampleText);
+                          }}
                           className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
                         >
                           Use This Example →
@@ -8979,11 +9391,20 @@ export default function WorkspacePage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            setBrainDumpText(
-                              'Urban bike and rail commuters in rainy cities ruin smart leather work shoes or have to carry a spare pair in their backpack. We make breathable waterproof merino wool dress slip-ons.'
-                            )
-                          }
+                          onClick={() => {
+                            const exampleText =
+                              'Urban bike and rail commuters in rainy cities ruin smart leather work shoes or have to carry a spare pair in their backpack. We make breathable waterproof merino wool dress slip-ons.';
+                            if (
+                              brainDumpText.trim().length > 15 &&
+                              brainDumpText.trim() !== exampleText &&
+                              !window.confirm(
+                                'Replace your current Brain Dump text with this example?'
+                              )
+                            ) {
+                              return;
+                            }
+                            setBrainDumpText(exampleText);
+                          }}
                           className="mt-2 self-start text-[11px] font-semibold text-emerald-700 underline hover:text-emerald-900"
                         >
                           Use This Example →
@@ -9146,7 +9567,9 @@ export default function WorkspacePage() {
                     variant="ghost"
                     className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
-                    <span>Edit Step</span>
+                    <span>
+                      {filledCanvasBoxesCount === 5 ? 'Edit Step' : 'Open Step'}
+                    </span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -9181,8 +9604,102 @@ export default function WorkspacePage() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-xs text-slate-600">
-                    Shape your raw idea into 5 simple building blocks. Write in plain English or click <strong className="text-emerald-800">Tidy Up My Notes with AI</strong> anytime to polish your wording.
+                    Shape your raw idea into 5 everyday building blocks. Write rough notes in your own words, or use <strong className="text-emerald-800">Auto-Fill / Tidy Canvas</strong> below.
                   </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowStep2WhyCard((prev) => !prev)}
+                      className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      <HelpCircle className="mr-1 h-3.5 w-3.5" />
+                      Why Are We Asking This?
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowStep2Examples((prev) => !prev)}
+                      className="h-7 border-emerald-200 text-[11px] font-medium text-emerald-800 hover:bg-emerald-50"
+                    >
+                      <Lightbulb className="mr-1 h-3.5 w-3.5" />
+                      Show Me an Example
+                    </Button>
+                    {!activeEntitlement.isVaultReadonly && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isSynthesizing || isSavingCanvas}
+                        onClick={handleTidyUpNotesWithAi}
+                        className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
+                      >
+                        <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                        {isSynthesizing
+                          ? 'Structuring Canvas...'
+                          : 'Auto-Fill / Tidy from Brain Dump'}
+                      </Button>
+                    )}
+                    <ParkOpenQuestionPopover
+                      planId={currentPlan.id}
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={2}
+                      suggestedQuestion={`Test our 1-Page Concept Canvas wording and rough way of charging (${countryPack.defaultCurrency}) with 3 target customers before locking pricing.`}
+                      onParked={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
+                  {showStep2WhyCard && (
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-800">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold text-slate-900">
+                          Why a 5-box canvas instead of a 30-page document on Day 1?
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowStep2WhyCard(false)}
+                          className="text-slate-400 hover:text-slate-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <p className="mt-1 leading-relaxed text-slate-700">
+                        Every section of your downstream customer survey (Module C), pricing calculator (Module H), and grant/investor plan (Module L) pulls directly from these 5 plain-English building blocks so you never have to repeat yourself.
+                      </p>
+                    </div>
+                  )}
+                  {showStep2Examples && (
+                    <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold text-emerald-950">
+                          Plain-English Concept Canvas Examples
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowStep2Examples(false)}
+                          className="text-emerald-700 hover:text-emerald-950"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <ul className="mt-1.5 space-y-1.5 leading-relaxed text-emerald-950/90">
+                        <li>
+                          <strong>Food / Wholesale Maker:</strong>{' '}
+                          <em>Problem:</em> Independent cafés throw out 15–20% of fresh pastries at 4pm. <em>Solution:</em> Par-baked sourdough pastries cafés bake on demand in 8 minutes. <em>Rough Charge:</em> Weekly wholesale per-tray delivery (~{formatPlanCurrency(38, countryPack.defaultCurrency)}/tray).
+                        </li>
+                        <li>
+                          <strong>Local Service / Clinic:</strong>{' '}
+                          <em>Problem:</em> Desk workers wait 3 weeks for evening physio appointments. <em>Solution:</em> 45-minute lunchtime spinal &amp; ergonomic clinic 2 mins from commuter stations. <em>Rough Charge:</em> Per-session booking (~{formatPlanCurrency(75, countryPack.defaultCurrency)}) or 4-visit pack.
+                        </li>
+                        <li>
+                          <strong>B2B Software:</strong>{' '}
+                          <em>Problem:</em> Bookkeepers spend 4 hours chasing missing VAT receipts on WhatsApp. <em>Solution:</em> Automated SMS receipt collector synced straight into Xero. <em>Rough Charge:</em> Simple monthly fee per practice (~{formatPlanCurrency(49, countryPack.defaultCurrency)}/mo).
+                        </li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -9261,7 +9778,7 @@ export default function WorkspacePage() {
                         3. How does your product fix it? (The Solution)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        In plain English, what does your product or service actually do? Promised Delivery &amp; Reply Speed — (SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.)
+                        In plain everyday words, what do you provide or do for the customer, and how does life get easier for them afterward?
                       </p>
                     </div>
                     <textarea
@@ -9275,7 +9792,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., A mobile app that scans shelf barcodes and automatically alerts staff 48 hours before items expire..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -9300,18 +9817,18 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., Takes 5 minutes to set up with zero hardware and works directly with their existing pos barcodes..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
-                  {/* Box 5: How You Make Money & Grant Fit */}
+                  {/* Box 5: Rough Idea of How You Might Charge */}
                   <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 md:col-span-2 lg:col-span-2">
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        5. How will you charge? (Pricing &amp; Grants)
+                        5. Rough Idea of How You Might Charge (Guesswork Welcome!)
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        Subscription, one-off price, commission? Any rough number in {countryPack.defaultCurrency} works!
+                        Who pays you and roughly how (e.g. per item, per booking, wholesale box, or monthly subscription)? Don&apos;t worry about exact prices or grants yet—we&apos;ll test those later.
                       </p>
                     </div>
                     <textarea
@@ -9324,8 +9841,8 @@ export default function WorkspacePage() {
                           revenueAndGrantFit: e.target.value,
                         })
                       }
-                      placeholder={`e.g., Monthly subscription of ${formatPlanCurrency(99, countryPack.defaultCurrency)}/month per shop, plus exploring ${countryGrants[0]?.grantName || 'local startup grants'}...`}
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      placeholder={`e.g., Probably around ${formatPlanCurrency(35, countryPack.defaultCurrency)} per wholesale box or ${formatPlanCurrency(49, countryPack.defaultCurrency)}/month subscription (will test exact price in Module C & Module H)...`}
+                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -9370,8 +9887,8 @@ export default function WorkspacePage() {
                           </>
                         ) : (
                           <>
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Tidy Up My Notes with AI
+                            <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
+                            Tidy Up My Notes
                           </>
                         )}
                       </Button>
@@ -9451,7 +9968,11 @@ export default function WorkspacePage() {
                     variant="ghost"
                     className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
-                    <span>Edit Step</span>
+                    <span>
+                      {moduleAReadinessSteps[2]?.isComplete
+                        ? 'Edit Step'
+                        : 'Open Step'}
+                    </span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -9486,6 +10007,16 @@ export default function WorkspacePage() {
                   <p className="mt-1 text-xs text-slate-600">
                     We adapt our coaching to match your personal goals — whether you want a steady side-income, freedom from your 9-to-5, or a fast-growing scaleup.
                   </p>
+                  <div className="mt-2.5">
+                    <ParkOpenQuestionPopover
+                      planId={currentPlan.id}
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={3}
+                      suggestedQuestion="Decide realistic weekly hours I can protect for this business over the next 6 months alongside existing commitments."
+                      onParked={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -9814,7 +10345,11 @@ export default function WorkspacePage() {
                     variant="ghost"
                     className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
-                    <span>Edit Step</span>
+                    <span>
+                      {moduleAReadinessSteps[3]?.isComplete
+                        ? 'Edit Step'
+                        : 'Open Step'}
+                    </span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -9849,6 +10384,16 @@ export default function WorkspacePage() {
                   <p className="mt-1 text-xs text-slate-600">
                     Knowing your team setup and savings helps us recommend the right MVP build scope and verify {countryPack.countryName} grant match-funding rules.
                   </p>
+                  <div className="mt-2.5">
+                    <ParkOpenQuestionPopover
+                      planId={currentPlan.id}
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={4}
+                      suggestedQuestion={`Confirm exact personal savings ring-fenced for V1 launch (${countryPack.defaultCurrency}) without touching household emergency reserves.`}
+                      onParked={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -10302,7 +10847,11 @@ export default function WorkspacePage() {
                     variant="ghost"
                     className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
-                    <span>Edit Step</span>
+                    <span>
+                      {moduleAReadinessSteps[4]?.isComplete
+                        ? 'Edit Step'
+                        : 'Open Step'}
+                    </span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -10619,30 +11168,20 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. No international travel away from family, or no perishable inventory..."
-                      className="mt-1.5 w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-rose-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-800 shadow-2xs focus:border-rose-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
-
-                {/* Micro-Coaching: Promised Delivery & Reply Speed (SLA) */}
-                <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-700">
-                  <div className="flex items-start gap-2">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                    <div>
-                      <span className="font-semibold text-slate-900">
-                        Promised Delivery &amp; Reply Speed
-                      </span>{' '}
-                      — (SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.)
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* 4. Ownership, Grants & Control Trade-Off */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  4. Ownership &amp; Funding Philosophy
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    4. Ownership &amp; Funding Philosophy
+                  </label>
+                  <JargonTooltip term="VESTING_CLIFF" label="What is 4-Year Vesting?" />
+                </div>
                 <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {(
                     [
@@ -10664,7 +11203,7 @@ export default function WorkspacePage() {
                         emoji: '🤝',
                         title: 'Co-Founder Partnership',
                         subtitle:
-                          'Share equity with the right partner so I don’t carry the whole load alone. Earning Co-Founder Shares Over Time (Protects Everyone If Someone Leaves Early) — (Vesting means co-founders earn their shares month-by-month over 3–4 years (with a 12-month trial "cliff") so nobody walks away after 3 months owning 50% of the company.)',
+                          'Share equity with the right partner so I don’t carry the whole load alone (with standard 4-year vesting protection).',
                       },
                       {
                         id: 'RAISE_INVESTMENT' as GrowthTradeoffPreference,
@@ -10924,7 +11463,9 @@ export default function WorkspacePage() {
                       }}
                       className="bg-emerald-700 text-white hover:bg-emerald-800"
                     >
-                      Next: Blind Spots
+                      {isGrantCheckerSupported
+                        ? 'Next: Check Grant Eligibility'
+                        : 'Next: Blind Spots'}
                       <ArrowRight className="ml-1 h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -10934,34 +11475,106 @@ export default function WorkspacePage() {
           </div>
           )}
 
-          {/* STEP 6: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD */}
-          {openStep !== 'ALL' && openStep !== 6 ? (
+          {/* ========================================================= */}
+          {/* STEP 6 (IE/GB): INSTANT GRANT & FUNDING ELIGIBILITY CHECK */}
+          {/* ========================================================= */}
+          {isGrantCheckerSupported && (
+            <ModuleAGrantCheckerStep
+              stepNumber={6}
+              nextStepLabel="Next: Step 7 — Blind-Spot Review"
+              isOpen={openStep === 'ALL' || openStep === 6}
+              isAllExpanded={openStep === 'ALL'}
+              onExpandStep={() => setOpenStep(6)}
+              onCollapseStep={() => setOpenStep(5)}
+              hqCountryCode={selectedCountry}
+              planTitle={currentPlan.title}
+              industryCategory={currentPlan.industryCategory}
+              exportPotential={currentPlan.exportPotential}
+              brainDumpText={brainDumpText}
+              conceptCanvas={effectiveCanvas}
+              founderMotivation={founderMotivation}
+              teamAndBudget={teamAndBudget}
+              founderRealityCheck={founderRealityCheck}
+              grantCheck={grantEligibilityCheck}
+              onChangeGrantCheck={(next) => setGrantEligibilityCheck(next)}
+              onSaveGrantCheck={handleSaveCanvasEdits}
+              isSaving={isSavingCanvas}
+              onRunAiGrantPositioning={handleRunAiGrantPositioning}
+              isRunningAiAdvisor={isRunningGrantAdvisor}
+              onParkOpenQuestion={handleParkSpecificQuestion}
+              onContinueToBrief={() => {
+                setOpenStep(7);
+                setTimeout(() => {
+                  const el = document.getElementById('mod-a-step-7');
+                  if (el) {
+                    el.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start',
+                    });
+                  }
+                }, 40);
+              }}
+              onContinueToModuleB={() => {
+                const modBAccess = canAccessModule(
+                  activeEntitlement,
+                  'MOD_B_MARKET'
+                );
+                if (!modBAccess.allowed) {
+                  setPendingModuleAfterUnlock('MOD_B_MARKET');
+                  setPaywallModalFeature(
+                    `Module B: Market Sizing, Competitor Scout & Buyer Persona (${modBAccess.reason})`
+                  );
+                  return;
+                }
+                navigateToModuleWithHistory('MOD_B_MARKET');
+              }}
+              onOpenModuleJGrantsHub={() => {
+                const modKAccess = canAccessModule(
+                  activeEntitlement,
+                  'MOD_K_GRANTS_FUNDING'
+                );
+                if (!modKAccess.allowed) {
+                  setPendingModuleAfterUnlock('MOD_K_GRANTS_FUNDING');
+                  setPaywallModalFeature(
+                    `Module K: Full Non-Dilutive Grants, Loans & Tax Relief Hub (${modKAccess.reason})`
+                  );
+                  return;
+                }
+                setActiveModule('MOD_K_GRANTS_FUNDING');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              isVaultReadonly={activeEntitlement.isVaultReadonly}
+            />
+          )}
+
+          {/* CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT CARD (Step 7 for IE/GB, Step 6 otherwise) */}
+          {openStep !== 'ALL' && openStep !== blindSpotStepNumber ? (
             <div
-              id="mod-a-step-6"
-              onClick={() => setOpenStep(6)}
+              id={blindSpotStepId}
+              onClick={() => setOpenStep(blindSpotStepNumber)}
               className="group scroll-mt-24 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-400 hover:shadow-sm"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <span
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                      moduleAReadinessSteps[5]?.isComplete
+                      (liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5
                         ? 'bg-emerald-600 text-white'
                         : 'bg-slate-900 text-white'
                     }`}
                   >
-                    {moduleAReadinessSteps[5]?.isComplete ? (
+                    {(liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5 ? (
                       <Check className="h-4 w-4" />
                     ) : (
-                      '6'
+                      blindSpotStepNumber
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate text-sm font-bold text-slate-900 group-hover:text-emerald-800">
-                        Step 6: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
+                        Step {blindSpotStepNumber}: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
                       </h2>
-                      {moduleAReadinessSteps[5]?.isComplete ? (
+                      {(liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5 ? (
                         <Badge variant="success" className="shrink-0 text-[10px]">
                           Completed
                         </Badge>
@@ -10972,7 +11585,9 @@ export default function WorkspacePage() {
                       )}
                     </div>
                     <p className="mt-0.5 truncate text-xs text-slate-500">
-                      {moduleAReadinessSteps[5]?.summary}
+                      {filledCanvasBoxesCount === 5
+                        ? `${liveThingsToConsider?.length ?? 0} tailored blind-spot cards reviewed`
+                        : `${liveThingsToConsider?.length ?? 0} live cards adapting as you answer earlier steps`}
                     </p>
                   </div>
                 </div>
@@ -10982,7 +11597,11 @@ export default function WorkspacePage() {
                     variant="ghost"
                     className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50"
                   >
-                    <span>Edit Step</span>
+                    <span>
+                      {(liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5
+                        ? 'Edit Step'
+                        : 'Open Step'}
+                    </span>
                     <ChevronDown className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -10990,7 +11609,7 @@ export default function WorkspacePage() {
             </div>
           ) : (
             <div
-              id="mod-a-step-6"
+              id={blindSpotStepId}
               className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
             >
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
@@ -10998,25 +11617,35 @@ export default function WorkspacePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        moduleAReadinessSteps[5]?.isComplete
+                        (liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5
                           ? 'bg-emerald-600 text-white'
                           : 'bg-slate-900 text-white'
                       }`}
                     >
-                      {moduleAReadinessSteps[5]?.isComplete ? (
+                      {(liveThingsToConsider?.length ?? 0) >= 6 && filledCanvasBoxesCount === 5 ? (
                         <Check className="h-3.5 w-3.5" />
                       ) : (
-                        '6'
+                        blindSpotStepNumber
                       )}
                     </span>
                     <h2 className="text-base font-bold text-slate-900">
-                      Step 6: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
+                      Step {blindSpotStepNumber}: Blind-Spot Review (&ldquo;Things to Consider&rdquo;)
                     </h2>
                     <Badge variant="default" className="shrink-0">Co-Founder Perspective</Badge>
                   </div>
                   <p className="mt-1 text-xs text-slate-600">
-                    Live co-founder check combining your idea, budget, and worry into constructive advice.
+                    Live co-founder check combining your idea, budget, grant fit, and #1 worry into constructive advice.
                   </p>
+                  <div className="mt-2.5">
+                    <ParkOpenQuestionPopover
+                      planId={currentPlan.id}
+                      moduleCode="MOD_A_IDEATION"
+                      stepNumber={blindSpotStepNumber}
+                      suggestedQuestion={`Review our top Module A blind spot ("${liveThingsToConsider?.[0]?.title || 'Customer pain validation'}") during our first 5 customer conversations.`}
+                      onParked={handleParkSpecificQuestion}
+                      disabled={activeEntitlement.isVaultReadonly}
+                    />
+                  </div>
                 </div>
 
                 {openStep !== 'ALL' && (
@@ -11076,11 +11705,11 @@ export default function WorkspacePage() {
                 ))}
               </div>
 
-              {/* Step 6 Bottom Save & AI Tidy Bar */}
+              {/* Blind-Spot Bottom Save & Tidy Bar */}
               {!activeEntitlement.isVaultReadonly && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/90 px-4 py-3">
                   <div className="text-xs text-slate-600">
-                    ✨ Change any option or add notes in Steps 1–5 above and watch these cards adapt immediately.
+                    Change any option or add notes above and watch these cards adapt immediately.
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -11096,8 +11725,8 @@ export default function WorkspacePage() {
                         </>
                       ) : (
                         <>
-                          <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
-                          AI Tidy Up All Notes
+                          <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" />
+                          Tidy Up All Notes
                         </>
                       )}
                     </Button>
@@ -11122,9 +11751,9 @@ export default function WorkspacePage() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        setOpenStep(7);
+                        setOpenStep(briefStepNumber);
                         setTimeout(() => {
-                          const el = document.getElementById('mod-a-step-7');
+                          const el = document.getElementById(briefStepId);
                           if (el)
                             el.scrollIntoView({
                               behavior: 'smooth',
@@ -11134,86 +11763,13 @@ export default function WorkspacePage() {
                       }}
                       className="bg-emerald-600 text-white hover:bg-emerald-700"
                     >
-                      {isGrantCheckerSupported
-                        ? 'Next: Step 7 — Check Grant Eligibility'
-                        : 'View Startup Overview & Summary'}
+                      View Startup Overview &amp; Summary
                       <ArrowRight className="ml-1 h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
               )}
             </div>
-          )}
-
-          {/* ========================================================= */}
-          {/* STEP 7: INSTANT GRANT & FUNDING ELIGIBILITY CHECKER       */}
-          {/* (Only visible for supported regions: IE & GB)             */}
-          {/* ========================================================= */}
-          {isGrantCheckerSupported && (
-            <ModuleAGrantCheckerStep
-              isOpen={openStep === 'ALL' || openStep === 7}
-              isAllExpanded={openStep === 'ALL'}
-              onExpandStep={() => setOpenStep(7)}
-              onCollapseStep={() => setOpenStep(6)}
-              hqCountryCode={selectedCountry}
-              planTitle={currentPlan.title}
-              industryCategory={currentPlan.industryCategory}
-              exportPotential={currentPlan.exportPotential}
-              brainDumpText={brainDumpText}
-              conceptCanvas={effectiveCanvas}
-              founderMotivation={founderMotivation}
-              teamAndBudget={teamAndBudget}
-              founderRealityCheck={founderRealityCheck}
-              grantCheck={grantEligibilityCheck}
-              onChangeGrantCheck={(next) => setGrantEligibilityCheck(next)}
-              onSaveGrantCheck={handleSaveCanvasEdits}
-              isSaving={isSavingCanvas}
-              onRunAiGrantPositioning={handleRunAiGrantPositioning}
-              isRunningAiAdvisor={isRunningGrantAdvisor}
-              onParkOpenQuestion={handleParkSpecificQuestion}
-              onContinueToBrief={() => {
-                setOpenStep(8);
-                setTimeout(() => {
-                  const el = document.getElementById('mod-a-step-8');
-                  if (el) {
-                    el.scrollIntoView({
-                      behavior: 'smooth',
-                      block: 'start',
-                    });
-                  }
-                }, 40);
-              }}
-              onContinueToModuleB={() => {
-                const modBAccess = canAccessModule(
-                  activeEntitlement,
-                  'MOD_B_MARKET'
-                );
-                if (!modBAccess.allowed) {
-                  setPendingModuleAfterUnlock('MOD_B_MARKET');
-                  setPaywallModalFeature(
-                    `Module B: Market Sizing, Competitor Scout & Buyer Persona (${modBAccess.reason})`
-                  );
-                  return;
-                }
-                navigateToModuleWithHistory('MOD_B_MARKET');
-              }}
-              onOpenModuleJGrantsHub={() => {
-                const modKAccess = canAccessModule(
-                  activeEntitlement,
-                  'MOD_K_GRANTS_FUNDING'
-                );
-                if (!modKAccess.allowed) {
-                  setPendingModuleAfterUnlock('MOD_K_GRANTS_FUNDING');
-                  setPaywallModalFeature(
-                    `Module K: Full Non-Dilutive Grants, Loans & Tax Relief Hub (${modKAccess.reason})`
-                  );
-                  return;
-                }
-                setActiveModule('MOD_K_GRANTS_FUNDING');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              isVaultReadonly={activeEntitlement.isVaultReadonly}
-            />
           )}
 
           {/* ========================================================= */}
@@ -11930,123 +12486,291 @@ export default function WorkspacePage() {
       </footer>
 
       {/* ========================================================= */}
-      {/* LAYER 2: SLIDE-OUT "ASK PREFLIGHT AI" SIDEKICK DRAWER     */}
+      {/* LAYER 2: LIVE SLIDE-OUT "ASK PREFLIGHT AI" SIDEKICK       */}
       {/* ========================================================= */}
-      {askUnicornOpen && (
-        <div className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-slate-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
-          <div className="flex items-center justify-between rounded-t-2xl bg-slate-950 text-white border-b border-slate-800 px-4 py-3 text-white">
-            <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              <div>
-                <div className="text-xs font-bold">
-                  Ask Preflight AI (Co-Founder AI)
-                </div>
-                <div className="text-[10px] text-slate-200">
-                  Context: {currentPlan.title} •{' '}
-                  {activeModule === 'MOD_A_IDEATION'
-                    ? 'Module A (Ideation)'
-                    : activeModule === 'MOD_B_MARKET'
-                      ? 'Module B (Market & Competitors)'
-                      : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                        ? 'Module C (Surveys & Interviews)'
-                        : 'Module D (Product & Build Vehicle)'}{' '}
-                  • {selectedCountry}
+      {askUnicornOpen && (() => {
+        const activeModInfo = MODULES_LIST.find((m) => m.code === activeModule);
+        const activeModDisplay = activeModInfo
+          ? `${activeModInfo.short}: ${activeModInfo.title}`
+          : activeModule;
+
+        return (
+          <div className="fixed bottom-3 left-3 right-3 z-40 flex max-h-[82vh] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
+            <div className="flex items-center justify-between rounded-t-2xl border-b border-slate-800 bg-slate-950 px-4 py-3 text-white">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bot className="h-5 w-5 shrink-0 text-emerald-400" />
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-bold">
+                    Ask Preflight Co-Pilot
+                  </div>
+                  <div className="truncate text-[10px] text-slate-300">
+                    Viewing: {activeModDisplay} • {selectedCountry}
+                  </div>
                 </div>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setAskUnicornOpen(false)}
-              className="rounded-lg p-1 text-slate-200 hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="space-y-3 p-4 text-xs">
-            <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
-              👋 Hi <strong>{session.user.name.split(' ')[0]}</strong>! I can
-              see you&apos;re working on <strong>{currentPlan.title}</strong> (
-              {countryPack.countryName} • {countryPack.defaultCurrency}) in{' '}
-              <strong>
-                {activeModule === 'MOD_A_IDEATION'
-                  ? 'Module A: Ideation & Founder Fit'
-                  : activeModule === 'MOD_B_MARKET'
-                    ? 'Module B: Market & Competitors'
-                    : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                      ? 'Module C: Customer Surveys & Interviews'
-                      : 'Module D: Product & Build Vehicle'}
-              </strong>
-              .{' '}
-              {activeModule === 'MOD_A_IDEATION'
-                ? 'Want me to suggest a sharper way to quantify your customer pain point or park a pricing question for later?'
-                : activeModule === 'MOD_B_MARKET'
-                  ? 'Focus on your First Core Customer Group (Who buys first?) — (A "Beachhead" simply means the very first specific group of customers you focus on winning before expanding to everyone else.)—and don’t forget to include the "Do Nothing / Spreadsheets" status quo in your competitor list!'
-                  : activeModule === 'MOD_C_SURVEYS_FEEDBACK'
-                    ? 'Keep your survey & interview questions focused on past behaviour and real workarounds ("The Mom Test") rather than asking if people like your idea.'
-                    : 'Choose the Product Track that matches what your buyer actually receives so every downstream question stays 100% relevant to your business model.'}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {activeModule === 'MOD_A_IDEATION' && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setBrainDumpText(
-                      brainDumpText +
-                        '\n\n[Preflight AI Suggestion]: Highlight how much money or time the customer loses every single week before buying your solution.'
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
-                >
-                  ✨ Quantify weekly customer pain
-                </button>
-              )}
-              {activeModule === 'MOD_B_MARKET' && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleParkSpecificQuestion(
-                      `Verify bottom-up target customer count & annual spend in ${countryPack.countryName} (${countryPack.defaultCurrency}) with 3 industry buyers.`
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
-                >
-                  📌 Park TAM/SAM/SOM check
-                </button>
-              )}
-              {activeModule === 'MOD_C_SURVEYS_FEEDBACK' && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleParkSpecificQuestion(
-                      `Follow up with our first 5 waitlist leads & interview respondents to test V1 feature priorities in Module D.`
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
-                >
-                  📌 Park Waitlist follow-up for Module D
-                </button>
-              )}
-              {activeModule === 'MOD_D_PRODUCT_BUILD' && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleParkSpecificQuestion(
-                      `Verify V1 unit cost / hosting stack or supplier minimums before locking pricing in Module G.`
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 bg-emerald-50 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-slate-100"
-                >
-                  📌 Park V1 Cost &amp; Supplier Check
-                </button>
-              )}
               <button
                 type="button"
-                onClick={handleParkQuestion}
-                className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 font-medium text-amber-800 hover:bg-amber-100"
+                onClick={() => setAskUnicornOpen(false)}
+                className="rounded-lg p-1 text-slate-300 hover:bg-white/10 hover:text-white"
               >
-                📌 Park pricing question for Module F
+                <X className="h-4 w-4" />
               </button>
             </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-4 text-xs">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700">
+                <p className="font-semibold text-slate-900">
+                  Working on {currentPlan.title} ({countryPack.countryName} • {countryPack.defaultCurrency})
+                </p>
+                <p className="mt-1 leading-relaxed text-slate-600">
+                  Type any question about <strong>{activeModDisplay}</strong>, your numbers, or local grant rules—or pick a quick helper below.
+                </p>
+              </div>
+
+              {sidekickError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
+                  {sidekickError}
+                </div>
+              )}
+
+              {sidekickAnswer && (
+                <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-slate-800">
+                  <div className="text-[11px] font-bold text-emerald-950">
+                    Q: {sidekickAnswer.question}
+                  </div>
+                  <div className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800">
+                    {sidekickAnswer.answerMarkdown}
+                  </div>
+                  {sidekickAnswer.suggestedFollowUps.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {sidekickAnswer.suggestedFollowUps.slice(0, 2).map((fu) => (
+                        <button
+                          key={fu}
+                          type="button"
+                          onClick={() => handleAskPreflightSidekick(fu)}
+                          className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] font-medium text-emerald-900 hover:bg-emerald-50"
+                        >
+                          {fu}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAskPreflightSidekick();
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <input
+                  type="text"
+                  value={askSidekickQuery}
+                  onChange={(e) => setAskSidekickQuery(e.target.value)}
+                  placeholder="Ask a question in plain English..."
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-700 focus:outline-none sm:text-xs"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSidekickAsking || !askSidekickQuery.trim()}
+                  className="h-8 shrink-0 bg-emerald-700 px-2.5 text-xs font-semibold text-white hover:bg-emerald-800"
+                >
+                  {isSidekickAsking ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </form>
+
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <button
+                  type="button"
+                  disabled={isSidekickAsking}
+                  onClick={() =>
+                    handleAskPreflightSidekick(
+                      `Help me answer ${activeModDisplay} in plain English for a ${currentPlan.industryCategory || 'startup'} in ${countryPack.countryName}.`
+                    )
+                  }
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
+                >
+                  Help me answer this step in plain English
+                </button>
+                <button
+                  type="button"
+                  disabled={isSidekickAsking}
+                  onClick={() =>
+                    handleAskPreflightSidekick(
+                      'What are our biggest blind spots or missing assumptions right now?'
+                    )
+                  }
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
+                >
+                  Check our current blind spots
+                </button>
+                <ParkOpenQuestionPopover
+                  planId={currentPlan.id}
+                  moduleCode={activeModule as OpenQuestionModuleCode}
+                  suggestedQuestion={`Follow up on ${activeModInfo?.short || 'current module'} assumption with a mentor or target customer in ${countryPack.countryName}.`}
+                  onParked={handleParkSpecificQuestion}
+                  disabled={activeEntitlement.isVaultReadonly}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================= */}
+      {/* IN-PLACE EDIT PLAN SETTINGS MODAL                         */}
+      {/* ========================================================= */}
+      {isPlanSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs no-print print:hidden">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-950">
+                  Plan Settings — {currentPlan.title}
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Update settings for <strong>{currentPlan.title}</strong> — changing your HQ Country or Planning Track immediately updates localized tax rates (Module J) and grant rules (Modules A, E, K &amp; L) without losing any saved answers.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPlanSettingsOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePlanSettingsInPlace} className="mt-4 space-y-4">
+              {planSettingsError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
+                  {planSettingsError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  Startup / Project Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={settingsTitle}
+                  onChange={(e) => setSettingsTitle(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-none sm:text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  One-Line Summary (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={settingsSummary}
+                  onChange={(e) => setSettingsSummary(e.target.value)}
+                  placeholder="Plain-English 1-sentence description of your business..."
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-none sm:text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    HQ Country &amp; Base Currency
+                  </label>
+                  <select
+                    value={settingsCountry}
+                    onChange={(e) =>
+                      setSettingsCountry(e.target.value as SupportedCountryCode)
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-none sm:text-xs"
+                  >
+                    {DEFAULT_COUNTRY_RULES.map((rule) => (
+                      <option key={rule.countryCode} value={rule.countryCode}>
+                        {rule.countryName} ({rule.defaultCurrency})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    Industry / Business Type
+                  </label>
+                  <input
+                    type="text"
+                    value={settingsIndustry}
+                    onChange={(e) => setSettingsIndustry(e.target.value)}
+                    placeholder="e.g. Specialty Food & Wholesale, Local Clinic, B2B Software..."
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-none sm:text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  Planning Track Mode
+                </label>
+                <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsTrackMode('GRANT_AND_INVESTOR')}
+                    className={`rounded-xl border p-3 text-left text-xs transition ${
+                      settingsTrackMode === 'GRANT_AND_INVESTOR'
+                        ? 'border-emerald-600 bg-emerald-50/70 text-slate-950 ring-1 ring-emerald-600'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="font-bold">Grants, Loans &amp; Investors</div>
+                    <div className="mt-0.5 text-[11px] text-slate-600">
+                      Includes grant eligibility checks, 3-quote rules &amp; investor tax relief.
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsTrackMode('COMMERCIAL_ONLY')}
+                    className={`rounded-xl border p-3 text-left text-xs transition ${
+                      settingsTrackMode === 'COMMERCIAL_ONLY'
+                        ? 'border-emerald-600 bg-emerald-50/70 text-slate-950 ring-1 ring-emerald-600'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="font-bold">Bootstrapped / Commercial Only</div>
+                    <div className="mt-0.5 text-[11px] text-slate-600">
+                      Focuses purely on customers, pricing, cashflow &amp; bank-ready plan.
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsPlanSettingsOpen(false)}
+                  className="text-xs text-slate-600"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSavingPlanSettings || activeEntitlement.isVaultReadonly}
+                  className="bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800"
+                >
+                  {isSavingPlanSettings ? 'Saving Settings...' : 'Save Plan Settings'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -12067,7 +12791,7 @@ export default function WorkspacePage() {
                     Unlock Full Founder Workspace
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Module A is 100% free. Upgrade to unlock Modules B–I &amp;
+                    Module A is 100% free. Upgrade to unlock Modules B–L &amp;
                     Multi-Plan.
                   </p>
                 </div>

@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   FileText,
-  Sparkles,
   Printer,
   Copy,
   Check,
@@ -14,7 +13,7 @@ import {
   ArrowRight,
   ChevronRight,
   Edit3,
-  Wand2,
+  SlidersHorizontal,
   RefreshCw,
   Download,
   BookOpen,
@@ -29,6 +28,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import {
   formatPlanCurrency,
   getPlanTrackCapabilities,
@@ -48,6 +48,11 @@ import {
   compileAllBusinessPlanSectionsAction,
 } from '@/app/actions/business-plan-studio';
 import { computeModuleBMarketSizingTotals } from '@/lib/finance/cross-module-normalizer';
+import {
+  buildGroundedPlanFactPackString,
+  extractMasterDocumentVerifiedFacts,
+} from '@/lib/export/master-document-brief';
+import { formatStudioTargetAudienceLabel } from '@/lib/export/enum-labels';
 
 export interface BusinessPlanStudioWorkspaceProps {
   plan: ActiveStartupPlan;
@@ -169,54 +174,62 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
     targetAudience: 'GRANT_COMMITTEE',
     targetTone: 'EVIDENCE_LED_ASSESSOR',
     summary:
-      'Formatted strictly for Local Enterprise Office (Feasibility, Priming) & Enterprise Ireland evaluation committees. Prioritizes export additionality, non-displacement, 3-quote supplier procurement, and 3-year net regional job creation.',
+      'Formatted strictly for Local Enterprise Office (Feasibility, Priming) & Enterprise Ireland evaluation committees. Prioritizes export additionality, non-displacement, 3-quote supplier procurement (≥ €1,000), and 3-year net regional job creation.',
     sectionsTemplate: [
       {
         sectionNumber: 1,
-        title: 'Promoter Track Record, Roles & Full-Time Commitment',
+        title: 'Promoter Background & Track Record',
         assessorPrompt: 'Outline promoter professional background, domain expertise, 7 startup hats, and personal full-time commitment.',
         wordLimit: 400,
-        scoringWeightPercent: 20,
+        scoringWeightPercent: 15,
         sourceModules: ['MOD_A_IDEATION', 'MOD_F_COFOUNDER_TEAM'],
       },
       {
         sectionNumber: 2,
-        title: 'Product Innovation, Technical Merit & Work Packages',
+        title: 'Product / Service Innovation & Technical Merit',
         assessorPrompt: 'Explain the product innovation, technical build vehicle, own-vs-rent architecture, and work package breakdown (WP1..n).',
         wordLimit: 450,
-        scoringWeightPercent: 25,
+        scoringWeightPercent: 15,
         sourceModules: ['MOD_D_PRODUCT_BUILD'],
       },
       {
         sectionNumber: 3,
-        title: 'Market Opportunity, Export Additionality & Non-Displacement Defense',
+        title: 'Market Sizing, Export Potential & Non-Displacement Defense',
         assessorPrompt: 'Substantiate TAM/SAM/SOM, target international export markets, and prove zero domestic economic displacement.',
         wordLimit: 450,
-        scoringWeightPercent: 25,
-        sourceModules: ['MOD_B_MARKET'],
+        scoringWeightPercent: 20,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
       },
       {
         sectionNumber: 4,
-        title: 'Customer Validation, Willingness-to-Pay & Mom-Test Evidence',
+        title: 'Primary Customer Validation & Mom-Test Evidence',
         assessorPrompt: 'Detail primary customer discovery proof, survey response statistics, and validated pricing appetite.',
-        wordLimit: 350,
+        wordLimit: 400,
         scoringWeightPercent: 15,
         sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_H_REVENUE'],
       },
       {
         sectionNumber: 5,
-        title: '3-Year Headcount Schedule, Salary Plan & Local Employment Additionality',
-        assessorPrompt: 'Detail scheduled headcount growth, Irish PRSI payroll burdens, and local net economic additionality.',
+        title: 'Operations, 3-Quote Procurement & Risk Controls',
+        assessorPrompt: 'Outline day-to-day operational mechanics, premises, equipment schedule, 3-quote procurement compliance (items ≥ €1,000), and 4-category risk controls.',
         wordLimit: 400,
-        scoringWeightPercent: 15,
-        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_J_FINANCE'],
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_E_OPERATIONS', 'MOD_G_LAUNCHPAD'],
       },
       {
         sectionNumber: 6,
-        title: '36-Month Financial Projections, Breakeven & Vouched Grant Ask',
+        title: '3-Year Job Creation Schedule & Salary Plan',
+        assessorPrompt: 'Detail scheduled headcount growth, Irish PRSI payroll burdens, and local net economic additionality.',
+        wordLimit: 350,
+        scoringWeightPercent: 10,
+        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_J_FINANCE'],
+      },
+      {
+        sectionNumber: 7,
+        title: '36-Month Financial Projections & Vouched Grant Ask',
         assessorPrompt: 'Reconcile unit economics, Pocket Profit crossover month, 36-month cashflow trough, and the matching vouched grant ask.',
-        wordLimit: 500,
-        scoringWeightPercent: 25,
+        wordLimit: 400,
+        scoringWeightPercent: 15,
         sourceModules: ['MOD_H_REVENUE', 'MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
       },
     ],
@@ -232,75 +245,75 @@ export const ARCHETYPE_CATALOG: ArchetypeCatalogItem[] = [
     sectionsTemplate: [
       {
         sectionNumber: 1,
-        title: 'Need or Challenge & Market Failure',
+        title: 'Q1: Need or Challenge',
         assessorPrompt: 'What is the specific business need or societal challenge addressed, and why has the market failed to solve it?',
         wordLimit: 400,
-        scoringWeightPercent: 10,
-        sourceModules: ['MOD_A_IDEATION', 'MOD_B_MARKET'],
+        scoringWeightPercent: 11,
+        sourceModules: ['MOD_A_IDEATION', 'MOD_C_SURVEYS_FEEDBACK'],
       },
       {
         sectionNumber: 2,
-        title: 'Approach, Innovation & Beyond State-of-the-Art',
+        title: 'Q2: Approach & Innovation',
         assessorPrompt: 'Describe the technical innovation, methodology, freedom-to-operate, and beyond state-of-the-art capability.',
         wordLimit: 400,
-        scoringWeightPercent: 15,
+        scoringWeightPercent: 12,
         sourceModules: ['MOD_B_MARKET', 'MOD_D_PRODUCT_BUILD'],
       },
       {
         sectionNumber: 3,
-        title: 'Team, Skills & Resource Capability',
+        title: 'Q3: Team & Resources',
         assessorPrompt: 'Demonstrate that the team has the technical, commercial, and operational capability to deliver the project.',
         wordLimit: 400,
-        scoringWeightPercent: 10,
-        sourceModules: ['MOD_F_COFOUNDER_TEAM'],
+        scoringWeightPercent: 11,
+        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_G_LAUNCHPAD'],
       },
       {
         sectionNumber: 4,
-        title: 'Market Awareness & Addressable Opportunity',
-        assessorPrompt: 'What is the addressable market size (TAM/SAM/SOM), competitive wedge, and international export potential?',
+        title: 'Q4: Market Awareness & Route to Market',
+        assessorPrompt: 'What is the addressable market size (TAM/SAM/SOM), competitive wedge, and route to market?',
         wordLimit: 400,
-        scoringWeightPercent: 10,
-        sourceModules: ['MOD_B_MARKET'],
+        scoringWeightPercent: 11,
+        sourceModules: ['MOD_B_MARKET', 'MOD_I_MARKETING'],
       },
       {
         sectionNumber: 5,
-        title: 'Commercial Outcomes & Route-to-Market Exploitation',
-        assessorPrompt: 'Detail the commercial exploitation route, revenue models, customer validation proof, and 3-year economic return.',
-        wordLimit: 400,
-        scoringWeightPercent: 15,
-        sourceModules: ['MOD_C_SURVEYS_FEEDBACK', 'MOD_I_MARKETING', 'MOD_H_REVENUE'],
-      },
-      {
-        sectionNumber: 6,
-        title: 'Wider Impacts, Net Zero & Environmental Sustainability',
-        assessorPrompt: 'What are the wider economic, environmental, societal, and Net Zero regional impacts of this commercial innovation?',
-        wordLimit: 400,
-        scoringWeightPercent: 10,
-        sourceModules: ['MOD_A_IDEATION', 'MOD_E_OPERATIONS'],
-      },
-      {
-        sectionNumber: 7,
-        title: 'Project Management, Work Packages (WP1..n) & Gantt Milestones',
+        title: 'Q5: Project Management & Work Packages',
         assessorPrompt: 'Detail work packages WP1..n, lead responsibilities, milestone deliverables, Gantt timings, and technical dependencies.',
         wordLimit: 400,
-        scoringWeightPercent: 10,
+        scoringWeightPercent: 12,
         sourceModules: ['MOD_D_PRODUCT_BUILD', 'MOD_E_OPERATIONS'],
       },
       {
-        sectionNumber: 8,
-        title: 'Project Risk Management & Mitigation Register',
+        sectionNumber: 6,
+        title: 'Q6: Risks & Mitigation Matrix',
         assessorPrompt: 'Detail the primary technical, commercial, operational, and regulatory risks, assessing probability, impact, and mitigations.',
         wordLimit: 400,
-        scoringWeightPercent: 10,
+        scoringWeightPercent: 11,
         sourceModules: ['MOD_E_OPERATIONS'],
       },
       {
+        sectionNumber: 7,
+        title: 'Q7: Added Value of Public Funding',
+        assessorPrompt: 'Why is public funding necessary? Prove additionality: why would this project not proceed at the same speed or scale without grant support?',
+        wordLimit: 400,
+        scoringWeightPercent: 11,
+        sourceModules: ['MOD_K_GRANTS_FUNDING', 'MOD_L_BUSINESS_PLAN'],
+      },
+      {
+        sectionNumber: 8,
+        title: 'Q8: Economic, Environmental & Societal Impact',
+        assessorPrompt: 'What are the wider economic, environmental, societal, and UK job creation impacts of this innovation?',
+        wordLimit: 400,
+        scoringWeightPercent: 11,
+        sourceModules: ['MOD_F_COFOUNDER_TEAM', 'MOD_K_GRANTS_FUNDING'],
+      },
+      {
         sectionNumber: 9,
-        title: 'Public Funding Additionality & Value for Money',
-        assessorPrompt: 'Why is public funding necessary? What would happen without grant support, and what is the economic return for the UK taxpayer?',
+        title: 'Q9: Costs & Value for Money',
+        assessorPrompt: 'Explain how project costs represent value for money, justifying labour rates, materials, capital usage depreciation, and subcontractor fees.',
         wordLimit: 400,
         scoringWeightPercent: 10,
-        sourceModules: ['MOD_K_GRANTS_FUNDING', 'MOD_J_FINANCE'],
+        sourceModules: ['MOD_E_OPERATIONS', 'MOD_J_FINANCE', 'MOD_K_GRANTS_FUNDING'],
       },
     ],
   },
@@ -731,7 +744,7 @@ export function BusinessPlanStudioWorkspace({
     initialVersions,
   ]);
 
-  const activeVersion = useMemo(() => {
+  const activeVersion = useMemo((): BusinessPlanVersionItem | undefined => {
     const raw = versions.find((v) => v.id === activeVersionId) || versions[0];
     if (!raw) return raw;
     if (!Array.isArray(raw.sections) || raw.sections.length === 0) {
@@ -854,7 +867,9 @@ export function BusinessPlanStudioWorkspace({
   function handleSaveSectionText(sectionNumber: number, text: string) {
     if (!activeVersion) return;
     const updatedSections = (activeVersion.sections || []).map((s) =>
-      s.sectionNumber === sectionNumber ? { ...s, compiledResponseText: text } : s
+      s.sectionNumber === sectionNumber
+        ? { ...s, compiledResponseText: text, isCustomEdited: true }
+        : s
     );
     const updatedVer: BusinessPlanVersionItem = {
       ...activeVersion,
@@ -903,29 +918,74 @@ export function BusinessPlanStudioWorkspace({
     }
   }
 
+  const verifiedFacts = useMemo(
+    () => extractMasterDocumentVerifiedFacts(plan),
+    [plan]
+  );
+
+  const marketTotals = useMemo(
+    () => computeModuleBMarketSizingTotals(plan.moduleBData),
+    [plan.moduleBData]
+  );
+
+  const headcountSummary = useMemo(() => {
+    const foundersFte = Math.max(1, verifiedFacts.teamMembersCount || 1);
+    const roles = plan.moduleFData?.step5HiringPlanData?.roles || [];
+    const roleFte = (mode?: string) =>
+      mode === 'FULL_TIME' ? 1 : mode === 'PART_TIME' ? 0.5 : 0;
+
+    const isSalesDept = (dept?: string) => dept === 'SALES_MARKETING';
+    let prodY1 = 0;
+    let prodY2 = 0;
+    let prodY3 = 0;
+    let salesY1 = 0;
+    let salesY2 = 0;
+    let salesY3 = 0;
+
+    for (const r of roles) {
+      const fte = roleFte(r.employmentMode);
+      const yr = r.yearScheduled || 1;
+      if (isSalesDept(r.department)) {
+        if (yr <= 1) salesY1 += fte;
+        if (yr <= 2) salesY2 += fte;
+        if (yr <= 3) salesY3 += fte;
+      } else {
+        if (yr <= 1) prodY1 += fte;
+        if (yr <= 2) prodY2 += fte;
+        if (yr <= 3) prodY3 += fte;
+      }
+    }
+
+    const totalY1 = foundersFte + prodY1 + salesY1;
+    const totalY2 = foundersFte + prodY2 + salesY2;
+    const totalY3 = foundersFte + prodY3 + salesY3;
+    const netNewHiresFte = prodY3 + salesY3;
+
+    return {
+      foundersFte,
+      prodY1,
+      prodY2,
+      prodY3,
+      salesY1,
+      salesY2,
+      salesY3,
+      totalY1,
+      totalY2,
+      totalY3,
+      netNewHiresFte,
+    };
+  }, [plan.moduleFData?.step5HiringPlanData?.roles, verifiedFacts.teamMembersCount]);
+
   // 6. One-Click Compile/Refresh Entire Document for Active Version
   async function handleCompileAllChapters() {
     if (!activeVersion || isVaultReadonly) return;
     setIsCompilingAll(true);
     setCompileAllProgress({ current: 0, total: activeVersion.sections?.length || 0 });
 
-    const marketTotals = computeModuleBMarketSizingTotals(plan.moduleBData);
-    const marketLine = marketTotals.hasMarketSizingData
-      ? `TAM ${formatPlanCurrency(marketTotals.tamAnnual, currency)}, SAM ${formatPlanCurrency(marketTotals.samAnnual, currency)}, SOM ${formatPlanCurrency(marketTotals.somAnnual, currency)}.`
-      : 'Market sizing (TAM/SAM/SOM) not yet entered in Module B Step 3.';
-
-    const summaryFactPack = `
-VENTURE: "${plan.title}" (${plan.industryCategory || 'Startup'}) in ${selectedCountry} (${currency}).
-PROBLEM: ${plan.conceptCanvas?.coreProblem || 'Market pain points identified'}
-SOLUTION: ${plan.conceptCanvas?.proposedSolution || 'High-margin structured product'}
-CUSTOMER: ${plan.conceptCanvas?.targetCustomer || 'Target beachhead persona'}
-MARKET: ${marketLine}
-VALIDATION: ${plan.moduleCData?.surveys?.[0]?.responses?.length || 0} customer discovery responses, ${plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway || 'Validated willingness to pay'}.
-PRICING & REVENUE: Target pricing modeled in Module H Pocket Profit breakeven.
-HEADCOUNT & SURVIVAL: Scheduled hiring and founder survival budget verified in Module F.
-OPERATIONS: Equipment and 3-quote schedules established in Module E.
-FINANCES: 36-month cashflow trough and localized employer taxes modeled in Module J.
-`;
+    const summaryFactPack = buildGroundedPlanFactPackString(
+      plan,
+      activeVersion.executiveHookStatement
+    );
 
     try {
       const res = await compileAllBusinessPlanSectionsAction({
@@ -935,7 +995,7 @@ FINANCES: 36-month cashflow trough and localized employer taxes modeled in Modul
         targetTone: activeVersion.targetTone,
         planTitle: plan.title,
         industryCategory: plan.industryCategory,
-        hqCountryCode: selectedCountry,
+        hqCountryCode: effectiveCountry,
         baseCurrency: currency,
         planContextSummary: summaryFactPack,
         sections: (activeVersion.sections || []).map((s) => ({
@@ -944,7 +1004,7 @@ FINANCES: 36-month cashflow trough and localized employer taxes modeled in Modul
           assessorPrompt: s.assessorQuestionPrompt,
           wordLimit: s.wordLimit,
           scoringWeightPercent: s.scoringWeightPercent,
-          currentResponseText: s.compiledResponseText,
+          currentResponseText: s.isCustomEdited ? s.compiledResponseText : '',
         })),
       });
 
@@ -1027,12 +1087,13 @@ FINANCES: 36-month cashflow trough and localized employer taxes modeled in Modul
   // 8. Copy Entire Document as clean text
   function handleCopyEntireDocument() {
     if (!activeVersion) return;
+    const audienceLabel = formatStudioTargetAudienceLabel(activeVersion.targetAudience);
     const fullDoc = `
 # ${plan.title}
 ## ${activeVersion.title} (${catalogMeta.badge})
-Target Stakeholder: ${activeVersion.targetAudience}
+Target Stakeholder: ${audienceLabel}
 Date: ${new Date().toLocaleDateString()}
-Location: ${selectedCountry} | Currency: ${currency} (${currencySymbol})
+Location: ${effectiveCountry} | Currency: ${currency} (${currencySymbol})
 Facility / Ask Amount: ${formatPlanCurrency(activeVersion.targetFundingAsk || 50000, currency)}
 
 ---
@@ -1089,7 +1150,7 @@ Generated by Startup Preflight Business Plan Studio
           {/* Left: Active Version Badge & Switcher */}
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs">
-              <Sparkles className="h-5 w-5" />
+              <FileCheck2 className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -1097,7 +1158,7 @@ Generated by Startup Preflight Business Plan Studio
                   Business Plan Studio
                 </span>
                 <Badge className="border-slate-200 bg-slate-100 text-[10px] font-bold text-emerald-900">
-                  AI COMPILER
+                  PLAN COMPILER
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -1127,7 +1188,7 @@ Generated by Startup Preflight Business Plan Studio
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
+                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
                   Generate / Refresh Plan
                 </>
               )}
@@ -1328,14 +1389,21 @@ Generated by Startup Preflight Business Plan Studio
                     {catalogMeta.badge}
                   </Badge>
                   {activeVersion?.archetype === 'COMMERCIAL_BANK_LOAN' && (
-                    <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50/80 text-[10px] font-semibold">
-                      🏦 Credit Committee Underwritten • DSCR Reconciled
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50/80 text-[10px] font-semibold">
+                        🏦 Credit Committee Underwritten • Loan Cover (DSCR) Reconciled
+                      </Badge>
+                      <JargonTooltip term="DSCR" label="What is DSCR?" />
+                    </div>
                   )}
                   {activeVersion?.archetype === 'IE_LEO_OFFICIAL_GRANT' && (
-                    <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50/80 text-[10px] font-semibold">
-                      🇮🇪 Statutory Non-Displacement Certified • 3-Quote Vouched
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50/80 text-[10px] font-semibold">
+                        🇮🇪 Statutory Non-Displacement Certified • 3-Quote Vouched
+                      </Badge>
+                      <JargonTooltip term="NON_DISPLACEMENT" label="Non-Displacement" />
+                      <JargonTooltip term="VOUCHED_EXPENDITURE" label="3-Quote Vouched" />
+                    </div>
                   )}
                   {activeVersion?.archetype === 'UK_INNOVATE_UK_9Q' && (
                     <Badge variant="outline" className="border-cyan-300 text-cyan-800 bg-cyan-50/80 text-[10px] font-semibold">
@@ -1343,8 +1411,8 @@ Generated by Startup Preflight Business Plan Studio
                     </Badge>
                   )}
                   {activeVersion?.archetype === 'INVESTOR_ANGEL_MEMO' && (
-                    <Badge variant="outline" className="border-slate-200 text-emerald-900 bg-emerald-50/70/80 text-[10px] font-semibold">
-                      {isUK ? '🇬🇧 HMRC SEIS / EIS Advance Assurance Eligible' : '🇮🇪 Revenue EII 40% Tax Relief Eligible'}
+                    <Badge variant="outline" className="border-slate-200 text-emerald-900 bg-emerald-50/80 text-[10px] font-semibold">
+                      {isUK ? '🇬🇧 HMRC SEIS / EIS Advance Assurance Pack' : '🇮🇪 Revenue EII Tax Relief Pack'}
                     </Badge>
                   )}
                 </div>
@@ -1490,134 +1558,169 @@ Generated by Startup Preflight Business Plan Studio
                     {/* --------------------------------------------------------------- */}
 
                     {/* Market Sizing Table (LivePlan Table 2.1) */}
-                    {sec.title.toLowerCase().includes('market') && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
-                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-slate-700" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                              Table 2.1: Target Market Sizing &amp; Addressable Segments
+                    {sec.title.toLowerCase().includes('market') && (() => {
+                      const primarySeg = plan.moduleBData?.marketSizing?.segments?.[0];
+                      const segPrice = primarySeg?.pricePerCustomerInput
+                        ? parseFloat(primarySeg.pricePerCustomerInput)
+                        : 0;
+                      const samUnits = primarySeg?.reachableCustomersInTargetMarketsInput || '';
+                      const somUnits = primarySeg?.year1To2CustomerGoalInput || '';
+                      return (
+                        <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4 text-slate-700" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Table 2.1: Target Market Sizing &amp; Addressable Segments
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {marketTotals.hasMarketSizingData ? 'Verified Plan Figures' : 'Awaiting Market Inputs'}
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-500 font-medium">Module B Grounding</span>
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[600px] text-left text-xs">
+                              <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                                <tr>
+                                  <th className="px-4 py-2.5">Market Scope</th>
+                                  <th className="px-4 py-2.5">Target Audience Definition</th>
+                                  <th className="px-4 py-2.5 text-right">Reachable Units</th>
+                                  <th className="px-4 py-2.5 text-right">Unit Value / Price</th>
+                                  <th className="px-4 py-2.5 text-right">Annual Opportunity</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-sans">
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Total Addressable Market (TAM)</td>
+                                  <td className="px-4 py-2.5 text-slate-600">Wider market scale across target geographies ({verifiedFacts.targetMarketsLabel || effectiveCountry})</td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">
+                                    {marketTotals.hasMarketSizingData && segPrice > 0
+                                      ? Math.round(marketTotals.tamAnnual / segPrice).toLocaleString()
+                                      : '—'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">
+                                    {segPrice > 0 ? formatPlanCurrency(segPrice, currency) : '—'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">
+                                    {marketTotals.hasMarketSizingData
+                                      ? formatPlanCurrency(marketTotals.tamAnnual, currency)
+                                      : 'Not yet modeled'}
+                                  </td>
+                                </tr>
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-950">Serviceable Addressable Market (SAM)</td>
+                                  <td className="px-4 py-2.5 text-slate-600">
+                                    {verifiedFacts.beachheadSegment || 'Customers reachable via direct & partner channels'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">
+                                    {samUnits ? Number(samUnits).toLocaleString() : '—'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">
+                                    {segPrice > 0 ? formatPlanCurrency(segPrice, currency) : '—'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                    {marketTotals.hasMarketSizingData
+                                      ? formatPlanCurrency(marketTotals.samAnnual, currency)
+                                      : 'Not yet modeled'}
+                                  </td>
+                                </tr>
+                                <tr className="bg-emerald-50/40 hover:bg-emerald-50/60 font-semibold">
+                                  <td className="px-4 py-2.5 text-emerald-950">Serviceable Obtainable Market (SOM)</td>
+                                  <td className="px-4 py-2.5 text-emerald-900">Realistic Year 1–2 beachhead customer target</td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-900">
+                                    {somUnits ? Number(somUnits).toLocaleString() : '—'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-900">
+                                    {segPrice > 0 ? formatPlanCurrency(segPrice, currency) : '—'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                    {marketTotals.hasMarketSizingData
+                                      ? formatPlanCurrency(marketTotals.somAnnual, currency)
+                                      : 'Not yet modeled'}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
-                              <tr>
-                                <th className="px-4 py-2.5">Market Scope</th>
-                                <th className="px-4 py-2.5">Target Audience Definition</th>
-                                <th className="px-4 py-2.5 text-right">Reachable Units</th>
-                                <th className="px-4 py-2.5 text-right">ARPU / LTV</th>
-                                <th className="px-4 py-2.5 text-right">Total Opportunity</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-sans">
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Total Addressable Market (TAM)</td>
-                                <td className="px-4 py-2.5 text-slate-600">Macro market size across all accessible geographic regions</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">12,500</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">{formatPlanCurrency(1000, currency)}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">
-                                  {formatPlanCurrency(
-                                    ((plan.moduleBData?.marketSizing?.segments?.[0]?.reachableCustomersInTargetMarketsInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].reachableCustomersInTargetMarketsInput) : 2500) *
-                                     (plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000) * 5) || 12500000,
-                                    currency
-                                  )}
-                                </td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-950">Serviceable Addressable Market (SAM)</td>
-                                <td className="px-4 py-2.5 text-slate-600">Segment reachable via core digital &amp; direct channels</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">
-                                  {plan.moduleBData?.marketSizing?.segments?.[0]?.reachableCustomersInTargetMarketsInput || '2,500'}
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">
-                                  {formatPlanCurrency(plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000, currency)}
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">
-                                  {formatPlanCurrency(
-                                    ((plan.moduleBData?.marketSizing?.segments?.[0]?.reachableCustomersInTargetMarketsInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].reachableCustomersInTargetMarketsInput) : 2500) *
-                                     (plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000)) || 2500000,
-                                    currency
-                                  )}
-                                </td>
-                              </tr>
-                              <tr className="bg-emerald-50/40 hover:bg-emerald-50/60 font-semibold">
-                                <td className="px-4 py-2.5 text-emerald-950">Serviceable Obtainable Market (SOM)</td>
-                                <td className="px-4 py-2.5 text-emerald-900">Year 1–2 beachhead target quota</td>
-                                <td className="px-4 py-2.5 text-right text-emerald-900">
-                                  {plan.moduleBData?.marketSizing?.segments?.[0]?.year1To2CustomerGoalInput || '50'}
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-emerald-900">
-                                  {formatPlanCurrency(plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000, currency)}
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">
-                                  {formatPlanCurrency(
-                                    ((plan.moduleBData?.marketSizing?.segments?.[0]?.year1To2CustomerGoalInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].year1To2CustomerGoalInput) : 50) *
-                                     (plan.moduleBData?.marketSizing?.segments?.[0]?.pricePerCustomerInput ? parseFloat(plan.moduleBData.marketSizing.segments[0].pricePerCustomerInput) : 1000)) || 450000,
-                                    currency
-                                  )}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Customer Validation Table (LivePlan Table 3.1) */}
                     {(sec.title.toLowerCase().includes('validation') ||
-                      sec.title.toLowerCase().includes('customer')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
-                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <ShieldCheck className="h-4 w-4 text-emerald-700" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                              Table 3.1: Primary Customer Discovery &amp; Willingness-to-Pay Synthesis
-                            </span>
+                      sec.title.toLowerCase().includes('customer')) && (() => {
+                      const hasRealValidation =
+                        verifiedFacts.realSurveyResponses > 0 || verifiedFacts.interviewsCount > 0;
+                      return (
+                        <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Table 3.1: Primary Customer Discovery &amp; Willingness-to-Pay Synthesis
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50">
+                              {hasRealValidation ? 'Recorded Discovery Evidence' : 'Discovery In Progress'}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50">
-                            Mom-Test Empirical Rigor
-                          </Badge>
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[600px] text-left text-xs">
+                              <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                                <tr>
+                                  <th className="px-4 py-2.5 w-1/4">Validation Pillar</th>
+                                  <th className="px-4 py-2.5 w-1/2">Recorded Plan Finding</th>
+                                  <th className="px-4 py-2.5 text-right w-1/4">Evidence Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-sans">
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Problem &amp; Discovery</td>
+                                  <td className="px-4 py-2.5 text-slate-700">
+                                    {verifiedFacts.surveyHeadlineInsight
+                                      ? `“${verifiedFacts.surveyHeadlineInsight}”`
+                                      : hasRealValidation
+                                        ? `Customer discovery logged across ${verifiedFacts.realSurveyResponses} survey response(s) and ${verifiedFacts.interviewsCount} interview(s).`
+                                        : 'Primary customer survey responses and 1-on-1 interviews have not yet been logged.'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                    {hasRealValidation
+                                      ? `${verifiedFacts.realSurveyResponses} Surveys • ${verifiedFacts.interviewsCount} Interviews`
+                                      : 'Pending Discovery'}
+                                  </td>
+                                </tr>
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Willingness-to-Pay</td>
+                                  <td className="px-4 py-2.5 text-slate-700">
+                                    {verifiedFacts.blendedAveragePriceNet > 0
+                                      ? `Target net price modeled at ${formatPlanCurrency(verifiedFacts.blendedAveragePriceNet, currency)} (${verifiedFacts.revenueModelVehicleLabel || 'commercial pricing'}).`
+                                      : 'Target pricing tiers have not yet been finalized in the Revenue & Pricing module.'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-800">
+                                    {verifiedFacts.waitlistOptInsCount > 0
+                                      ? `${verifiedFacts.waitlistOptInsCount} Waitlist Leads`
+                                      : verifiedFacts.blendedAveragePriceNet > 0
+                                        ? formatPlanCurrency(verifiedFacts.blendedAveragePriceNet, currency)
+                                        : 'Pending Pricing'}
+                                  </td>
+                                </tr>
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Geographic &amp; Export Scope</td>
+                                  <td className="px-4 py-2.5 text-slate-700">
+                                    {verifiedFacts.exportScopeLabel
+                                      ? `Market reach configured as ${verifiedFacts.exportScopeLabel} (${verifiedFacts.targetMarketsLabel || effectiveCountry}).`
+                                      : `Initial launch focused on ${effectiveCountry} customers.`}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-bold text-slate-700">
+                                    {verifiedFacts.exportScopeLabel || effectiveCountry}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
-                              <tr>
-                                <th className="px-4 py-2.5 w-1/4">Validation Pillar</th>
-                                <th className="px-4 py-2.5 w-1/2">Assessor Verification Finding</th>
-                                <th className="px-4 py-2.5 text-right w-1/4">Audience Confidence</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-sans">
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Problem Severity</td>
-                                <td className="px-4 py-2.5 text-slate-700 italic">
-                                  &ldquo;{plan.moduleCData?.surveys?.[0]?.aiInsightsSummary?.headlineTakeaway ||
-                                    'Customer discovery confirmed acute friction with incumbent manual workflows.'}&rdquo;
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-700">92% High Urgency</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Willingness-to-Pay</td>
-                                <td className="px-4 py-2.5 text-slate-700">
-                                  Commercial pricing calibrated against demonstrated switching intent without artificial discounts.
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">Empirically Verified</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Displacement Risk</td>
-                                <td className="px-4 py-2.5 text-slate-700">
-                                  Venture operates non-displacement value proposition targeting unmet regional and export demand.
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-bold text-slate-700">Zero Displacement</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Operational Premises & Asset Schedule Table (LivePlan Table 4.1) */}
                     {(sec.title.toLowerCase().includes('operation') ||
@@ -1630,15 +1733,15 @@ Generated by Startup Preflight Business Plan Studio
                               Table 4.1: Operational Infrastructure, Premises &amp; Compliance Schedule
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-500 font-medium">Module E Schedule</span>
+                          <span className="text-[11px] text-slate-500 font-medium">Operations Schedule</span>
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
+                          <table className="w-full min-w-[600px] text-left text-xs">
                             <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
                               <tr>
                                 <th className="px-4 py-2.5">Operating Domain</th>
                                 <th className="px-4 py-2.5">Specification &amp; Provisioning</th>
-                                <th className="px-4 py-2.5 text-right">Statutory Status</th>
+                                <th className="px-4 py-2.5 text-right">Recorded Status</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 font-sans">
@@ -1646,24 +1749,42 @@ Generated by Startup Preflight Business Plan Studio
                                 <td className="px-4 py-2.5 font-semibold text-slate-900">Premises / Facility</td>
                                 <td className="px-4 py-2.5 text-slate-700">
                                   {plan.moduleEData?.premisesAndEquipment?.premisesLocationSummary ||
-                                    plan.moduleEData?.premisesAndEquipment?.premisesSetupMode ||
-                                    'Commercial Workspace / Hub Facilities'}
+                                    verifiedFacts.premisesModeLabel ||
+                                    'Premises setup not yet specified'}
                                 </td>
-                                <td className="px-4 py-2.5 text-right text-emerald-700 font-semibold">Active / Compliant</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-800 font-semibold">
+                                  {verifiedFacts.hasModuleE
+                                    ? verifiedFacts.monthlyPremisesCost > 0
+                                      ? `${formatPlanCurrency(verifiedFacts.monthlyPremisesCost, currency)}/mo`
+                                      : 'Zero Commercial Rent'
+                                    : 'Pending'}
+                                </td>
                               </tr>
                               <tr className="hover:bg-slate-50/50">
                                 <td className="px-4 py-2.5 font-semibold text-slate-900">Capital Equipment</td>
                                 <td className="px-4 py-2.5 text-slate-700">
-                                  Enterprise-grade tooling provisioned in adherence to grant eligible asset standards.
+                                  {verifiedFacts.equipmentItemsCount > 0
+                                    ? `${verifiedFacts.equipmentItemsCount} capital item(s) scheduled totaling ${formatPlanCurrency(verifiedFacts.totalEquipmentCapexExVat, currency)} (ex-VAT).`
+                                    : 'No capital equipment items scheduled yet (lean V1 setup).'}
                                 </td>
-                                <td className="px-4 py-2.5 text-right text-slate-700 font-semibold">LEO / Bank Verified</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 font-semibold">
+                                  {verifiedFacts.equipmentItemsCount > 0
+                                    ? formatPlanCurrency(verifiedFacts.totalEquipmentCapexExVat, currency)
+                                    : 'Zero CapEx'}
+                                </td>
                               </tr>
                               <tr className="hover:bg-slate-50/50">
                                 <td className="px-4 py-2.5 font-semibold text-slate-900">Statutory Insurance</td>
                                 <td className="px-4 py-2.5 text-slate-700">
-                                  Public Liability &amp; Employer Liability policies structured for commercial readiness.
+                                  {verifiedFacts.insurancesActiveList.length > 0
+                                    ? verifiedFacts.insurancesActiveList.join(', ')
+                                    : 'Commercial insurance policies scheduled prior to live trading.'}
                                 </td>
-                                <td className="px-4 py-2.5 text-right text-emerald-700 font-semibold">Bound &amp; Active</td>
+                                <td className="px-4 py-2.5 text-right text-slate-700 font-semibold">
+                                  {verifiedFacts.insurancesActiveList.length > 0
+                                    ? 'Active'
+                                    : 'Planned Pre-Trading'}
+                                </td>
                               </tr>
                             </tbody>
                           </table>
@@ -1683,60 +1804,54 @@ Generated by Startup Preflight Business Plan Studio
                               Table 5.1: 3-Year Headcount &amp; Full-Time Equivalent (FTE) Forecast
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-500 font-medium">Module F Schedule</span>
+                          <span className="text-[11px] text-slate-500 font-medium">Hiring Schedule</span>
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
+                          <table className="w-full min-w-[600px] text-left text-xs">
                             <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
                               <tr>
                                 <th className="px-4 py-2.5">Role Category</th>
                                 <th className="px-4 py-2.5 text-right">Year 1 FTEs</th>
                                 <th className="px-4 py-2.5 text-right">Year 2 FTEs</th>
                                 <th className="px-4 py-2.5 text-right">Year 3 FTEs</th>
-                                <th className="px-4 py-2.5 text-right">Total Net New Jobs</th>
+                                <th className="px-4 py-2.5 text-right">3-Year Net Hires</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 font-sans">
                               <tr className="hover:bg-slate-50/50">
                                 <td className="px-4 py-2.5 font-semibold text-slate-900">Founders &amp; Key Promoters</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">1 Core</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.foundersFte.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.foundersFte.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.foundersFte.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">{headcountSummary.foundersFte} Core</td>
                               </tr>
                               <tr className="hover:bg-slate-50/50">
                                 <td className="px-4 py-2.5 font-semibold text-slate-900">Product, Technical &amp; Operations</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">
-                                  {Math.max(1, (plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) - 1)}.0
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.prodY1.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.prodY2.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.prodY3.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                  +{headcountSummary.prodY3.toFixed(1)} FTE
                                 </td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">
-                                  {Math.max(2, (plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 1)}.0
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">
-                                  {Math.max(3, (plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 3)}.0
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">+3 Net New</td>
                               </tr>
                               <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Sales, Support &amp; Distribution</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">0.0</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">1.0</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">2.0</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">+2 Net New</td>
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Sales, Marketing &amp; Distribution</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.salesY1.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.salesY2.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">{headcountSummary.salesY3.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                  +{headcountSummary.salesY3.toFixed(1)} FTE
+                                </td>
                               </tr>
                               <tr className="bg-slate-50 font-bold border-t border-slate-200">
                                 <td className="px-4 py-2.5 text-slate-900">Total Company Headcount (FTEs)</td>
-                                <td className="px-4 py-2.5 text-right text-slate-900">
-                                  {plan.moduleFData?.step5HiringPlanData?.roles?.length || 2}.0
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-slate-900">
-                                  {(plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 2}.0
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-slate-900">
-                                  {(plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 6}.0
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-emerald-700">
-                                  +{(plan.moduleFData?.step5HiringPlanData?.roles?.length || 2) + 5} High-Quality Jobs
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-900">{headcountSummary.totalY1.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-900">{headcountSummary.totalY2.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-900">{headcountSummary.totalY3.toFixed(1)}</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-700">
+                                  {headcountSummary.netNewHiresFte > 0
+                                    ? `+${headcountSummary.netNewHiresFte.toFixed(1)} Net New FTEs`
+                                    : 'Founder-Led (0 Hires Scheduled)'}
                                 </td>
                               </tr>
                             </tbody>
@@ -1748,59 +1863,88 @@ Generated by Startup Preflight Business Plan Studio
                     {/* Financial Projections Table (LivePlan Table 6.1) */}
                     {(sec.title.toLowerCase().includes('financial') ||
                       sec.title.toLowerCase().includes('breakeven') ||
-                      sec.title.toLowerCase().includes('projections')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
-                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4 text-emerald-700" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                              Table 6.1: Key Financial Indicators &amp; Breakeven Economics
-                            </span>
+                      sec.title.toLowerCase().includes('projections')) && (() => {
+                      const primaryMargin =
+                        verifiedFacts.pricingTiersSummaries[0]?.pocketProfitMarginPercent;
+                      return (
+                        <div className="my-8 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs print:border-slate-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4 text-emerald-700" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Table 6.1: Key Financial Indicators &amp; Breakeven Economics
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-900 bg-emerald-50">
+                              {verifiedFacts.hasModuleH || verifiedFacts.hasModuleJ ? 'Plan-Grounded Figures' : 'Awaiting Financial Inputs'}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-900 bg-emerald-50">
-                            Cashflow Reconciled
-                          </Badge>
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[600px] text-left text-xs">
+                              <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                                <tr>
+                                  <th className="px-4 py-2.5">Financial Metric</th>
+                                  <th className="px-4 py-2.5 text-right">Modeled Value</th>
+                                  <th className="px-4 py-2.5">Economic Basis</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-sans">
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Baseline Net Selling Price</td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">
+                                    {verifiedFacts.blendedAveragePriceNet > 0
+                                      ? formatPlanCurrency(verifiedFacts.blendedAveragePriceNet, currency)
+                                      : 'Not yet modeled'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-600">
+                                    {verifiedFacts.revenueModelVehicleLabel || 'Blended net price across configured commercial tiers.'}
+                                  </td>
+                                </tr>
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Unit Contribution / Pocket Margin</td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-700">
+                                    {typeof primaryMargin === 'number' && primaryMargin > 0
+                                      ? `${Math.round(primaryMargin)}%`
+                                      : 'Not yet modeled'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-600">Net of direct COGS, payment processing, and channel fees.</td>
+                                </tr>
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Year 1 Customer &amp; Turnover Target</td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                    {verifiedFacts.year1ProjectedNetTurnover > 0
+                                      ? formatPlanCurrency(verifiedFacts.year1ProjectedNetTurnover, currency)
+                                      : verifiedFacts.year1TargetCustomers > 0
+                                        ? `${verifiedFacts.year1TargetCustomers.toLocaleString()} customers`
+                                        : 'Not yet modeled'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-600">
+                                    {verifiedFacts.year1TargetCustomers > 0
+                                      ? `Based on ${verifiedFacts.year1TargetCustomers.toLocaleString()} Year 1 customers in the Pocket Profit forecast.`
+                                      : 'Modeled in the Revenue & Breakeven forecast.'}
+                                  </td>
+                                </tr>
+                                <tr className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-900">Fixed Monthly Overheads &amp; Day-1 Cash</td>
+                                  <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">
+                                    {verifiedFacts.hasModuleJ
+                                      ? `${formatPlanCurrency(verifiedFacts.monthlyFixedOverheadsTotal, currency)}/mo`
+                                      : 'Not yet modeled'}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-600">
+                                    {verifiedFacts.hasModuleJ
+                                      ? `Day-1 starting cash balance: ${formatPlanCurrency(verifiedFacts.startingCashBalanceDay1, currency)}.`
+                                      : 'Complete the 36-Month Financial Builder to populate fixed overheads and cash reserves.'}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
-                              <tr>
-                                <th className="px-4 py-2.5">Financial Metric</th>
-                                <th className="px-4 py-2.5 text-right">Unit Value</th>
-                                <th className="px-4 py-2.5">Economic Assumption &amp; Assessor Commentary</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-sans">
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Baseline Selling Price</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">
-                                  {formatPlanCurrency(plan.moduleHData?.step3BreakevenCalculator?.activePriceSlider || 49, currency)}
-                                </td>
-                                <td className="px-4 py-2.5 text-slate-600">Standard price point calibrated across core commercial product tiers.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Gross Margin</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-700">76%</td>
-                                <td className="px-4 py-2.5 text-slate-600">Net of direct COGS, payment processing, and hosting/infrastructure fees.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Monthly Breakeven Volume</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">
-                                  {plan.moduleHData?.step3BreakevenCalculator?.activeCustomerSlider || 85} units/mo
-                                </td>
-                                <td className="px-4 py-2.5 text-slate-600">Sufficient volume required to cover baseline fixed overheads and founder survival.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Working Capital Trough</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">Month 8</td>
-                                <td className="px-4 py-2.5 text-slate-600">Deepest cumulative cash deficit fully bridged by target funding ask.</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                    {/* Commercial Bank Loan Underwriting Table (Sources & Uses of Funds + DSCR) */}
+                      );
+                    })()}
+
+                    {/* Commercial Bank Loan Underwriting Table (Sources & Uses of Funds) */}
                     {activeVersion?.archetype === 'COMMERCIAL_BANK_LOAN' &&
                       (sec.title.toLowerCase().includes('credit') ||
                         sec.title.toLowerCase().includes('debt') ||
@@ -1812,58 +1956,74 @@ Generated by Startup Preflight Business Plan Studio
                           <div className="flex items-center gap-2">
                             <Building className="h-4 w-4 text-emerald-800" />
                             <span className="text-xs font-bold uppercase tracking-wider text-slate-950">
-                              Table: Sources &amp; Uses of Funds &amp; Debt Service Coverage (DSCR)
+                              Table: Credit Facility Summary, Co-Funding &amp; Repayment Basis
                             </span>
                           </div>
                           <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-900 bg-emerald-50">
-                            Bank Underwriter Credit Metric
+                            Bank Underwriter Summary
                           </Badge>
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
+                          <table className="w-full min-w-[600px] text-left text-xs">
                             <thead className="bg-slate-50/60 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
                               <tr>
                                 <th className="px-4 py-2.5">Credit Underwriting Parameter</th>
-                                <th className="px-4 py-2.5 text-right">Facility Metric</th>
-                                <th className="px-4 py-2.5">Lender Policy Assessment &amp; Security Covenant</th>
+                                <th className="px-4 py-2.5 text-right">Modeled Figure</th>
+                                <th className="px-4 py-2.5">Plan Grounding &amp; Underwriting Notes</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 font-sans">
                               <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Facility Requested &amp; Term</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">
-                                  {formatPlanCurrency(activeVersion?.targetFundingAsk || 50000, currency)} (60 Mos)
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Target Facility Requested</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">
+                                  {formatPlanCurrency(activeVersion?.targetFundingAsk || 50000, currency)}
                                 </td>
-                                <td className="px-4 py-2.5 text-slate-600">5-year commercial amortization schedule at indicative 7.5% per annum.</td>
+                                <td className="px-4 py-2.5 text-slate-600">Target facility configured for this credit submission version.</td>
                               </tr>
                               <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Sources: Promoter Skin-in-the-Game</td>
-                                <td className="px-4 py-2.5 text-right text-emerald-700 font-semibold">
-                                  {formatPlanCurrency(Math.round((activeVersion?.targetFundingAsk || 50000) * 0.25), currency)} (25%)
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Promoter Skin-in-the-Game Cash</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-700 font-semibold">
+                                  {verifiedFacts.skinInTheGameCash > 0
+                                    ? `${formatPlanCurrency(verifiedFacts.skinInTheGameCash, currency)}${verifiedFacts.skinInTheGamePercent > 0 ? ` (${Math.round(verifiedFacts.skinInTheGamePercent)}%)` : ''}`
+                                    : verifiedFacts.startingCashBalanceDay1 > 0
+                                      ? formatPlanCurrency(verifiedFacts.startingCashBalanceDay1, currency)
+                                      : 'Not yet entered'}
                                 </td>
-                                <td className="px-4 py-2.5 text-slate-600">Committed promoter equity contribution meeting standard 20–25% bank hurdle.</td>
+                                <td className="px-4 py-2.5 text-slate-600">Promoter cash contribution recorded in the Capital Stack / Financial Builder.</td>
                               </tr>
                               <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Uses: Working Capital &amp; Equipment</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700">
-                                  70% Capex / 30% Trough
-                                </td>
-                                <td className="px-4 py-2.5 text-slate-600">Earmarked strictly for asset tooling and bridging Month 8 cashflow trough.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Debt Service Coverage Ratio (DSCR)</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-800">
-                                  2.45&times; Coverage
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Scheduled Equipment CapEx</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">
+                                  {verifiedFacts.totalEquipmentCapexExVat > 0
+                                    ? formatPlanCurrency(verifiedFacts.totalEquipmentCapexExVat, currency)
+                                    : 'Working Capital Focus'}
                                 </td>
                                 <td className="px-4 py-2.5 text-slate-600">
-                                  Projected Year 2 operating cashflow exceeds annual debt service, surpassing bank 1.30&times; benchmark.
+                                  {verifiedFacts.equipmentItemsCount > 0
+                                    ? `${verifiedFacts.equipmentItemsCount} asset item(s) scheduled in Operations; balance allocated to working capital.`
+                                    : 'Facility directed primarily toward working capital and commercial launch execution.'}
+                                </td>
+                              </tr>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Projected Year 2 Net Turnover</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-800">
+                                  {verifiedFacts.year2ProjectedNetTurnover > 0
+                                    ? formatPlanCurrency(verifiedFacts.year2ProjectedNetTurnover, currency)
+                                    : 'Not yet modeled'}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">
+                                  Operating revenue baseline used by lenders to assess debt service coverage capacity.
                                 </td>
                               </tr>
                               <tr className="hover:bg-slate-50/50 bg-slate-50/40">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Security &amp; Survival Budget</td>
-                                <td className="px-4 py-2.5 text-right font-semibold text-slate-700">Cleared (Module F)</td>
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Personal Survival Budget</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-semibold text-slate-700">
+                                  {verifiedFacts.monthlyNetSurvivalBurnTotal > 0
+                                    ? `${formatPlanCurrency(verifiedFacts.monthlyNetSurvivalBurnTotal, currency)}/mo`
+                                    : 'Pending Survival Budget'}
+                                </td>
                                 <td className="px-4 py-2.5 text-slate-600">
-                                  Director survival budget verified; fixed debenture on funded assets, zero unpaid tax liabilities.
+                                  Net monthly household survival requirement documented for promoter affordability review.
                                 </td>
                               </tr>
                             </tbody>
@@ -1887,25 +2047,25 @@ Generated by Startup Preflight Business Plan Studio
                             </span>
                           </div>
                           <Badge className="text-[10px] bg-emerald-700 text-white font-semibold">
-                            LEO / EI Evaluator Mandate
+                            LEO / EI Evaluator Checklist
                           </Badge>
                         </div>
                         <div className="p-4 space-y-3 text-xs text-slate-700">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="rounded-lg bg-white border border-emerald-200/80 p-3 space-y-1">
                               <div className="font-bold text-emerald-950 text-[11px] uppercase tracking-wide">
-                                Statutory Non-Displacement Certification
+                                Export &amp; Non-Displacement Posture
                               </div>
                               <p className="text-slate-600 leading-relaxed text-[11px]">
-                                In adherence to the Industrial Development Act, this venture operates as an internationally traded service / export product. It will cause <strong>zero commercial displacement</strong> or cannibalization of existing domestic businesses in the Local Authority administrative county.
+                                Market scope recorded as <strong>{verifiedFacts.exportScopeLabel || 'Regional / Export'}</strong> ({verifiedFacts.targetMarketsLabel || 'IE'}). LEO approvals require demonstrating net-new commercial value or export potential without displacing existing local businesses.
                               </p>
                             </div>
                             <div className="rounded-lg bg-white border border-emerald-200/80 p-3 space-y-1">
                               <div className="font-bold text-emerald-950 text-[11px] uppercase tracking-wide">
-                                50% Matching Funding Verification
+                                50% Vouched Co-Funding &amp; Liquidity
                               </div>
                               <p className="text-slate-600 leading-relaxed text-[11px]">
-                                Grant ask of <strong>{formatPlanCurrency(activeVersion?.targetFundingAsk || 25000, currency)}</strong> operates under strict 50% vouched co-funding. Matching funds of {formatPlanCurrency(activeVersion?.targetFundingAsk || 25000, currency)} are provisioned via verified promoter equity and bank liquidity.
+                                Target grant ask of <strong>{formatPlanCurrency(activeVersion?.targetFundingAsk || 25000, currency)}</strong> operates on vouched reimbursement. Recorded promoter cash / starting liquidity: <strong>{formatPlanCurrency(verifiedFacts.skinInTheGameCash || verifiedFacts.startingCashBalanceDay1 || 0, currency)}</strong>.
                               </p>
                             </div>
                           </div>
@@ -1915,18 +2075,18 @@ Generated by Startup Preflight Business Plan Studio
                                 LEO 3-Quote Procurement Rule &amp; Eligible Asset Schedule:
                               </div>
                               <div className="text-[11px] text-slate-500">
-                                3 independent written quotes attached for items &gt;€5k (Appendix C). Zero funding claimed for consumer laptops or road vehicles.
+                                3 independent written quotes are required for any item of €1,000 or more (Appendix C). General-purpose consumer laptops and road vehicles are ineligible for LEO grant claims.
                               </div>
                             </div>
                             <Badge variant="outline" className="text-[10px] border-emerald-400 text-emerald-800 bg-emerald-50">
-                              Assessor Certified
+                              {verifiedFacts.equipmentItemsCount > 0 ? `${verifiedFacts.equipmentItemsCount} Asset(s) Logged` : 'Zero CapEx Claimed'}
                             </Badge>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Angel Investor Seed Round Structure, 18-Month Runway & Tax Relief Table */}
+                    {/* Angel Investor Seed Round Structure & Tax Relief Table */}
                     {(activeVersion?.archetype === 'INVESTOR_ANGEL_MEMO' ||
                       activeVersion?.archetype === 'LEAN_ONE_PAGER') &&
                       (sec.title.toLowerCase().includes('seed') ||
@@ -1934,81 +2094,97 @@ Generated by Startup Preflight Business Plan Studio
                         sec.title.toLowerCase().includes('terms') ||
                         sec.title.toLowerCase().includes('capital ask') ||
                         sec.title.toLowerCase().includes('scale')) && (
-                      <div className="my-8 rounded-xl border border-slate-200 bg-emerald-50/70/20 overflow-hidden shadow-2xs print:border-slate-200 print:shadow-none print:break-inside-avoid avoid-page-break">
+                      <div className="my-8 rounded-xl border border-slate-200 bg-emerald-50/30 overflow-hidden shadow-2xs print:border-slate-200 print:shadow-none print:break-inside-avoid avoid-page-break">
                         <div className="border-b border-slate-200 bg-emerald-50 px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Target className="h-4 w-4 text-emerald-900" />
                             <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                               {isGrantsEnabled
-                                ? 'Table: Seed Round Structure, Capital Use of Proceeds & Angel Tax Relief'
-                                : 'Table: Seed Round Structure & Capital Use of Proceeds'}
+                                ? 'Table: Seed Round Summary, Capital Allocation & Investor Tax Relief'
+                                : 'Table: Seed Round Summary & Capital Allocation'}
                             </span>
                           </div>
                           <Badge className="text-[10px] bg-emerald-800 text-white font-semibold">
-                            {isGrantsEnabled
-                              ? isUK
-                                ? 'HMRC SEIS/EIS Eligible'
-                                : 'Revenue EII 40% Relief'
-                              : 'Seed / SAFE Term Sheet'}
+                            {verifiedFacts.primaryTaxScheme ||
+                              (isGrantsEnabled
+                                ? isUK
+                                  ? 'SEIS / EIS Track'
+                                  : 'Revenue EII Track'
+                                : 'Seed / Equity')}
                           </Badge>
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs bg-white">
-                            <thead className="bg-emerald-50/70/50 text-[11px] font-bold uppercase text-slate-900 border-b border-slate-200">
+                          <table className="w-full min-w-[600px] text-left text-xs bg-white">
+                            <thead className="bg-emerald-50/60 text-[11px] font-bold uppercase text-slate-900 border-b border-slate-200">
                               <tr>
-                                <th className="px-4 py-2.5">Investment Term Parameter</th>
-                                <th className="px-4 py-2.5 text-right">Round Allocation</th>
-                                <th className="px-4 py-2.5">Syndicate Investor Assessment &amp; De-risking Milestone</th>
+                                <th className="px-4 py-2.5">Investment Parameter</th>
+                                <th className="px-4 py-2.5 text-right">Modeled Figure</th>
+                                <th className="px-4 py-2.5">Plan Grounding &amp; Commercial Context</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 font-sans">
-                              <tr className="hover:bg-emerald-50/70/30">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Target Round Size</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">
+                              <tr className="hover:bg-emerald-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Target Raise Amount</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">
                                   {formatPlanCurrency(activeVersion?.targetFundingAsk || 250000, currency)}
                                 </td>
-                                <td className="px-4 py-2.5 text-slate-600">Priced Seed equity or convertible SAFE with standard 20% discount cap.</td>
+                                <td className="px-4 py-2.5 text-slate-600">Target capital raise configured for this investor memo version.</td>
                               </tr>
-                              <tr className="hover:bg-emerald-50/70/30">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Operating Runway Purchased</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-emerald-700">
-                                  18 Months
+                              <tr className="hover:bg-emerald-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Monthly Fixed Overhead Baseline</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-700">
+                                  {verifiedFacts.hasModuleJ
+                                    ? `${formatPlanCurrency(verifiedFacts.monthlyFixedOverheadsTotal, currency)}/mo`
+                                    : 'Modeled in Finance'}
                                 </td>
-                                <td className="px-4 py-2.5 text-slate-600">Fully funds venture past Month 8 cash trough to positive unit economics.</td>
-                              </tr>
-                              <tr className="hover:bg-emerald-50/70/30">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Capital Use of Proceeds</td>
-                                <td className="px-4 py-2.5 text-right text-emerald-800">
-                                  55% Dev / 25% GTM
-                                </td>
-                                <td className="px-4 py-2.5 text-slate-600">55% Core engineering &amp; V1 build, 25% customer acquisition, 20% ops reserve.</td>
-                              </tr>
-                              <tr className="hover:bg-emerald-50/70/30">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">Target Series A Inflection Milestone</td>
-                                <td className="px-4 py-2.5 text-right font-semibold text-slate-800">Month 18</td>
                                 <td className="px-4 py-2.5 text-slate-600">
-                                  Scales to 1,200 active accounts and recurring revenue inflection ready for institutional Series A.
+                                  {verifiedFacts.hasModuleJ
+                                    ? `Day-1 cash reserve: ${formatPlanCurrency(verifiedFacts.startingCashBalanceDay1, currency)}.`
+                                    : 'Populate the 36-Month Financial Builder to calculate exact monthly burn and runway.'}
                                 </td>
                               </tr>
-                              <tr className="hover:bg-emerald-50/70/30 bg-emerald-50/70/40 font-semibold">
+                              <tr className="hover:bg-emerald-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Product &amp; Go-To-Market Budget</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-800">
+                                  {verifiedFacts.totalWorkPackagesCost > 0 || verifiedFacts.monthlyMarketingBudget > 0
+                                    ? `${formatPlanCurrency(verifiedFacts.totalWorkPackagesCost, currency)} Build • ${formatPlanCurrency(verifiedFacts.monthlyMarketingBudget, currency)}/mo GTM`
+                                    : 'Phased V1 & GTM'}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">Aligned with V1 Work Packages and monthly customer acquisition budget.</td>
+                              </tr>
+                              <tr className="hover:bg-emerald-50/30">
+                                <td className="px-4 py-2.5 font-semibold text-slate-900">Year 3 Projected Net Turnover</td>
+                                <td className="px-4 py-2.5 text-right font-mono tabular-nums font-semibold text-slate-800">
+                                  {verifiedFacts.year3ProjectedNetTurnover > 0
+                                    ? formatPlanCurrency(verifiedFacts.year3ProjectedNetTurnover, currency)
+                                    : 'Not yet modeled'}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600">
+                                  3-year revenue trajectory modeled in the Revenue &amp; Breakeven forecast.
+                                </td>
+                              </tr>
+                              <tr className="hover:bg-emerald-50/30 bg-emerald-50/40 font-semibold">
                                 <td className="px-4 py-2.5 text-slate-900">
                                   {isGrantsEnabled
-                                    ? 'Angel Tax Relief Status'
-                                    : 'Investor Instrument & Governance'}
+                                    ? 'Investor Tax Relief Posture'
+                                    : 'Corporate Structure & Governance'}
                                 </td>
                                 <td className="px-4 py-2.5 text-right text-slate-900">
-                                  {isGrantsEnabled
-                                    ? isUK
-                                      ? '50% SEIS / 30% EIS'
-                                      : '40% EII Relief'
-                                    : 'SAFE / Priced Equity'}
+                                  {verifiedFacts.primaryTaxScheme ||
+                                    (isGrantsEnabled
+                                      ? isUK
+                                        ? 'SEIS / EIS Track'
+                                        : 'EII Relief Track'
+                                      : verifiedFacts.legalEntityStructureLabel || 'Equity / SAFE')}
                                 </td>
                                 <td className="px-4 py-2.5 text-slate-900">
-                                  {isGrantsEnabled
-                                    ? isUK
-                                      ? 'Qualifying UK startup eligible for 50% income tax relief + zero capital gains tax for angels.'
-                                      : 'Qualifying Irish venture under Revenue Employment Investment Incentive (40% personal tax relief).'
-                                    : 'Clean corporate cap table with standard 4-year founder vesting (1-year cliff) and 100% IP assignment.'}
+                                  {verifiedFacts.advanceAssuranceStatus
+                                    ? `Clearance status: ${verifiedFacts.advanceAssuranceStatus}.`
+                                    : isGrantsEnabled
+                                      ? isUK
+                                        ? 'Subject to qualifying UK trade status and HMRC SEIS/EIS Advance Assurance.'
+                                        : 'Subject to qualifying Irish trading activity under Revenue EII rules.'
+                                      : 'Founder equity split, IP assignment, and corporate governance tracked in Team & Launchpad.'}
                                 </td>
                               </tr>
                             </tbody>
@@ -2017,63 +2193,77 @@ Generated by Startup Preflight Business Plan Studio
                       </div>
                     )}
 
-                    {/* Innovate UK Work Packages (WP1..WP4) & Risk Register Schedule */}
+                    {/* Innovate UK Work Packages & Risk Register Schedule */}
                     {activeVersion?.archetype === 'UK_INNOVATE_UK_9Q' &&
                       (sec.title.toLowerCase().includes('work package') ||
                         sec.title.toLowerCase().includes('project management') ||
-                        sec.title.toLowerCase().includes('risk')) && (
-                      <div className="my-8 rounded-xl border border-cyan-200 bg-white overflow-hidden shadow-2xs print:border-cyan-300 print:shadow-none print:break-inside-avoid avoid-page-break">
-                        <div className="border-b border-cyan-200 bg-cyan-50/80 px-4 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-cyan-800" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                              Table: Work Packages (WP1..WP4), Deliverables &amp; Technical Risk Register
-                            </span>
+                        sec.title.toLowerCase().includes('risk')) && (() => {
+                      const savedWps = plan.moduleDData?.workPackagesAndFlow?.workPackages || [];
+                      const savedRisks = plan.moduleEData?.riskRegister?.riskItems || [];
+                      return (
+                        <div className="my-8 rounded-xl border border-cyan-200 bg-white overflow-hidden shadow-2xs print:border-cyan-300 print:shadow-none print:break-inside-avoid avoid-page-break">
+                          <div className="border-b border-cyan-200 bg-cyan-50/80 px-4 py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="h-4 w-4 text-cyan-800" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Table: Work Packages, Deliverables &amp; Risk Mitigation Schedule
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] border-cyan-400 text-cyan-800 bg-cyan-50">
+                              {savedWps.length > 0 ? `${savedWps.length} Work Package(s)` : 'Awaiting Work Packages'}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className="text-[10px] border-cyan-400 text-cyan-800 bg-cyan-50">
-                            Innovate UK IFS Appendix
-                          </Badge>
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[600px] text-left text-xs">
+                              <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
+                                <tr>
+                                  <th className="px-4 py-2.5">Work Package</th>
+                                  <th className="px-4 py-2.5">Deliverable &amp; Milestone Proof</th>
+                                  <th className="px-4 py-2.5 text-right">Est. Cost</th>
+                                  <th className="px-4 py-2.5">Verification Gate / Risk Mitigation</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-sans">
+                                {savedWps.length > 0 ? (
+                                  savedWps.map((wp, wpIdx) => {
+                                    const linkedRisk = savedRisks[wpIdx];
+                                    return (
+                                      <tr key={wp.id || wpIdx} className="hover:bg-slate-50/50">
+                                        <td className="px-4 py-2.5 font-semibold text-slate-900">
+                                          {wp.wpCode}: {wp.title}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-slate-700">
+                                          {wp.deliverableMilestoneProof ||
+                                            wp.deliverableMilestone ||
+                                            wp.linkedTaskSummary ||
+                                            'Milestone deliverable defined in Product Build'}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700">
+                                          {wp.estimatedCostAmount > 0
+                                            ? formatPlanCurrency(wp.estimatedCostAmount, currency)
+                                            : 'Founder Time'}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-slate-600">
+                                          {wp.verificationGateOrDeRisking ||
+                                            linkedRisk?.mitigationAndContingencyPlan ||
+                                            'Verified milestone sign-off prior to next phase.'}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                ) : (
+                                  <tr>
+                                    <td colSpan={4} className="px-4 py-4 text-center text-slate-500">
+                                      No Work Packages have been added in Product Build (Step 5) yet. Add Work Packages there to populate this schedule automatically.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50/50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-100">
-                              <tr>
-                                <th className="px-4 py-2.5">Work Package / Risk Domain</th>
-                                <th className="px-4 py-2.5">Technical Scope &amp; Milestone Deliverable</th>
-                                <th className="px-4 py-2.5 text-right">Timing</th>
-                                <th className="px-4 py-2.5">Assessor Risk Mitigation Protocol</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-sans">
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">WP1: Architecture</td>
-                                <td className="px-4 py-2.5 text-slate-700">Scalable cloud data pipelines &amp; proprietary algorithmic core</td>
-                                <td className="px-4 py-2.5 text-right text-slate-600">M1–M4</td>
-                                <td className="px-4 py-2.5 text-slate-600">Modular API design isolating third-party vendor dependencies.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">WP2: Prototype Build</td>
-                                <td className="px-4 py-2.5 text-slate-700">Functional V1 product vehicle with pilot testing telemetry</td>
-                                <td className="px-4 py-2.5 text-right text-slate-600">M5–M9</td>
-                                <td className="px-4 py-2.5 text-slate-600">Agile sprints with weekly continuous integration and security audits.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">WP3: Pilot Validation</td>
-                                <td className="px-4 py-2.5 text-slate-700">Commercial trial deployment with 15 corporate test partners</td>
-                                <td className="px-4 py-2.5 text-right text-slate-600">M10–M14</td>
-                                <td className="px-4 py-2.5 text-slate-600">Pre-signed Letters of Intent (LOIs) de-risking commercial adoption.</td>
-                              </tr>
-                              <tr className="hover:bg-slate-50/50">
-                                <td className="px-4 py-2.5 font-semibold text-slate-900">WP4: Dissemination</td>
-                                <td className="px-4 py-2.5 text-slate-700">Commercial go-to-market and IP protection filing</td>
-                                <td className="px-4 py-2.5 text-right text-slate-600">M15–M18</td>
-                                <td className="px-4 py-2.5 text-slate-600">UK-based export channels and IP assignment to UK entity.</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </section>
                 );
               })}
@@ -2086,13 +2276,15 @@ Generated by Startup Preflight Business Plan Studio
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="font-bold text-slate-900">
-                    Prepared by: {founderName} ({plan.title})
+                    Prepared by: {founderName || verifiedFacts.founderName || 'Founder'} ({plan.title})
                   </div>
-                  <div>Official Dossier Compiled for {activeVersion?.targetAudience} Review</div>
+                  <div>
+                    Official Dossier Compiled for {formatStudioTargetAudienceLabel(activeVersion?.targetAudience)} Review
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-[11px] font-medium">
-                    Status: Verified Against Modules A–K
+                    Status: Grounded in Saved Plan Inputs ({verifiedFacts.activeChaptersCount}/12 Modules Populated)
                   </div>
                   <div className="text-[10px] text-slate-400">
                     Generated via Startup Preflight Business Plan Studio
@@ -2193,16 +2385,16 @@ Generated by Startup Preflight Business Plan Studio
                     value={inlineEditText}
                     onChange={(e) => setInlineEditText(e.target.value)}
                     placeholder="Draft or paste your chapter narrative here..."
-                    className="font-sans text-sm leading-relaxed bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-700 rounded-xl"
+                    className="font-sans text-base sm:text-sm leading-relaxed bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-700 rounded-xl"
                   />
                 </div>
 
-                {/* AI Polish Bar */}
-                <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-4 space-y-3">
+                {/* Narrative Calibration Bar */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-slate-950">
-                      <Sparkles className="h-4 w-4 text-emerald-700" />
-                      AI Narrative Polish
+                      <SlidersHorizontal className="h-4 w-4 text-emerald-700" />
+                      Refine Chapter Tone &amp; Clarity
                     </span>
                     {polishBanner && (
                       <span className="text-xs font-semibold text-emerald-700">
@@ -2273,8 +2465,8 @@ Generated by Startup Preflight Business Plan Studio
                       type="text"
                       value={customPolishInstruction}
                       onChange={(e) => setCustomPolishInstruction(e.target.value)}
-                      placeholder="Or specify custom polish instructions..."
-                      className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-200 focus:outline-hidden"
+                      placeholder="Or specify custom refinement instructions..."
+                      className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                     />
                     <Button
                       size="sm"
@@ -2287,8 +2479,8 @@ Generated by Startup Preflight Business Plan Studio
                         <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <Wand2 className="mr-1 h-3.5 w-3.5" />
-                          Polish
+                          <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
+                          Refine
                         </>
                       )}
                     </Button>
@@ -2360,7 +2552,7 @@ Generated by Startup Preflight Business Plan Studio
                         : 'e.g. Barclays Commercial Loan Facility, Innovate UK Smart Grant, Seed Round Memo...'
                       : 'e.g. Master Commercial Plan, Seed Round Memo, Bank Credit Facility...'
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden"
                 />
               </div>
 

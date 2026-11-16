@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Sparkles,
   Globe2,
   UserCircle2,
   Rocket,
@@ -94,8 +93,14 @@ export default function OnboardingPage() {
   // Card A State: About the Founder
   const [founderStage, setFounderStage] =
     useState<FounderStage>('IDEA_EXPLORER');
+  const [isOtherStage, setIsOtherStage] = useState(false);
+  const [otherStageText, setOtherStageText] = useState('');
   const [teamStructure, setTeamStructure] = useState<TeamStructure>('SOLO');
+  const [isOtherTeam, setIsOtherTeam] = useState(false);
+  const [otherTeamText, setOtherTeamText] = useState('');
   const [primaryHat, setPrimaryHat] = useState<StartupHat>('PRODUCT_TECH');
+  const [isOtherHat, setIsOtherHat] = useState(false);
+  const [otherHatText, setOtherHatText] = useState('');
   const [regionOrCounty, setRegionOrCounty] = useState('Dublin');
 
   // Card B State: First Startup Plan Setup
@@ -108,9 +113,13 @@ export default function OnboardingPage() {
   >('GRANT_AND_INVESTOR');
   const [industryCategory, setIndustryCategory] =
     useState<IndustryCategory>('B2B SaaS / AI App');
+  const [isOtherIndustry, setIsOtherIndustry] = useState(false);
+  const [otherIndustryText, setOtherIndustryText] = useState('');
   const [exportPotential, setExportPotential] = useState<
     'DOMESTIC_ONLY' | 'EXPORTING_INTERNATIONALLY'
   >('EXPORTING_INTERNATIONALLY');
+  const [isOtherExport, setIsOtherExport] = useState(false);
+  const [otherExportText, setOtherExportText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isGrantRegion = hqCountryCode === 'IE' || hqCountryCode === 'GB';
@@ -178,17 +187,47 @@ export default function OnboardingPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const firstWordName = founderName.trim().split(/\s+/)[0];
+    const defaultPlanTitle =
+      firstWordName && firstWordName.toLowerCase() !== 'founder'
+        ? `${firstWordName}'s Startup Plan`
+        : 'My First Startup Plan';
+
+    const customNotes: string[] = [];
+    if (isOtherStage && otherStageText.trim()) {
+      customNotes.push(`Stage: ${otherStageText.trim()}`);
+    }
+    if (isOtherTeam && otherTeamText.trim()) {
+      customNotes.push(`Team setup: ${otherTeamText.trim()}`);
+    }
+    if (isOtherHat && otherHatText.trim()) {
+      customNotes.push(`Primary strength: ${otherHatText.trim()}`);
+    }
+    if (isOtherExport && otherExportText.trim()) {
+      customNotes.push(`Market scope: ${otherExportText.trim()}`);
+    }
+    const baseOneLiner = oneLinerSummary.trim();
+    const combinedSummary =
+      customNotes.length > 0
+        ? baseOneLiner
+          ? `${baseOneLiner} (${customNotes.join(' • ')})`
+          : customNotes.join(' • ')
+        : baseOneLiner;
+
+    const resolvedIndustry: IndustryCategory =
+      isOtherIndustry && otherIndustryText.trim()
+        ? (otherIndustryText.trim() as IndustryCategory)
+        : industryCategory;
+
     const payload = {
       founderStage,
       teamStructure,
       primaryHat,
       regionOrCounty,
-      planTitle: planTitle.trim() || 'GreenCart AI — Zero-Waste Grocery',
-      oneLinerSummary:
-        oneLinerSummary.trim() ||
-        'Automated expiry prediction & dynamic markdowns for independent supermarkets.',
+      planTitle: planTitle.trim() || defaultPlanTitle,
+      oneLinerSummary: combinedSummary,
       hqCountryCode,
-      industryCategory,
+      industryCategory: resolvedIndustry,
       exportPotential,
       fundingTrackMode: effectiveTrackMode,
     };
@@ -204,7 +243,7 @@ export default function OnboardingPage() {
       completeFounderOnboarding(payload);
     }
 
-    router.push('/workspace?welcome=true');
+    router.push('/workspace?module=MOD_A_IDEATION&step=1&welcome=true');
   }
 
   return (
@@ -239,21 +278,24 @@ export default function OnboardingPage() {
                 Part 1: About You as a Founder
               </CardTitle>
               <CardDescription>
-                Helps Ask Preflight AI tailor its guidance and pre-fills your Day-1 Startup Hats in Module C.
+                Helps Ask Preflight AI tailor its guidance and pre-fills your Day-1 Startup Hats in Module F.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               {/* Stage Selector */}
               <div className="space-y-2">
                 <Label>1. Where are you right now on your journey?</Label>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {FOUNDER_STAGES.map((stage) => (
                     <button
                       key={stage.id}
                       type="button"
-                      onClick={() => setFounderStage(stage.id)}
+                      onClick={() => {
+                        setIsOtherStage(false);
+                        setFounderStage(stage.id);
+                      }}
                       className={`rounded-xl border p-3 text-left transition ${
-                        founderStage === stage.id
+                        !isOtherStage && founderStage === stage.id
                           ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
                           : 'border-slate-200 bg-white hover:bg-slate-50'
                       }`}
@@ -266,14 +308,38 @@ export default function OnboardingPage() {
                       </div>
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setIsOtherStage(true)}
+                    className={`rounded-xl border p-3 text-left transition ${
+                      isOtherStage
+                        ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs font-bold text-slate-900">
+                      ✨ Other / Custom Stage
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">
+                      Pivoting an existing business, spin-out, or custom path
+                    </div>
+                  </button>
                 </div>
+                {isOtherStage && (
+                  <Input
+                    value={otherStageText}
+                    onChange={(e) => setOtherStageText(e.target.value)}
+                    placeholder="Briefly describe where you are right now..."
+                    className="mt-2 bg-white text-base sm:text-xs"
+                  />
+                )}
               </div>
 
               {/* Solo vs Co-Founders + Primary Superpower Hat */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>2. Are you building Solo or with Co-Founders?</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {[
                       { id: 'SOLO', label: 'Solo Founder' },
                       { id: 'CO_FOUNDERS', label: 'With Co-Founders' },
@@ -282,11 +348,12 @@ export default function OnboardingPage() {
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() =>
-                          setTeamStructure(t.id as TeamStructure)
-                        }
+                        onClick={() => {
+                          setIsOtherTeam(false);
+                          setTeamStructure(t.id as TeamStructure);
+                        }}
                         className={`rounded-lg border px-2.5 py-2 text-xs font-medium ${
-                          teamStructure === t.id
+                          !isOtherTeam && teamStructure === t.id
                             ? 'border-emerald-700 bg-emerald-700 text-white'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
@@ -294,19 +361,41 @@ export default function OnboardingPage() {
                         {t.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setIsOtherTeam(true)}
+                      className={`rounded-lg border px-2.5 py-2 text-xs font-medium ${
+                        isOtherTeam
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      Other / Advisory
+                    </button>
                   </div>
+                  {isOtherTeam && (
+                    <Input
+                      value={otherTeamText}
+                      onChange={(e) => setOtherTeamText(e.target.value)}
+                      placeholder="e.g. Husband & wife team, studio spin-out, fractional CTO..."
+                      className="mt-1.5 bg-white text-base sm:text-xs"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>3. Your #1 Superpower (Pre-fills Module C Hats)</Label>
+                  <Label>3. Your #1 Superpower (Pre-fills Module F Hats)</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {STARTUP_HATS_OPTIONS.map((hat) => (
                       <button
                         key={hat.id}
                         type="button"
-                        onClick={() => setPrimaryHat(hat.id)}
+                        onClick={() => {
+                          setIsOtherHat(false);
+                          setPrimaryHat(hat.id);
+                        }}
                         className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
-                          primaryHat === hat.id
+                          !isOtherHat && primaryHat === hat.id
                             ? 'border-emerald-700 bg-emerald-700 text-white'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
@@ -314,7 +403,26 @@ export default function OnboardingPage() {
                         {hat.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setIsOtherHat(true)}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+                        isOtherHat
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      ✨ Other Superpower
+                    </button>
                   </div>
+                  {isOtherHat && (
+                    <Input
+                      value={otherHatText}
+                      onChange={(e) => setOtherHatText(e.target.value)}
+                      placeholder="e.g. Clinical research, craft production, community building..."
+                      className="mt-1.5 bg-white text-base sm:text-xs"
+                    />
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -339,7 +447,7 @@ export default function OnboardingPage() {
                   </Label>
                   <Input
                     id="plan-title"
-                    placeholder="e.g. GreenCart AI (or Project Apollo)"
+                    placeholder="e.g. West Cork Oat Co., Studio Pulse, or Project Sunrise"
                     value={planTitle}
                     onChange={(e) => setPlanTitle(e.target.value)}
                   />
@@ -364,7 +472,7 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <Globe2 className="h-4 w-4 text-emerald-700" />
-                  Home / Incorporation Country &amp; Base Currency
+                  Where Are You Based? (Country &amp; Base Currency)
                 </Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
                   {(
@@ -438,27 +546,24 @@ export default function OnboardingPage() {
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
                   <div className="flex items-center gap-2 font-bold text-emerald-900">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Loaded {countryPack.countryName} ({countryPack.defaultCurrency}) Rule Pack:
+                    Loaded {countryPack.countryName} ({countryPack.defaultCurrency}) Workspace Defaults (No Accounting Math Needed):
                   </div>
                   <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-3 text-[11px]">
                     <div className="rounded-lg bg-white/80 p-2">
-                      <strong>Indirect Tax:</strong> {countryPack.taxName} (
-                      {countryPack.standardTaxRatePercent}%)
+                      <strong>Base Currency:</strong> {countryPack.defaultCurrency} ({countryPack.taxName} auto-handled later)
                     </div>
                     <div className="rounded-lg bg-white/80 p-2">
-                      <strong>Payroll Tax:</strong>{' '}
-                      {countryPack.employerPayrollTaxName} (
-                      {countryPack.employerPayrollTaxPercent}%)
+                      <strong>Local Hiring Rules:</strong> Auto-configured when ready in Module J
                     </div>
                     <div className="rounded-lg bg-white/80 p-2">
                       {effectiveTrackMode === 'GRANT_AND_INVESTOR' ? (
                         <>
-                          <strong>Matched Grants:</strong> {countryGrants.length}{' '}
-                          active ({countryGrants[0]?.grantName ?? 'National R&D'})
+                          <strong>Grant Radar:</strong> {countryGrants.length}{' '}
+                          programs ({countryGrants[0]?.grantName ?? 'National R&D'})
                         </>
                       ) : (
                         <>
-                          <strong>Workspace Mode:</strong> Commercial &amp; Investor Track (Grant Clutter Hidden)
+                          <strong>Workspace Mode:</strong> Commercial &amp; Self-Funded Track
                         </>
                       )}
                     </div>
@@ -477,9 +582,12 @@ export default function OnboardingPage() {
                     <button
                       key={ind}
                       type="button"
-                      onClick={() => setIndustryCategory(ind)}
+                      onClick={() => {
+                        setIsOtherIndustry(false);
+                        setIndustryCategory(ind);
+                      }}
                       className={`rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition ${
-                        industryCategory === ind
+                        !isOtherIndustry && industryCategory === ind
                           ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
@@ -487,7 +595,26 @@ export default function OnboardingPage() {
                       {ind}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setIsOtherIndustry(true)}
+                    className={`rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition ${
+                      isOtherIndustry
+                        ? 'border-emerald-700 bg-emerald-700 text-white shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    ✨ Other / Hybrid Sector
+                  </button>
                 </div>
+                {isOtherIndustry && (
+                  <Input
+                    value={otherIndustryText}
+                    onChange={(e) => setOtherIndustryText(e.target.value)}
+                    placeholder="Describe your industry or hybrid business model (e.g. AgriTech + Hardware)..."
+                    className="mt-2 bg-white text-base sm:text-xs"
+                  />
+                )}
               </div>
 
               {/* Target Selling Geography */}
@@ -498,12 +625,15 @@ export default function OnboardingPage() {
                     ? 'Where Will Your Customers Live? (Informs Export Grant Eligibility)'
                     : 'Where Will Your Customers Live? (Target Market Scope)'}
                 </Label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <button
                     type="button"
-                    onClick={() => setExportPotential('DOMESTIC_ONLY')}
+                    onClick={() => {
+                      setIsOtherExport(false);
+                      setExportPotential('DOMESTIC_ONLY');
+                    }}
                     className={`rounded-xl border p-3 text-left text-xs ${
-                      exportPotential === 'DOMESTIC_ONLY'
+                      !isOtherExport && exportPotential === 'DOMESTIC_ONLY'
                         ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
@@ -516,11 +646,12 @@ export default function OnboardingPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setExportPotential('EXPORTING_INTERNATIONALLY')
-                    }
+                    onClick={() => {
+                      setIsOtherExport(false);
+                      setExportPotential('EXPORTING_INTERNATIONALLY');
+                    }}
                     className={`rounded-xl border p-3 text-left text-xs ${
-                      exportPotential === 'EXPORTING_INTERNATIONALLY'
+                      !isOtherExport && exportPotential === 'EXPORTING_INTERNATIONALLY'
                         ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
@@ -532,7 +663,30 @@ export default function OnboardingPage() {
                         : 'Selling across multiple countries or global online markets.'}
                     </div>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsOtherExport(true)}
+                    className={`rounded-xl border p-3 text-left text-xs ${
+                      isOtherExport
+                        ? 'border-emerald-700 bg-emerald-50/70 font-semibold text-slate-950 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    <div>✨ Other / Phased Rollout</div>
+                    <div className="mt-0.5 text-[11px] font-normal text-slate-500">
+                      Starting locally in Year 1, then expanding internationally in Year 2.
+                    </div>
+                  </button>
                 </div>
+                {isOtherExport && (
+                  <Input
+                    value={otherExportText}
+                    onChange={(e) => setOtherExportText(e.target.value)}
+                    placeholder="e.g. Pilot in Ireland for 6 months, then expand to UK and DACH..."
+                    className="mt-2 bg-white text-base sm:text-xs"
+                  />
+                )}
               </div>
 
               {/* Optional Quick 1-Sentence Idea Teaser */}
@@ -542,7 +696,7 @@ export default function OnboardingPage() {
                 </Label>
                 <Input
                   id="one-liner"
-                  placeholder="e.g. An app that helps independent supermarkets predict expiring produce and discount it automatically"
+                  placeholder="e.g. Mobile dog-grooming van for busy families, or leave blank to brainstorm in Module A"
                   value={oneLinerSummary}
                   onChange={(e) => setOneLinerSummary(e.target.value)}
                 />

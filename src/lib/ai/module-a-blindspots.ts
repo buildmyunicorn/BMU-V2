@@ -135,7 +135,7 @@ export function buildDynamicModuleABlindSpots(
   let card2Action =
     motivation.weeklyHoursAvailable === '5_TO_10_HRS'
       ? 'With 5–10 hrs/week, spend 80% of your time talking to buyers and pre-selling rather than coding alone at night.'
-      : 'Prioritize fast-paying customers with a short sales cycle in Module B.';
+      : 'Prioritize fast-paying customers with a short sales cycle in Module B & Module C.';
 
   if (motivation.primaryMotivation === 'SIDE_HUSTLE') {
     card2Title = `🌙 2. Protecting Your ${hoursLabel} Side-Hustle Schedule (Step 3)`;
@@ -154,7 +154,7 @@ export function buildDynamicModuleABlindSpots(
         : `in ${countryPack.countryName}`
     }) while working ${hoursLabel}.${visionSentence} State agencies (${topGrant}) and investors will look for repeatable acquisition and early traction.`;
     card2Action =
-      'Line up 5–10 Letters of Intent or paid pilots in Module B to prove scalable demand.';
+      'Line up 5–10 Letters of Intent or paid pilots in Module C to prove scalable demand.';
   } else if (motivation.primaryMotivation === 'BUILD_TO_SELL') {
     card2Title = '🏆 2. Designing a Sellable Business Asset from Day 1 (Step 3)';
     card2Explanation = `Your goal is to build a valuable asset you can eventually sell while committing ${hoursLabel}.${visionSentence} Acquirers pay a multiple for recurring contracts and documented systems that run without the founder doing every job personally.`;
@@ -164,7 +164,7 @@ export function buildDynamicModuleABlindSpots(
     const customMot = motivation.otherMotivationText?.trim() || 'your personal goals';
     card2Title = `✨ 2. Aligning Your ${hoursLabel} Schedule With Your Ambition (Step 3)`;
     card2Explanation = `You are committing ${hoursLabel} toward ${customMot}.${visionSentence} Make sure your Version 1 business model fits your weekly schedule and personal priorities.`;
-    card2Action = `Validate 5 target buyers at ${benchmarkPrice} in Module B to confirm demand.`;
+    card2Action = `Validate 5 target buyers at ${benchmarkPrice} in Module C to confirm demand.`;
   }
 
   const card2: BlindSpotItem = {
@@ -210,7 +210,7 @@ export function buildDynamicModuleABlindSpots(
     card3Title = `🛠️ 3. Bridging Your Build Gap as ${teamLabel} (Step 4)`;
     card3Explanation = `You indicated you are ${teamLabel} and will need an external builder or technical partner to build Version 1.${teamNotesSentence} The #1 trap here is paying an agency thousands upfront or giving away 50% equity before proving customers will pay.`;
     card3Action =
-      'Validate demand using a clickable mockup or manual "Concierge MVP" in Module B first — 5 pre-orders will make recruiting a builder 10x easier.';
+      'Validate demand using a clickable mockup or manual "Concierge MVP" in Module C first — 5 pre-orders will make recruiting a builder 10x easier.';
   } else if (
     team.skillCoverage === 'PARTIAL_SKILLS' ||
     team.skillCoverage === 'OTHER'
@@ -219,14 +219,14 @@ export function buildDynamicModuleABlindSpots(
     card3Explanation = `You are operating as ${teamLabel}${team.skillCoverage === 'OTHER' && team.otherSkillCoverageText?.trim() ? ` (${team.otherSkillCoverageText.trim()})` : ' with strong domain/commercial skills, but need support on part of the build'}.${teamNotesSentence} Keep Version 1 lean using no-code/off-the-shelf tools for the parts outside your core skillset.`;
     card3Action =
       team.teamStructureType === 'SEEKING_COFOUNDER'
-        ? 'Use Module C to define the exact Startup Hats your future co-founder must own.'
+        ? 'Use Module F to define the exact Startup Hats your future co-founder must own.'
         : 'Only pay specialists for narrow, fixed-price milestones after customer validation.';
   } else {
     card3Title = `✅ 3. In-House Build Advantage (${teamLabel} • Step 4)`;
     card3Explanation = `Because you are ${teamLabel} and have the skills in-house to build Version 1 yourself, you save huge upfront cash.${teamNotesSentence} However, the biggest blind spot for self-sufficient builders is spending months perfecting the product in isolation before talking to buyers.`;
     card3Action =
       team.teamStructureType === 'COFOUNDER_TEAM'
-        ? 'Split roles clearly: one co-founder builds Version 1 while the other runs customer interviews in Module B.'
+        ? 'Split roles clearly: one co-founder builds Version 1 while the other runs customer interviews in Module C.'
         : 'Follow a strict 50/50 rule: spend half your weekly hours talking to customers before adding new features.';
   }
 
@@ -285,7 +285,7 @@ export function buildDynamicModuleABlindSpots(
       : `You have ${budgetLabel} available to invest and prefer ${tradeoffLabel}. Having savings ready gives you real runway (including upfront match-funding for ${topGrant}), but protect your capital fiercely before proving willingness-to-pay.`,
     suggestedAction: isLeanBudget
       ? `Use early customer pre-sales or paid deposits in ${currency} to generate your initial working capital.`
-      : `Gate your ${budgetLabel} budget: spend no more than 15% until 5 target buyers confirm your pricing in Module B.`,
+      : `Gate your ${budgetLabel} budget: spend no more than 15% until 5 target buyers confirm your pricing in Module C.`,
   };
 
   // ============================================================================
@@ -341,11 +341,11 @@ export function buildDynamicModuleABlindSpots(
       reality.personalIncomeUrgency === 'URGENT_1_TO_3M'
         ? 'Because you need cashflow in 1–3 months, skip slow builds and offer a paid pilot or service-first solution immediately.'
         : reality.industryConnection === 'STARTING_COLD'
-          ? 'Because you are starting without warm contacts, do not build in secret — use your Module B Validation Survey as a research icebreaker to meet 10 insiders.'
+          ? 'Because you are starting without warm contacts, do not build in secret — use your Module C Validation Survey as a research icebreaker to meet 10 insiders.'
           : 'Your industry access and timeline give you a strong foundation to validate pricing while designing the business around your lifestyle boundaries.'
     }`,
     suggestedAction: dealbreakersArr.includes('NO_COLD_SALES')
-      ? 'Since you ruled out cold sales, focus Module B & E on warm referrals, local partnerships, or self-serve signups.'
+      ? 'Since you ruled out cold sales, focus Module C & Module I on warm referrals, local partnerships, or self-serve signups.'
       : dealbreakersArr.includes('NO_BIG_TEAM')
         ? 'Since you don’t want a large staff team, prioritize automation and repeatable digital delivery from Day 1.'
         : 'Message your first 5 target buyers this week to validate the problem before spending budget.',
@@ -366,20 +366,20 @@ export function buildDynamicModuleABlindSpots(
     WILL_THEY_PAY: {
       title: '💳 6. Tackling Your #1 Worry: "Will Anyone Actually Pay?" (Step 5)',
       explanation: `It is completely normal to worry that buyers will say "nice idea" but stick with spreadsheets or doing nothing.${customWorrySuffix} The antidote is testing willingness-to-pay before you build.`,
-      action: `In Module B, ask buyers what the problem currently costs them in ${currency} and test a concrete price point (${benchmarkPrice}).`,
+      action: `In Module C, ask buyers what the problem currently costs them in ${currency} and test a concrete price point (${benchmarkPrice}).`,
     },
     FINDING_FIRST_10: {
       title:
         '📣 6. Tackling Your #1 Worry: "Finding My First 10 Customers" (Step 5)',
       explanation: `Most founders worry about how to get their first 10 customers without spending a fortune on ads.${customWorrySuffix} Your first 10 customers never come from scale marketing — they come from direct, helpful conversations.`,
-      action: `Use the Module B shareable survey (/v/my-startup) to start 15 non-sales conversations in ${countryPack.countryName} this week.`,
+      action: `Use the Module C shareable survey (/v/my-startup) to start 15 non-sales conversations in ${countryPack.countryName} this week.`,
     },
     HOW_TO_BUILD: {
       title:
         '🛠️ 6. Tackling Your #1 Worry: "How to Actually Build It" (Step 5)',
       explanation: `Feeling daunted by the technical or operational build is a healthy signal to simplify Version 1.${customWorrySuffix} Customers care about the outcome, not how complex the code is behind the scenes.`,
       action:
-        'Strip Version 1 down to the single "Must-Have" workflow in Module C and deliver the first 3 pilots manually if needed.',
+        'Strip Version 1 down to the single "Must-Have" workflow in Module D and deliver the first 3 pilots manually if needed.',
     },
     COMPETITION_OR_AI: {
       title:
@@ -393,13 +393,13 @@ export function buildDynamicModuleABlindSpots(
         '🔋 6. Tackling Your #1 Worry: "Running Out of Time or Cash" (Step 5)',
       explanation: `Founder burnout happens when you try to do 20 things at once without clear validation milestones.${customWorrySuffix} With ${hoursLabel} and ${budgetLabel}, your superpower is ruthless focus.`,
       action:
-        'Focus on one milestone at a time: validate 5 buyers in Module B before spending cash or late nights building.',
+        'Focus on one milestone at a time: validate 5 buyers in Module C before spending cash or late nights building.',
     },
     OTHER: {
       title: '✨ 6. Tackling Your Custom #1 Worry (Step 5)',
       explanation: `Every founder carries a specific question mark around their idea.${customWorrySuffix} The fastest way to de-risk an unknown is to test it directly with 5 real target buyers before committing major budget.`,
       action:
-        'Turn your #1 worry into a specific validation question in Module B and test it with 5 target customers this week.',
+        'Turn your #1 worry into a specific validation question in Module C and test it with 5 target customers this week.',
     },
   };
 

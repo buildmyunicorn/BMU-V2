@@ -307,7 +307,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Module B (Non-Displacement & Market Sizing)',
           'Module C (Customer Survey Validation Proof)',
           'Module D/E (3 Vetted Prototype/Consultancy Quotes)',
-          'Module K (Official LEO Form & Appendices)',
+          'Module L (Official LEO Form & Appendices)',
         ],
         officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
       });
@@ -332,7 +332,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Paid strictly in arrears on vouched receipts after formal LEO Evaluation Committee approval.',
         preflightModulesToWin: [
           'Module B (Export Wedge & Non-Displacement Matrix)',
-          'Module K (LEO Official Application Compiler)',
+          'Module L (LEO Official Application Compiler)',
         ],
         officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
       });
@@ -355,7 +355,7 @@ export function evaluateModuleAGrantEligibility(input: {
           'Must be scoped as a new R&D/export product feasibility study rather than routine business-as-usual operations.',
         preflightModulesToWin: [
           'Module D (Work Packages WP1..n)',
-          'Module K (LEO Appendix Pack)',
+          'Module L (LEO Appendix Pack)',
         ],
         officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/feasibility-grant/',
       });
@@ -423,8 +423,8 @@ export function evaluateModuleAGrantEligibility(input: {
         reimbursementAndTrapWarning:
           'You must hold at least 15% of the new LTD shares and work full-time as a director/employee for at least 12 months.',
         preflightModulesToWin: [
-          'Module I (36-Month Financial Forecast & LTD Setup)',
-          'Module J (SURE Tax Refund Calculator & Unlocker)',
+          'Module J (36-Month Financial Forecast & LTD Setup)',
+          'Module K (SURE Tax Refund Calculator & Unlocker)',
         ],
         officialUrl: 'https://www.revenue.ie/en/personal-tax-credits-reliefs-and-exemptions/investment/relief-corporate/start-up-relief-for-entrepreneurs.aspx',
       });
@@ -503,11 +503,11 @@ export function evaluateModuleAGrantEligibility(input: {
         ? 'Unlike LEO Priming Grants, Microfinance Ireland actively funds domestic retail, hospitality, local services, and sole traders across Ireland.'
         : 'Provides vital working capital to bridge the 50% reimbursement lag on LEO Feasibility and Priming grants.',
       reimbursementAndTrapWarning:
-        'Apply through your Local Enterprise Office (accompanied by your Module K Business Plan & 36-Month Cashflow) to secure a 1% interest rate reduction.',
+        'Apply through your Local Enterprise Office (accompanied by your Module L Business Plan & 36-Month Cashflow) to secure a 1% interest rate reduction.',
       preflightModulesToWin: [
-        'Module G (Written Sales Assumptions & Unit Economics)',
-        'Module I (36-Month Cashflow Forecast)',
-        'Module K (Official Business Plan Pack)',
+        'Module H (Written Sales Assumptions & Unit Economics)',
+        'Module J (36-Month Cashflow Forecast)',
+        'Module L (Official Business Plan Pack)',
       ],
       officialUrl: 'https://microfinanceireland.ie/',
     });
@@ -535,15 +535,15 @@ export function evaluateModuleAGrantEligibility(input: {
             ? 'Your incorporated LTD and export/manufacturing profile qualify directly for LEO’s flagship job-creation and capital grant.'
             : 'Once you validate demand and incorporate an Irish LTD (< 18 months trading), you unlock LEO Priming funding for salaries, equipment, and international marketing.',
         unlockRequirement: isPreIncOrSole
-          ? 'Incorporate an Irish Limited Company (LTD), secure 3 independent quotes for any expenditure > €5,000, and complete your 3-Year Job Creation Plan.'
+          ? 'Incorporate an Irish Limited Company (LTD), secure 3 independent quotes for any expenditure ≥ €1,000 ex-VAT, and complete your 3-Year Job Creation Plan.'
           : undefined,
         reimbursementAndTrapWarning:
-          'Strict LEO procurement rule: 3 written quotes required for any item ≥ €5,000 (Modules D & E automate this), and standard laptops/phones/vehicles are excluded.',
+          'Strict LEO procurement rule: 3 written quotes required for any item ≥ €1,000 ex-VAT (Modules D & E automate this), and standard laptops/phones/vehicles are excluded.',
         preflightModulesToWin: [
           'Module E (Premises & Equipment 3-Quote Schedule)',
           'Module F (3-Year Job Creation Plan)',
-          'Module I (36-Month Cashflow & Funding Gap)',
-          'Module K (Official LEO Form & Appendices A–F)',
+          'Module J (36-Month Cashflow & Funding Gap)',
+          'Module L (Official LEO Form & Appendices A–F)',
         ],
         officialUrl: 'https://www.localenterprise.ie/discover-business-supports/funding-and-grants/financial-supports/priming-grant/',
       });
@@ -594,7 +594,7 @@ export function evaluateModuleAGrantEligibility(input: {
         preflightModulesToWin: [
           'Module B (HPSU Market Sizing & Export Wedge)',
           'Module C (Customer Validation & Waitlist Traction)',
-          'Module I (36-Month Cashflow & Runway Model)',
+          'Module J (36-Month Cashflow & Runway Model)',
         ],
         officialUrl: 'https://www.enterprise-ireland.com/en/supports/pre-seed-start-fund',
       });
@@ -656,12 +656,12 @@ export function evaluateModuleAGrantEligibility(input: {
         whyYouMatchOrMiss:
           'Eligible across almost all UK domestic and international sectors (under 36 months trading), making it the fastest Day-1 working capital source in the UK.',
         reimbursementAndTrapWarning:
-          'Evaluators require a strict 3-document pack: (1) Business Plan, (2) Personal Survival Budget (Module F), and (3) Written Sales Assumptions + 12m Cashflow (Modules G & I).',
+          'Evaluators require a strict 3-document pack: (1) Business Plan, (2) Personal Survival Budget (Module F), and (3) Written Sales Assumptions + 12m Cashflow (Modules H & J).',
         preflightModulesToWin: [
           'Module F (UK Personal Survival Budget)',
-          'Module G (Written Sales Assumptions)',
-          'Module I (12–36 Month Cashflow Forecast)',
-          'Module K (Official UK Start Up Loans 4-Part Workbook)',
+          'Module H (Written Sales Assumptions)',
+          'Module J (12–36 Month Cashflow Forecast)',
+          'Module L (Official UK Start Up Loans 4-Part Workbook)',
         ],
         officialUrl: 'https://www.gov.uk/apply-start-up-loan',
       });
@@ -735,7 +735,7 @@ export function evaluateModuleAGrantEligibility(input: {
         'Requires 2–3 written supplier quotes before purchase and reimbursement on paid invoices.',
       preflightModulesToWin: [
         'Module D/E (3-Quote Supplier & Equipment Schedule)',
-        'Module K (Business Plan & Financial Pack)',
+        'Module L (Business Plan & Financial Pack)',
       ],
       officialUrl: regInfo.url,
     });
@@ -764,8 +764,8 @@ export function evaluateModuleAGrantEligibility(input: {
         reimbursementAndTrapWarning:
           'HMRC rejects generic applications—you must include a formal "Risk-to-Capital" justification, 3-Year Financial Forecast, and named prospective investor.',
         preflightModulesToWin: [
-          'Module I (36-Month Financial Model)',
-          'Module K (Official UK HMRC SEIS/EIS Advance Assurance Pack)',
+          'Module J (36-Month Financial Model)',
+          'Module L (Official UK HMRC SEIS/EIS Advance Assurance Pack)',
         ],
         officialUrl:
           'https://www.gov.uk/guidance/venture-capital-schemes-apply-to-use-the-seed-enterprise-investment-scheme',
@@ -798,7 +798,7 @@ export function evaluateModuleAGrantEligibility(input: {
         preflightModulesToWin: [
           'Module D (Work Packages WP1..n & Technical Architecture)',
           'Module E (Innovate UK Capital Usage Depreciation & Risk Register)',
-          'Module K (UK Innovate UK 9-Question IFS Compiler)',
+          'Module L (UK Innovate UK 9-Question IFS Compiler)',
         ],
         officialUrl: 'https://www.ukri.org/councils/innovate-uk/',
       });

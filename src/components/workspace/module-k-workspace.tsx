@@ -106,8 +106,6 @@ export function ModuleKWorkspace({
   initialStep = 0,
   highlightTarget,
 }: ModuleKWorkspaceProps) {
-  const [openStep, setOpenStep] = useState<number | 'ALL'>(initialStep);
-
   const trackCaps = getPlanTrackCapabilities(
     plan.hqCountryCode || selectedCountry,
     plan.fundingTrackMode
@@ -116,6 +114,13 @@ export function ModuleKWorkspace({
   const countryFlag = trackCaps.countryFlag;
   const countryName = trackCaps.countryName;
   const regionalPerks = getGrantsForCountry(trackCaps.countryCode);
+
+  const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
+    if (initialStep && initialStep >= 1 && initialStep <= 5) {
+      return initialStep;
+    }
+    return isGrantsEnabled ? 1 : 2;
+  });
 
   const isStep1Complete = !!plan.moduleKData?.step1Audit?.lastAuditedAt;
   const isStep2Complete = !!plan.moduleKData?.step2CapitalStack?.lastSavedAt;
@@ -200,7 +205,7 @@ export function ModuleKWorkspace({
                 Module K • {isGrantsEnabled ? 'Flagship Standalone #3' : 'Capital & Runway Hub'}
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200 text-[10px] shrink-0">
-                <Sparkles className="mr-1 h-3 w-3" />
+                <Landmark className="mr-1 h-3 w-3" />
                 {countryFlag} {countryName}{' '}
                 {isGrantsEnabled ? 'Grants & Tax Relief Hub' : 'Capital & Funding Strategy'}
               </Badge>

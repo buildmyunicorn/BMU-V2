@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import {
+  SlidersHorizontal,
   Landmark,
   ShieldCheck,
   CheckCircle2,
@@ -231,11 +232,10 @@ export function GrantApplicationCenterView({
 
   // Pre-written email text to LEO / Advisor
   const advisorEmailBody = useMemo(() => {
-    const founderName = 'Founder';
+    const resolvedFounderName = founderName?.trim() || 'Founder';
     const companyTitle = plan.title || 'Our Startup';
     const oneLiner = plan.oneLinerSummary || plan.conceptCanvas?.proposedSolution || 'innovative solution';
     const sector = plan.industryCategory || 'Startup';
-    const isBmw = selectedLeoOffice.bmwRegion;
 
     return `Dear ${selectedLeoOffice.name} Advisor / Enterprise Team,
 
@@ -253,9 +253,9 @@ We have completed our preliminary commercial plan, market sizing, 3-year cashflo
 Could you let us know your current availability for a clinic appointment or video call?
 
 Kind regards,
-${founderName}
+${resolvedFounderName}
 ${companyTitle}`;
-  }, [plan, activeGrant, selectedLeoOffice]);
+  }, [plan, activeGrant, selectedLeoOffice, founderName]);
 
   function persistGrantCenterUpdate(updater: (prev: SavedGrantCenterData) => SavedGrantCenterData) {
     const currentData = plan.grantCenterData || {};
@@ -957,7 +957,7 @@ ${companyTitle}`;
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                       Generate Verified Answer
                     </>
                   )}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  SlidersHorizontal,
   Sparkles,
   Bot,
   HelpCircle,
@@ -68,40 +69,42 @@ const PERSONA_OPTIONS: Array<{
 }> = [
   {
     id: 'ELEVATOR_PITCH',
-    label: 'Elevator Pitch / Plain English',
-    badge: '150-Word Ready',
+    label: 'Plain English / Everyday Pitch',
+    badge: 'Clear & Jargon-Free',
     icon: Lightbulb,
-    description: 'Crisp, jargon-free answers perfect for introductions, networking, or website copy.',
-  },
-  {
-    id: 'INVESTOR_DUE_DILIGENCE',
-    label: 'Investor Due Diligence',
-    badge: 'VC & Angel',
-    icon: TrendingUp,
-    description: 'Metrics-driven, focusing on moat, beachhead wedge, unit economics, and TAM/SAM/SOM.',
-  },
-  {
-    id: 'GRANT_ASSESSOR',
-    label: 'Grant & Enterprise Assessor',
-    badge: 'IE LEO / UK Innovate',
-    icon: Compass,
-    description: 'Additionality, regional job creation, export growth, and de-risking posture.',
-  },
-  {
-    id: 'BANK_LENDER',
-    label: 'Bank Manager / Loan Underwriter',
-    badge: 'BBB / MFI Loan',
-    icon: Briefcase,
-    description: 'Conservative cashflow, working capital buffer, debt repayment, and asset cover.',
+    description: 'Crisp, everyday language—ideal for explaining your idea clearly to customers, partners, or website visitors.',
   },
   {
     id: 'EXECUTIVE_COFOUNDER',
-    label: 'Supportive Co-Founder Audit',
-    badge: 'Blind-Spot Check',
+    label: 'Supportive Co-Founder Check',
+    badge: 'Blind-Spot Coach',
     icon: Bot,
-    description: 'Unfiltered, constructive feedback highlighting execution bottlenecks and plan gaps.',
+    description: 'Warm, constructive feedback highlighting practical next steps, blind spots, and open questions.',
+  },
+  {
+    id: 'GRANT_ASSESSOR',
+    label: 'Grant & Enterprise Officer',
+    badge: 'IE LEO / UK Innovate',
+    icon: Compass,
+    description: 'Focuses on why public grant funding accelerates jobs & exports, non-displacement, and 3-quote readiness.',
+  },
+  {
+    id: 'BANK_LENDER',
+    label: 'Bank / Start Up Loan Manager',
+    badge: 'UK Start Up Loan / Microfinance IE',
+    icon: Briefcase,
+    description: 'Focuses on steady monthly cashflow, working-capital cushion, personal survival budget, and loan repayment cover.',
+  },
+  {
+    id: 'INVESTOR_DUE_DILIGENCE',
+    label: 'Angel & Seed Investor Lens',
+    badge: 'VC & Angel',
+    icon: TrendingUp,
+    description: 'Metrics-driven view covering competitive wedge, unit margins, customer acquisition payback, and market size.',
   },
 ];
+
+const ASK_STARTUP_PERSONA_STORAGE_KEY = 'spf_ask_startup_persona_v1';
 
 const QUICK_STARTER_PROMPTS = [
   {
@@ -213,7 +216,7 @@ export function AskMyStartupView({
   onOpenBusinessPlanStudio,
 }: AskMyStartupViewProps) {
   const [questionInput, setQuestionInput] = useState(initialPrompt || '');
-  const [selectedPersona, setSelectedPersona] = useState<AskStartupPersona>('INVESTOR_DUE_DILIGENCE');
+  const [selectedPersona, setSelectedPersona] = useState<AskStartupPersona>('ELEVATOR_PITCH');
   const [isLoading, setIsLoading] = useState(false);
   const [activeAnswer, setActiveAnswer] = useState<AskStartupAnswer | null>(null);
   const [history, setHistory] = useState<AskStartupAnswer[]>([]);
@@ -221,8 +224,99 @@ export function AskMyStartupView({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasExecutedInitialRef = React.useRef(false);
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(ASK_STARTUP_PERSONA_STORAGE_KEY);
+      if (saved && PERSONA_OPTIONS.some((p) => p.id === saved)) {
+        setSelectedPersona(saved as AskStartupPersona);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const updatePersona = (nextPersona: AskStartupPersona) => {
+    setSelectedPersona(nextPersona);
+    try {
+      window.localStorage.setItem(ASK_STARTUP_PERSONA_STORAGE_KEY, nextPersona);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const contextualStarterPrompts = React.useMemo(() => {
+    const hasMarket = Boolean(plan.moduleBData?.beachhead);
+    const hasSurveys = Boolean((plan.moduleCData?.surveys?.length || 0) > 0 || (plan.moduleCData?.interviewLogs?.length || 0) > 0);
+    const hasPricing = Boolean(plan.moduleHData?.step1RevenueModel || plan.moduleHData?.step2PricingTiers);
+    const hasFinance = Boolean(plan.moduleJData?.step1OverheadsTax || plan.moduleJData?.step3CashflowGap);
+
+    const prompts: typeof QUICK_STARTER_PROMPTS = [
+      {
+        title: 'Turn my Module A notes into a clear 3-sentence customer pitch',
+        category: 'PLAIN ENGLISH',
+        persona: 'ELEVATOR_PITCH',
+        prompt:
+          'Turn my rough Module A notes into a clear, jargon-free 3-sentence description I can test on 5 potential customers this week.',
+      },
+      {
+        title: 'Spot my top 3 blind spots and easiest next steps',
+        category: 'CO-FOUNDER COACH',
+        persona: 'EXECUTIVE_COFOUNDER',
+        prompt:
+          'Act as a supportive senior co-founder: based on what I have filled in so far, what are my top 3 practical blind spots and the easiest next action for each?',
+      },
+    ];
+
+    if (hasMarket) {
+      prompts.push({
+        title: 'Who is our first target customer & why do they switch to us?',
+        category: 'MARKET',
+        persona: 'ELEVATOR_PITCH',
+        prompt:
+          'Summarize our first target customer group and our main advantage over existing alternatives in plain English.',
+      });
+    }
+    if (hasSurveys) {
+      prompts.push({
+        title: 'Summarize our customer survey & interview proof so far',
+        category: 'VALIDATION',
+        persona: 'EXECUTIVE_COFOUNDER',
+        prompt:
+          'Summarize the customer surveys, waitlist numbers, and interview takeaways we have captured to date.',
+      });
+    }
+    if (hasPricing) {
+      prompts.push({
+        title: 'How many monthly sales do we need for real Pocket Profit breakeven?',
+        category: 'PRICING',
+        persona: 'BANK_LENDER',
+        prompt:
+          'Explain our pricing, profit margin per sale, and how many monthly sales we need to cover bills and founder survival pay.',
+      });
+    }
+    if (hasFinance) {
+      prompts.push({
+        title: 'What is our lowest cash point and funding requirement?',
+        category: 'CASHFLOW',
+        persona: 'BANK_LENDER',
+        prompt:
+          'What is our projected lowest bank balance (cashflow trough), total funding needed, and how will we bridge any grant delays?',
+      });
+    }
+
+    while (prompts.length < 6) {
+      const next = QUICK_STARTER_PROMPTS.find(
+        (cand) => !prompts.some((existing) => existing.title === cand.title)
+      );
+      if (!next) break;
+      prompts.push(next);
+    }
+
+    return prompts.slice(0, 6);
+  }, [plan]);
+
   const activePersonaConfig =
-    PERSONA_OPTIONS.find((p) => p.id === selectedPersona) || PERSONA_OPTIONS[1];
+    PERSONA_OPTIONS.find((p) => p.id === selectedPersona) || PERSONA_OPTIONS[0];
 
   const handleAsk = async (customPrompt?: string, forcePersona?: AskStartupPersona) => {
     const q = (customPrompt || questionInput).trim();
@@ -262,9 +356,9 @@ export function AskMyStartupView({
       hasExecutedInitialRef.current = true;
       setQuestionInput(initialPrompt);
       const isElevator = /150\s*words?|elevator\s*pitch|summarize\s*my\s*startup/i.test(initialPrompt);
-      const persona = isElevator ? 'ELEVATOR_PITCH' : 'INVESTOR_DUE_DILIGENCE';
+      const persona = isElevator ? 'ELEVATOR_PITCH' : selectedPersona;
       if (isElevator) {
-        setSelectedPersona('ELEVATOR_PITCH');
+        updatePersona('ELEVATOR_PITCH');
       }
       handleAsk(initialPrompt, persona);
     }
@@ -309,9 +403,9 @@ export function AskMyStartupView({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-emerald-500/30 text-slate-300 border-emerald-400/40 px-2.5 py-0.5 text-xs font-semibold">
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-slate-300" />
-                Executive Co-Pilot
+              <Badge className="bg-emerald-500/30 text-slate-200 border-emerald-400/40 px-2.5 py-0.5 text-xs font-semibold">
+                <Compass className="mr-1.5 h-3.5 w-3.5 text-emerald-300" />
+                Plan Intelligence Hub
               </Badge>
               <Badge variant="outline" className="border-emerald-300/30 text-slate-300 text-xs">
                 Zero-Hallucination Grounding
@@ -370,7 +464,7 @@ export function AskMyStartupView({
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setSelectedPersona(p.id)}
+                    onClick={() => updatePersona(p.id)}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
                       isSelected
                         ? 'bg-emerald-700 text-white shadow-xs'
@@ -458,13 +552,13 @@ export function AskMyStartupView({
               Suggested High-Impact Questions
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {QUICK_STARTER_PROMPTS.map((p, idx) => (
+              {contextualStarterPrompts.map((p, idx) => (
                 <button
                   key={idx}
                   type="button"
                   disabled={isLoading}
                   onClick={() => {
-                    setSelectedPersona(p.persona);
+                    updatePersona(p.persona);
                     handleAsk(p.prompt, p.persona);
                   }}
                   className="flex flex-col text-left rounded-xl border border-slate-200/90 bg-white p-3 hover:border-emerald-300 hover:bg-slate-50 transition-all group shadow-2xs"
@@ -518,7 +612,7 @@ export function AskMyStartupView({
                       </Badge>
                     ) : (
                       <Badge className="bg-slate-100 text-emerald-900 border-slate-200 text-xs font-semibold">
-                        <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                        <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
                         Grounded Startup Answer
                       </Badge>
                     )}

@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   AlertOctagon,
   CheckCircle2,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   ChevronDown,
@@ -24,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   ModuleLStep2ContradictionAuditSavedData,
@@ -33,6 +33,8 @@ import {
   generateModuleLStep2AuditAction,
   generateModuleLStep2DefenseAction,
 } from '@/app/actions/module-l';
+import { extractMasterDocumentVerifiedFacts } from '@/lib/export/master-document-brief';
+import { formatModuleCodeShortLabel } from '@/lib/export/enum-labels';
 
 interface ModuleLContradictionAuditStepProps {
   plan: ActiveStartupPlan;
@@ -86,76 +88,201 @@ export function ModuleLContradictionAuditStep({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [filterTab, setFilterTab] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'PASSED'>('ALL');
 
-  // Audit state
-  const defaultItems: ModuleLContradictionAuditItem[] = [
-    {
+  // Compute live deterministic audit checks from real plan data (used when savedAudit is absent)
+  const liveAuditSnapshot = React.useMemo(() => {
+    const facts = extractMasterDocumentVerifiedFacts(plan);
+    const eqItems = plan.moduleEData?.premisesAndEquipment?.equipmentItems || [];
+
+    // 1. Pricing vs. Customer Validation
+    const hasPricing = facts.pricingTiersCount > 0 || facts.blendedAveragePriceNet > 0;
+    const hasValidation = facts.realSurveyResponses > 0 || facts.interviewsCount > 0;
+    const pricingCheck: ModuleLContradictionAuditItem = {
       id: 'audit-pricing-wtp',
       category: 'PRICING_VS_VALIDATION',
-      title: 'Commercial Pricing vs. Survey Willingness-to-Pay (WTP)',
-      status: 'PASSED',
-      detail: `Module H unit economics match the empirical willingness-to-pay tiers captured across customer discovery surveys in Module C.`,
-      assessorImpact: `Eliminates the #1 revenue skepticism raised by commercial grant committees by anchoring price elasticity in real customer data.`,
-      targetModuleCode: 'MOD_H_REVENUE',
+      title: 'Commercial Pricing vs. Customer Willingness-to-Pay Evidence',
+      status: hasPricing && hasValidation ? 'PASSED' : 'WARNING',
+      detail:
+        hasPricing && hasValidation
+          ? `Module H pricing (${currencySymbol}${facts.blendedAveragePriceNet.toLocaleString()} blended net) is anchored against ${facts.realSurveyResponses} survey response(s) and ${facts.interviewsCount} discovery interview(s) in Module C.`
+          : hasPricing
+            ? `Module H defines pricing (${currencySymbol}${facts.blendedAveragePriceNet.toLocaleString()} net), but Module C currently has 0 customer survey responses or interviews logged to prove willingness-to-pay.`
+            : `Commercial pricing tiers (Module H) and primary willingness-to-pay evidence (Module C) have not both been completed yet.`,
+      assessorImpact:
+        'Commercial grant panels and bank underwriters test price realism against primary customer discovery before accepting Year 1 revenue forecasts.',
+      targetModuleCode: hasPricing ? 'MOD_C_SURVEYS_FEEDBACK' : 'MOD_H_REVENUE',
       targetStep: 1,
-    },
-    {
+    };
+
+    // 2. Headcount vs. Employer Payroll Taxes
+    const hasFinanceStatements = Boolean(
+      plan.moduleJData?.step1OverheadsTax || plan.moduleJData?.step4Statements
+    );
+    const payrollCheck: ModuleLContradictionAuditItem = {
       id: 'audit-payroll-taxes',
       category: 'PAYROLL_VS_HEADCOUNT',
       title: 'Scheduled Headcount vs. Statutory Employer PRSI / NIC Taxes',
-      status: 'WARNING',
-      detail: `Module F schedules 3-year team expansions. Ensure Module J and Module H breakeven models account for full employer payroll overheads (${isUK ? 'Employer NIC (13.8%) + Workplace Pension (3%)' : 'Employer PRSI at 11.15%'}).`,
-      assessorImpact: `Grant evaluation panels recalculate employment costs immediately; omitting employer contributions makes cash projections look ungrounded.`,
+      status: hasFinanceStatements ? 'PASSED' : 'WARNING',
+      detail:
+        facts.plannedHiresCount > 0
+          ? hasFinanceStatements
+            ? `Module F schedules ${facts.plannedHiresCount} planned hire(s) and Module J models payroll overheads (${isUK ? 'Employer NIC 13.8% + Pension 3%' : 'Employer PRSI 11.15%'}).`
+            : `Module F schedules ${facts.plannedHiresCount} planned hire(s), but Module J 36-month overheads have not been finalized yet to account for ${isUK ? 'Employer NIC (13.8%) + Workplace Pension (3%)' : 'Employer PRSI (11.15%)'}.`
+          : hasFinanceStatements
+            ? `Founder-led operating posture (0 external hires scheduled in Module F) reconciles cleanly with Module J payroll forecasts.`
+            : `Confirm Year 1–3 founder drawings and any external hires across Module F and Module J (${isUK ? 'Employer NIC + Pension' : 'Employer PRSI at 11.15%'}).`,
+      assessorImpact:
+        'Evaluation panels recalculate employment costs immediately; omitting statutory employer contributions makes cashflow projections appear ungrounded.',
       targetModuleCode: 'MOD_J_FINANCE',
-      targetStep: 2,
-    },
-    {
+      targetStep: 1,
+    };
+
+    // 3. In-Arrears Grant Drawdown Lag vs. Cashflow Trough
+    const hasGrantAsk =
+      facts.totalGrantsAllocated > 0 ||
+      compilerMode === 'IE_LEO_OFFICIAL_FORM' ||
+      compilerMode === 'UK_INNOVATE_UK_9Q';
+    const hasBridgeConfigured =
+      facts.isAssessorLiquidityCompliant || Boolean(facts.bridgeStrategyLabel);
+    const arrearsStatus: 'PASSED' | 'WARNING' | 'CRITICAL' = !hasGrantAsk
+      ? facts.hasModuleJ
+        ? 'PASSED'
+        : 'WARNING'
+      : facts.totalGrantsAllocated > 0 && !hasBridgeConfigured
+        ? 'CRITICAL'
+        : hasBridgeConfigured && facts.hasModuleJ
+          ? 'PASSED'
+          : 'WARNING';
+    const arrearsCheck: ModuleLContradictionAuditItem = {
       id: 'audit-arrears-trough',
       category: 'CASHFLOW_VS_CAPITAL_STACK',
       title: 'In-Arrears Grant Drawdown Lag vs. Cashflow Trough',
-      status: 'WARNING',
-      detail: `Public grant claims pay 8–12 weeks in arrears after expenditure is verified. Module K confirmed bridging liquidity must cover Month 3–5 burn before receipt of initial grant funds.`,
-      assessorImpact: `Assessors will fail financial viability if working capital relies on receiving grant cash before bills are settled.`,
+      status: arrearsStatus,
+      detail:
+        arrearsStatus === 'PASSED'
+          ? hasGrantAsk
+            ? `Reimbursement timing lag is cushioned via ${facts.bridgeStrategyLabel || 'confirmed working-capital liquidity'} across Module J and Module K.`
+            : `36-month cashflow opening liquidity is modeled in Module J without reliance on unbridged in-arrears public grant claims.`
+          : arrearsStatus === 'CRITICAL'
+            ? `Module K allocates ${currencySymbol}${facts.totalGrantsAllocated.toLocaleString()} in public grants (paid 8–12 weeks in arrears), but no working-capital bridge is confirmed yet in Module K Step 3.`
+            : `Public grant claims reimburse 8–12 weeks after invoices are paid. Confirm your working-capital bridge in Module K Step 3 and cashflow trough in Module J.`,
+      assessorImpact:
+        'Assessors fail financial viability if working capital relies on receiving grant cash before supplier bills are settled.',
       targetModuleCode: 'MOD_K_GRANTS_FUNDING',
       targetStep: 3,
-    },
-    {
+    };
+
+    // 4. Procurement & Equipment Eligibility
+    const hasIneligibleGrantLaptop =
+      !isUK &&
+      eqItems.some(
+        (item) =>
+          item.fundingSource === 'GRANT_50_MATCH' &&
+          (item.isMobileOrLaptopIneligibleForLeoGrant ||
+            item.assetCategory === 'IT_LAPTOP_MOBILE_DEVICE' ||
+            /laptop|macbook|ipad|iphone|smartphone|tablet|thinkpad/i.test(item.assetName || ''))
+      );
+    const itemsMissingThreeQuotes = !isUK
+      ? eqItems.filter(
+          (item) =>
+            (Number(item.totalCostExVat) || 0) >= 1000 &&
+            item.quoteComplianceStatus !== 'HAVE_3_WRITTEN_QUOTES' &&
+            item.quoteComplianceStatus !== 'ALREADY_OWNED_EXEMPT'
+        )
+      : [];
+    const procurementStatus: 'PASSED' | 'WARNING' | 'CRITICAL' = hasIneligibleGrantLaptop
+      ? 'CRITICAL'
+      : itemsMissingThreeQuotes.length > 0 || !facts.hasModuleE
+        ? 'WARNING'
+        : 'PASSED';
+    const procurementCheck: ModuleLContradictionAuditItem = {
       id: 'audit-procurement-quotes',
       category: 'PROCUREMENT_ELIGIBILITY',
       title: '3-Quote Procurement & Equipment Eligibility Compliance',
-      status: 'PASSED',
-      detail: isUK
-        ? `Capital expenditure items scheduled in Module E conform to Innovate UK capital depreciation standards rather than expensing full asset write-offs.`
-        : `Scheduled equipment in Module E avoids prohibited general laptop/MacBook purchases and prepares 3 independent supplier quotes for capital items over €5,000.`,
-      assessorImpact: `Strict adherence prevents claims officers from withholding reimbursement vouchers during post-award claim audits.`,
+      status: procurementStatus,
+      detail: hasIneligibleGrantLaptop
+        ? `Module E marks a general-purpose laptop/mobile device for 50% LEO grant co-funding. Standard laptops/MacBooks are ineligible for LEO capital grants and must be funded 100% from own funds.`
+        : itemsMissingThreeQuotes.length > 0
+          ? `Module E lists ${itemsMissingThreeQuotes.length} equipment item(s) >= €1,000 without 3 written supplier quotes confirmed yet (Irish public procurement requires 3 independent quotes from €1,000+).`
+          : facts.hasModuleE
+            ? isUK
+              ? `Module E operations & capital schedule (${eqItems.length} asset item(s)) aligns with UK capital usage & depreciation treatment.`
+              : eqItems.length > 0
+                ? `All ${eqItems.length} scheduled equipment item(s) in Module E respect LEO laptop exclusions and €1,000+ 3-quote procurement rules.`
+                : `Module E operations blueprint saved with zero capital equipment grant infractions.`
+            : `Complete Module E Step 2 to confirm premises setup, capital equipment items, and €1,000+ 3-quote supplier compliance.`,
+      assessorImpact:
+        'Strict procurement compliance prevents claims officers from disallowing equipment items or withholding grant drawdowns.',
       targetModuleCode: 'MOD_E_OPERATIONS',
       targetStep: 2,
-    },
-    {
+    };
+
+    // 5. Corporate Entity, Business Banking & Domain
+    const hasEntityAndBank = Boolean(facts.legalEntityStructureLabel && facts.hasDedicatedIban);
+    const statutoryCheck: ModuleLContradictionAuditItem = {
       id: 'audit-statutory-bank',
       category: 'STATUTORY_AND_IP',
       title: 'Corporate Legal Entity, Business Banking & Domain Proof',
-      status: 'PASSED',
-      detail: `Module G Launchpad setup verifies corporate LTD status, dedicated business bank account, and official company domain email credentials.`,
-      assessorImpact: `Grants cannot be disbursed to personal bank accounts; having formal corporate setup complete prevents conditional approval delays.`,
+      status: hasEntityAndBank ? 'PASSED' : 'WARNING',
+      detail: hasEntityAndBank
+        ? `Launchpad confirms ${facts.legalEntityStructureLabel}${facts.registeredEntityName ? ` (${facts.registeredEntityName})` : ''} and a dedicated business bank account.`
+        : `Corporate registration, dedicated business bank account, or official company domain have not all been marked complete in Launchpad yet.`,
+      assessorImpact:
+        'Public grants and institutional loans cannot be disbursed into personal bank accounts; completing corporate setup prevents drawdown delays.',
       targetModuleCode: 'MOD_G_LAUNCHPAD',
       targetStep: 1,
-    },
-    {
+    };
+
+    // 6. Export Potential & Non-Displacement
+    const isDomesticOnlyGrantConflict =
+      plan.exportPotential === 'DOMESTIC_ONLY' &&
+      (compilerMode === 'IE_LEO_OFFICIAL_FORM' || compilerMode === 'UK_INNOVATE_UK_9Q');
+    const hasMarketAndExport = Boolean(facts.beachheadSegment && plan.exportPotential);
+    const exportStatus: 'PASSED' | 'WARNING' | 'CRITICAL' = isDomesticOnlyGrantConflict
+      ? 'CRITICAL'
+      : hasMarketAndExport
+        ? 'PASSED'
+        : 'WARNING';
+    const exportCheck: ModuleLContradictionAuditItem = {
       id: 'audit-export-deadweight',
       category: 'EXPORT_AND_DISPLACEMENT',
       title: 'Export Potential vs. Domestic Deadweight / Displacement',
-      status: 'PASSED',
-      detail: `Module A and Module B substantiate trade expansion beyond the immediate domestic locality, demonstrating non-displacement of existing regional operators.`,
-      assessorImpact: `Statutory criteria mandate that enterprise funding creates net additionality and international trade rather than simply taking trade from local competitors.`,
+      status: exportStatus,
+      detail: isDomesticOnlyGrantConflict
+        ? `Plan market reach is currently set to Local/Domestic only, which conflicts with ${isUK ? 'Innovate UK scalable innovation' : 'Irish LEO Priming/Feasibility export & non-displacement'} eligibility rules.`
+        : hasMarketAndExport
+          ? `Beachhead segment (${facts.beachheadSegment}) and market reach (${facts.exportScopeLabel}) substantiate commercial additionality.`
+          : `Complete beachhead customer sizing and export/non-displacement positioning in Modules A & B.`,
+      assessorImpact:
+        'Enterprise agencies mandate that public funding creates net new economic value and export trade rather than displacing local operators.',
       targetModuleCode: 'MOD_B_MARKET',
       targetStep: 1,
-    },
-  ];
+    };
+
+    const items = [
+      pricingCheck,
+      payrollCheck,
+      arrearsCheck,
+      procurementCheck,
+      statutoryCheck,
+      exportCheck,
+    ];
+    const crit = items.filter((i) => i.status === 'CRITICAL').length;
+    const warn = items.filter((i) => i.status === 'WARNING').length;
+    const pass = items.filter((i) => i.status === 'PASSED').length;
+    const score = Math.max(25, Math.min(98, 96 - crit * 22 - warn * 9));
+
+    const defaultDefense =
+      pass === items.length
+        ? `"${plan.title}" has completed cross-module reconciliation across Modules A through K (${pass}/${items.length} checks verified). Commercial pricing is anchored in primary discovery, statutory payroll burdens and working-capital bridges are modeled, and capital procurement complies with agency rules.`
+        : `"${plan.title}" currently passes ${pass} of ${items.length} pre-flight checks (${warn} warning(s), ${crit} critical flag(s)). Review any open items above or run the Deep Pre-Flight Contradiction Audit after updating upstream modules so your narrative and financial schedules align cleanly before submission.`;
+
+    return { items, score, defaultDefense, facts };
+  }, [plan, isUK, currencySymbol, compilerMode]);
 
   const [auditItems, setAuditItems] = useState<ModuleLContradictionAuditItem[]>(
     savedAudit?.auditItems && savedAudit.auditItems.length > 0
       ? savedAudit.auditItems
-      : defaultItems
+      : liveAuditSnapshot.items
   );
 
   const [acknowledgedItemIds, setAcknowledgedItemIds] = useState<string[]>(
@@ -163,12 +290,13 @@ export function ModuleLContradictionAuditStep({
   );
 
   const [overallScore, setOverallScore] = useState<number>(
-    typeof savedAudit?.overallAuditScore === 'number' ? savedAudit.overallAuditScore : 88
+    typeof savedAudit?.overallAuditScore === 'number'
+      ? savedAudit.overallAuditScore
+      : liveAuditSnapshot.score
   );
 
   const [defenseSummary, setDefenseSummary] = useState<string>(
-    savedAudit?.preFlightDefenseSummary ||
-      `"${plan.title}" has undergone cross-module reconciliation across Modules A through K. Pricing models are calibrated to empirical customer discovery from Module C, statutory employer payroll burdens are provisioned across Year 1–3 forecasts, and grant reimbursement drawdown timing lag is fully cushioned by confirmed founder equity and unencumbered working capital reserves. All equipment requests adhere strictly to statutory eligibility guidelines with no deadweight displacement.`
+    savedAudit?.preFlightDefenseSummary || liveAuditSnapshot.defaultDefense
   );
 
   const [aiTip, setAiTip] = useState<string>(
@@ -196,6 +324,7 @@ export function ModuleLContradictionAuditStep({
   const handleRunAiAudit = async () => {
     setIsAuditingAi(true);
     try {
+      const f = liveAuditSnapshot.facts;
       const result = await generateModuleLStep2AuditAction({
         planId: plan.id,
         planTitle: plan.title,
@@ -205,16 +334,35 @@ export function ModuleLContradictionAuditStep({
         industryCategory: plan.industryCategory,
         targetFundingAskAmount:
           plan.moduleLData?.step1Mode?.targetFundingAskAmount || 50000,
-        moduleAExportPotential: plan.exportPotential,
-        moduleBSegments: plan.moduleBData?.beachhead?.beachheadSegment,
-        moduleCSurveySummary: plan.moduleCData?.surveys?.[0]?.title,
-        moduleDPricingAndQuotes: plan.moduleDData?.productVehicle?.productTrack,
-        moduleEOperationsEquipment: plan.moduleEData?.premisesAndEquipment?.premisesSetupMode,
-        moduleFTeamAndHeadcount: plan.moduleFData?.step2RoleMatrixData?.toString(),
-        moduleGLaunchpadSetup: plan.moduleGData?.step1?.legalStructure,
-        moduleHRevenueAndPricing: plan.moduleHData?.step1RevenueModel?.revenueModelVehicle,
-        moduleJFinanceAndCashflow: plan.moduleJData?.step1OverheadsTax?.operatingCostPosture,
-        moduleKFundingStackAndBuffer: plan.moduleKData?.step2CapitalStack?.presetUsed,
+        moduleAExportPotential: `${f.exportScopeLabel}${f.coreProblem ? ` | Problem: ${f.coreProblem.slice(0, 140)}` : ''}`,
+        moduleBSegments: f.beachheadSegment
+          ? `${f.beachheadSegment}${f.somFormatted ? ` | SOM: ${f.somFormatted}` : ''}${f.competitorsCount > 0 ? ` | ${f.competitorsCount} competitors` : ''}`
+          : 'Not yet modeled',
+        moduleCSurveySummary:
+          f.surveysCount > 0 || f.interviewsCount > 0
+            ? `${f.realSurveyResponses} survey response(s) across ${f.surveysCount} survey(s), ${f.interviewsCount} discovery interview(s)${f.surveyHeadlineInsight ? ` — ${f.surveyHeadlineInsight.slice(0, 140)}` : ''}`
+            : '0 customer survey responses or interviews logged yet',
+        moduleDPricingAndQuotes: f.hasModuleD
+          ? `${f.productTrackLabel || 'Product defined'} | ${f.workPackagesCount} work package(s) (${currencySymbol}${f.totalWorkPackagesCost.toLocaleString()})`
+          : 'Not yet modeled',
+        moduleEOperationsEquipment: f.hasModuleE
+          ? `${f.premisesModeLabel || 'Premises configured'} (${currencySymbol}${f.monthlyPremisesCost}/mo) | ${f.equipmentItemsCount} equipment item(s) totaling ${currencySymbol}${f.totalEquipmentCapexExVat.toLocaleString()} ex-VAT`
+          : 'Not yet modeled',
+        moduleFTeamAndHeadcount: f.hasModuleF
+          ? `${f.teamStructurePostureLabel || `${f.teamMembersCount} founder(s)`} | ${f.hatsAssignedCount}/7 hats assigned | ${f.plannedHiresCount} planned hire(s)`
+          : 'Not yet modeled',
+        moduleGLaunchpadSetup: f.hasModuleG
+          ? `Entity: ${f.legalEntityStructureLabel || 'Pending'} | Dedicated IBAN: ${f.hasDedicatedIban ? 'Yes' : 'No'} | Domain: ${f.primaryDomain || 'Pending'}`
+          : 'Not yet modeled',
+        moduleHRevenueAndPricing: f.hasModuleH
+          ? `${f.revenueModelVehicleLabel || 'Pricing configured'} | Blended Net Price: ${currencySymbol}${f.blendedAveragePriceNet.toLocaleString()} | Y1 Breakeven Target: ${f.year1TargetCustomers} customers (${currencySymbol}${f.year1ProjectedNetTurnover.toLocaleString()}/yr)`
+          : 'Not yet modeled',
+        moduleJFinanceAndCashflow: f.hasModuleJ
+          ? `Fixed Overheads: ${currencySymbol}${f.monthlyFixedOverheadsTotal.toLocaleString()}/mo | Y1 Founder Drawings: ${currencySymbol}${f.monthlyFounderDrawingsYear1.toLocaleString()}/mo | Y1 Team Payroll: ${currencySymbol}${f.monthlyTeamSalariesYear1.toLocaleString()}/mo | Day-1 Cash: ${currencySymbol}${f.startingCashBalanceDay1.toLocaleString()}`
+          : 'Not yet modeled',
+        moduleKFundingStackAndBuffer: f.hasModuleK
+          ? `Skin-in-the-Game: ${currencySymbol}${f.skinInTheGameCash.toLocaleString()} (${f.skinInTheGamePercent}%) | Grants: ${currencySymbol}${f.totalGrantsAllocated.toLocaleString()} | Loans: ${currencySymbol}${f.totalLoansAllocated.toLocaleString()} | Bridge: ${f.bridgeStrategyLabel || 'Unset'}`
+          : 'Not yet modeled',
       });
 
       if (result.auditItems && result.auditItems.length > 0) {
@@ -362,7 +510,7 @@ export function ModuleLContradictionAuditStep({
           disabled={isAuditingAi || isVaultReadonly}
           className="h-7 border-slate-200 bg-slate-50 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+          <Scale className="mr-1 h-3.5 w-3.5 text-emerald-700" />
           {isAuditingAi ? 'Cross-Examining Modules A–K...' : 'Run Deep Pre-Flight Contradiction Audit'}
         </Button>
       </div>
@@ -642,7 +790,7 @@ export function ModuleLContradictionAuditStep({
                       onClick={() => onNavigateToModule(item.targetModuleCode, item.targetStep)}
                       className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
                     >
-                      Fix in {item.targetModuleCode.replace(/_/g, ' ').replace('MOD ', 'Module ')}
+                      Fix in {formatModuleCodeShortLabel(item.targetModuleCode)}
                       <ExternalLink className="ml-1 h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -697,18 +845,14 @@ export function ModuleLContradictionAuditStep({
               disabled={isGeneratingDefense || isVaultReadonly}
               className="h-7 border-slate-200 bg-slate-50/80 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
             >
-              <Sparkles className="mr-1.5 h-3 w-3 text-emerald-700" />
-              {isGeneratingDefense ? 'Calibrating Defense...' : 'AI Calibrate Defense'}
+              <SlidersHorizontal className="mr-1.5 h-3 w-3 text-emerald-700" />
+              {isGeneratingDefense ? 'Calibrating Defense...' : 'Calibrate Defense with Evidence'}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              onClick={() =>
-                setDefenseSummary(
-                  `"${plan.title}" has undergone cross-module reconciliation across Modules A through K. Pricing models are calibrated to empirical customer discovery from Module C, statutory employer payroll burdens are provisioned across Year 1–3 forecasts, and grant reimbursement drawdown timing lag is fully cushioned by confirmed founder equity and unencumbered working capital reserves. All equipment requests adhere strictly to statutory eligibility guidelines with no deadweight displacement.`
-                )
-              }
+              onClick={() => setDefenseSummary(liveAuditSnapshot.defaultDefense)}
               className="h-7 text-xs text-emerald-700 hover:bg-emerald-50"
             >
               <RotateCcw className="mr-1 h-3 w-3" />
@@ -726,7 +870,7 @@ export function ModuleLContradictionAuditStep({
           value={defenseSummary}
           onChange={(e) => setDefenseSummary(e.target.value)}
           disabled={isVaultReadonly}
-          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-base sm:text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden"
           placeholder="Enter pre-flight defense statement..."
         />
       </div>
@@ -735,7 +879,7 @@ export function ModuleLContradictionAuditStep({
       {aiTip && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
           <div className="flex items-start gap-2.5">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <ShieldCheck className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed text-amber-900">
               <span className="font-semibold text-amber-950">Underwriter Insider Tip: </span>
               {aiTip}
@@ -754,22 +898,19 @@ export function ModuleLContradictionAuditStep({
           className="text-xs text-slate-600 hover:bg-slate-50"
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          Back to Step 1 (Compiler Mode)
+          Back to Step 2 (Narrative Compiler)
         </Button>
 
-        <div className="flex items-center gap-2">
-          {onParkQuestionInSession && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onParkQuestionInSession('Step 2 Pre-Flight Audit Reconciliation Flag')}
-              className="border-slate-200 text-xs text-slate-600 hover:bg-slate-50"
-            >
-              <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-slate-400" />
-              Park in Open Questions
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ParkOpenQuestionPopover
+            planId={plan.id}
+            moduleCode="MOD_L_BUSINESS_PLAN"
+            stepNumber={3}
+            suggestedQuestion="Reconcile pre-flight audit flag between our narrative claims and upstream financial/survey assumptions."
+            onParkQuestion={onParkQuestionInSession}
+            disabled={isVaultReadonly}
+            align="end"
+          />
 
           <Button
             type="button"
@@ -778,7 +919,7 @@ export function ModuleLContradictionAuditStep({
             disabled={isSaving || isVaultReadonly}
             className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
           >
-            {isSaving ? 'Saving Audit...' : 'Save & Proceed to Step 3 (Narrative Compiler)'}
+            {isSaving ? 'Saving Audit...' : 'Save & Proceed to Step 4 (Appendices A–F)'}
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         </div>

@@ -2,6 +2,12 @@ import {
   escapeDocumentHtml as escapeHtml,
   renderBmuStandaloneHtmlDocument,
 } from '@/lib/export/document-shell';
+import {
+  formatBridgeStrategyLabel,
+  formatTaxReliefSchemeLabel,
+  formatAdvanceAssuranceStatusLabel,
+} from '@/lib/export/enum-labels';
+import { getPlanTrackCapabilities } from '@/lib/localization';
 import type {
   ActiveStartupPlan,
   ModuleKStep5FundingBriefSavedData,
@@ -27,17 +33,40 @@ export interface ModuleKBriefExportData {
 }
 
 export function buildModuleKStandaloneHtmlDocument(data: ModuleKBriefExportData): string {
-  const isUK = data.hqCountryCode === 'GB';
-  const currencySymbol = isUK ? '£' : '€';
+  const trackCaps = getPlanTrackCapabilities(data.hqCountryCode);
+  const isUK = trackCaps.countryCode === 'GB';
+  const isIE = trackCaps.countryCode === 'IE';
+  const isGrantsEnabled = trackCaps.isGrantsEnabled;
+  const currencySymbol =
+    data.baseCurrency === 'GBP'
+      ? '£'
+      : data.baseCurrency === 'EUR'
+        ? '€'
+        : data.baseCurrency === 'AUD'
+          ? 'A$'
+          : data.baseCurrency === 'CAD'
+            ? 'C$'
+            : isUK
+              ? '£'
+              : isIE
+                ? '€'
+                : '$';
   const grantAgency = isUK
     ? 'Innovate UK, British Business Bank & HMRC'
-    : 'Local Enterprise Office (LEO), Enterprise Ireland & Revenue';
+    : isIE
+      ? 'Local Enterprise Office (LEO), Enterprise Ireland & Revenue'
+      : 'Commercial Lenders, Revenue-Based Financing & Angel/Pre-Seed Capital';
+  const jurisdictionLabel = isUK
+    ? 'United Kingdom 🇬🇧'
+    : isIE
+      ? 'Ireland 🇮🇪'
+      : `${trackCaps.countryName} (${trackCaps.countryCode})`;
 
   const roadmapRowsHtml = (data.brief.fundingRoadmap || [])
     .map(
       (phase: GrantRoadmapPhaseItem) => `
       <tr style="border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 12px 14px; font-weight: 700; color: #4338ca; vertical-align: top;">
+        <td style="padding: 12px 14px; font-weight: 700; color: #047857; vertical-align: top;">
           Phase ${escapeHtml(String(phase.phaseNumber))}
         </td>
         <td style="padding: 12px 14px; vertical-align: top;">
@@ -85,25 +114,25 @@ export function buildModuleKStandaloneHtmlDocument(data: ModuleKBriefExportData)
 
   const bodyContentHtml = `
     <!-- Top Summary Banner -->
-    <div style="background: linear-gradient(135deg, #1e1b4b, #312e81, #4338ca); color: #ffffff; padding: 24px 28px; border-radius: 12px; margin-bottom: 24px;">
+    <div style="background: linear-gradient(135deg, #0f172a, #1e293b); color: #ffffff; padding: 24px 28px; border-radius: 12px; margin-bottom: 24px;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
         <div>
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #c7d2fe; font-weight: 700; margin-bottom: 4px;">
-            Statutory Public Grants, Capital Stack &amp; Tax Relief Hub
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6ee7b7; font-weight: 700; margin-bottom: 4px;">
+            ${isGrantsEnabled ? 'Statutory Public Grants, Capital Stack &amp; Tax Relief Hub' : 'Capital Stack, Non-Dilutive Debt &amp; Pre-Seed Strategy Hub'}
           </div>
           <h2 style="font-size: 22px; font-weight: 800; margin: 0 0 6px; color: #ffffff;">
             ${escapeHtml(data.planTitle)} — Funding Strategy Dossier
           </h2>
-          <div style="font-size: 12px; color: #e0e7ff;">
-            Evaluator Jurisdiction: <strong>${isUK ? 'United Kingdom 🇬🇧' : 'Ireland 🇮🇪'}</strong> • Primary Agency: <strong>${escapeHtml(grantAgency)}</strong>
+          <div style="font-size: 12px; color: #cbd5e1;">
+            Evaluator Jurisdiction: <strong>${escapeHtml(jurisdictionLabel)}</strong> • Primary Focus: <strong>${escapeHtml(grantAgency)}</strong>
           </div>
         </div>
-        <div style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; padding: 12px 18px; text-align: center;">
-          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #c7d2fe; font-weight: 700;">Assessor Readiness</div>
+        <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(52,211,153,0.35); border-radius: 10px; padding: 12px 18px; text-align: center;">
+          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; font-weight: 700;">Assessor Readiness</div>
           <div style="font-size: 28px; font-weight: 900; color: #34d399; margin-top: 2px;">
             ${escapeHtml(String(data.brief.assessorReadinessScore || 85))}%
           </div>
-          <div style="font-size: 10px; color: #e0e7ff;">Committee Stage Ready</div>
+          <div style="font-size: 10px; color: #a7f3d0;">Committee Stage Ready</div>
         </div>
       </div>
     </div>
@@ -121,25 +150,25 @@ export function buildModuleKStandaloneHtmlDocument(data: ModuleKBriefExportData)
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b;">Founder Skin-In-The-Game</div>
         <div style="font-size: 20px; font-weight: 800; color: #047857; margin: 4px 0;">
-          ${escapeHtml(currencySymbol)}${escapeHtml(Number(data.step2SkinInTheGame || 15000).toLocaleString())}
+          ${escapeHtml(currencySymbol)}${escapeHtml(Number(data.step2SkinInTheGame || 0).toLocaleString())}
         </div>
         <div style="font-size: 10px; color: #047857;">Satisfies Grant Match Ratio</div>
       </div>
 
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b;">Arrears Lag Buffer</div>
-        <div style="font-size: 20px; font-weight: 800; color: #4338ca; margin: 4px 0;">
-          ${escapeHtml(currencySymbol)}${escapeHtml(Number(data.step3ReimbursementBuffer || 12000).toLocaleString())}
+        <div style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 4px 0;">
+          ${escapeHtml(currencySymbol)}${escapeHtml(Number(data.step3ReimbursementBuffer || 0).toLocaleString())}
         </div>
-        <div style="font-size: 10px; color: #4338ca;">${escapeHtml(data.step3BridgeStrategy || 'Staged Buffer')}</div>
+        <div style="font-size: 10px; color: #047857;">${escapeHtml(formatBridgeStrategyLabel(data.step3BridgeStrategy) || 'Staged Buffer')}</div>
       </div>
 
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
-        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b;">Angel Tax Relief</div>
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b;">${isGrantsEnabled ? 'Angel Tax Relief' : 'Equity / Tax Structure'}</div>
         <div style="font-size: 20px; font-weight: 800; color: #b45309; margin: 4px 0;">
-          ${escapeHtml(data.step4TaxScheme || (isUK ? 'HMRC SEIS' : 'Revenue SURE'))}
+          ${escapeHtml(formatTaxReliefSchemeLabel(data.step4TaxScheme) || (isUK ? 'HMRC SEIS' : isIE ? 'Revenue SURE / EII' : 'Bootstrapped / Standard Equity'))}
         </div>
-        <div style="font-size: 10px; color: #b45309;">${escapeHtml(data.step4AdvanceStatus || 'Advance Assurance')}</div>
+        <div style="font-size: 10px; color: #b45309;">${escapeHtml(formatAdvanceAssuranceStatusLabel(data.step4AdvanceStatus) || (isGrantsEnabled ? 'Advance Assurance' : 'Founder Capital Strategy'))}</div>
       </div>
     </div>
 
@@ -216,7 +245,7 @@ export function buildModuleKStandaloneHtmlDocument(data: ModuleKBriefExportData)
       </div>
       <div style="font-size: 13px; color: #0f172a; margin-top: 4px; font-weight: 700;">
         Module L Business Plan &amp; Grant Compiler Mode: 
-        <span style="color: #4338ca;">
+        <span style="color: #047857;">
           ${escapeHtml(
             data.brief.moduleLGrantMode === 'IE_LEO'
               ? '🇮🇪 LEO Official Form & Appendices A–F'
@@ -237,21 +266,25 @@ export function buildModuleKStandaloneHtmlDocument(data: ModuleKBriefExportData)
   `;
 
   return renderBmuStandaloneHtmlDocument({
-    documentTitle: `${data.planTitle} — Grants & Funding Strategy Dossier`,
+    documentTitle: `${data.planTitle} — ${isGrantsEnabled ? 'Grants & Funding Strategy Dossier' : 'Capital Stack & Funding Strategy Dossier'}`,
     eyebrow: data.whiteLabelEnabled
-      ? `${data.planTitle.toUpperCase()} • GRANTS &amp; FUNDING STRATEGY DOSSIER`
-      : 'STARTUP PREFLIGHT • MODULE K NON-DILUTIVE FUNDING DOSSIER',
+      ? `${data.planTitle.toUpperCase()} • ${isGrantsEnabled ? 'GRANTS &amp; FUNDING STRATEGY DOSSIER' : 'CAPITAL STACK &amp; FUNDING DOSSIER'}`
+      : `STARTUP PREFLIGHT • MODULE K ${isGrantsEnabled ? 'NON-DILUTIVE FUNDING DOSSIER' : 'CAPITAL STRATEGY DOSSIER'}`,
     planTitle: data.planTitle,
     founderName: data.founderName,
-    countryName: isUK ? 'United Kingdom' : 'Ireland',
-    currency: isUK ? '£' : '€',
+    countryName: trackCaps.countryName,
+    currency: currencySymbol,
     industryCategory: data.industryCategory,
     dateStr: new Date().toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     }),
-    scopeValue: isUK ? 'Innovate UK & SEIS' : 'LEO & Enterprise Ireland',
+    scopeValue: isUK
+      ? 'Innovate UK & SEIS'
+      : isIE
+        ? 'LEO & Enterprise Ireland'
+        : 'Commercial Capital Stack',
     sectionsHtml: bodyContentHtml,
     footerCtaHtml: `<strong>Ready for Module L (Official Business Plan &amp; Grant Compiler)?</strong>
       Your Module K Non-Dilutive Grants &amp; Funding Strategy Dossier is complete. Proceed to Module L inside Startup Preflight to compile your official grant applications, append matching bank verification, and generate assessor-ready PDF packs.`,

@@ -20,7 +20,7 @@ import {
   FileText,
   HelpCircle,
   Lightbulb,
-  Sparkles,
+  SlidersHorizontal,
   ExternalLink,
   Copy,
   Download,
@@ -37,6 +37,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PartnerSlot, type PaidConciergeOrderSummary } from '@/components/workspace/partner-slot';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import type { SavedConceptCanvas } from '@/lib/auth/session-store';
 
 export interface ModuleGData {
@@ -48,6 +50,7 @@ export interface ModuleGData {
     registrationNumber: string; // CRO / Companies House CRN
     registrationDate: string;
     targetFormationTimeline: string;
+    customFormationTimeline?: string;
     incorporationNotes: string;
     incorporationOrder?: PaidConciergeOrderSummary | null;
   };
@@ -67,6 +70,7 @@ export interface ModuleGData {
     hasDedicatedIban: boolean;
     ibanLast4: string;
     targetOpeningTimeline: string;
+    customOpeningTimeline?: string;
     notes: string;
   };
   step4: {
@@ -75,8 +79,14 @@ export interface ModuleGData {
     customSoftwareChoice?: string;
     hasAccountant: boolean;
     accountantFirmName: string;
-    vatStatus: 'NOT_REGISTERED' | 'REGISTERED' | 'PLANNING_TO_REGISTER';
-    payrollSetup: 'NONE' | 'DIRECTOR_ONLY' | 'EXTERNAL_BUREAU' | 'IN_HOUSE';
+    vatStatus:
+      | 'NOT_REGISTERED'
+      | 'REGISTERED'
+      | 'PLANNING_TO_REGISTER'
+      | 'VAT_EXEMPT_SECTOR'
+      | 'OTHER';
+    customVatStatus?: string;
+    payrollSetup: 'NONE' | 'DIRECTOR_ONLY' | 'EXTERNAL_BUREAU' | 'IN_HOUSE' | 'OTHER';
     notes: string;
   };
   step5: {
@@ -88,6 +98,7 @@ export interface ModuleGData {
     currentInsurerName: string;
     policyRenewalDate: string;
     targetCoverageTimeline: string;
+    customCoverageTimeline?: string;
     notes: string;
   };
   step6: {
@@ -100,6 +111,75 @@ export interface ModuleGData {
     legalAdvisorOrPlatform: string;
     notes: string;
   };
+  confirmedSteps?: number[];
+  completionPercentage?: number;
+  lastSavedAt?: string;
+}
+
+export function computeModuleGPillarReadiness(data: ModuleGData) {
+  const confirmed = Array.isArray(data.confirmedSteps) ? data.confirmedSteps : [];
+  const isStep1Done =
+    data.step1.state === 'ALREADY_HAVE'
+      ? Boolean(data.step1.registeredEntityName.trim() && data.step1.registrationNumber.trim())
+      : Boolean(data.step1.incorporationOrder || data.step1.targetFormationTimeline);
+  const isStep2Done =
+    data.step2.state === 'ALREADY_HAVE'
+      ? Boolean(data.step2.primaryDomain.trim() && data.step2.officialBusinessEmail.trim())
+      : Boolean(data.step2.primaryDomain.trim() || confirmed.includes(2));
+  const isStep3Done =
+    data.step3.state === 'ALREADY_HAVE'
+      ? Boolean(data.step3.bankProvider && (data.step3.hasDedicatedIban || data.step3.ibanLast4.trim()))
+      : Boolean(data.step3.targetOpeningTimeline);
+  const isStep4Done =
+    data.step4.state === 'ALREADY_HAVE'
+      ? Boolean(data.step4.softwareChoice || data.step4.hasAccountant)
+      : Boolean(
+          data.step4.hasAccountant ||
+            data.step4.accountantFirmName.trim() ||
+            data.step4.vatStatus !== 'NOT_REGISTERED' ||
+            data.step4.notes.trim() ||
+            confirmed.includes(4)
+        );
+  const isStep5Done =
+    data.step5.state === 'ALREADY_HAVE'
+      ? Boolean(
+          data.step5.hasPublicLiability ||
+            data.step5.hasEmployersLiability ||
+            data.step5.hasProfessionalIndemnity ||
+            data.step5.hasProductLiability ||
+            data.step5.currentInsurerName.trim()
+        )
+      : Boolean(data.step5.targetCoverageTimeline);
+  const isStep6Done =
+    data.step6.state === 'ALREADY_HAVE'
+      ? Boolean(
+          data.step6.hasIpAssignmentSigned ||
+            data.step6.hasPrivacyPolicy ||
+            data.step6.hasTermsOfService ||
+            data.step6.hasStandardNda
+        )
+      : Boolean(
+          data.step6.legalAdvisorOrPlatform.trim() ||
+            data.step6.hasIpAssignmentSigned ||
+            data.step6.hasPrivacyPolicy ||
+            confirmed.includes(6)
+        );
+
+  const doneCount = [isStep1Done, isStep2Done, isStep3Done, isStep4Done, isStep5Done, isStep6Done].filter(
+    Boolean
+  ).length;
+  const completionPercentage = Math.round((doneCount / 6) * 100);
+
+  return {
+    isStep1Done,
+    isStep2Done,
+    isStep3Done,
+    isStep4Done,
+    isStep5Done,
+    isStep6Done,
+    doneCount,
+    completionPercentage,
+  };
 }
 
 export function getDefaultModuleGData(): ModuleGData {
@@ -111,7 +191,7 @@ export function getDefaultModuleGData(): ModuleGData {
       registeredEntityName: '',
       registrationNumber: '',
       registrationDate: '',
-      targetFormationTimeline: 'WITHIN_30_DAYS',
+      targetFormationTimeline: '',
       incorporationNotes: '',
       incorporationOrder: null,
     },
@@ -130,7 +210,7 @@ export function getDefaultModuleGData(): ModuleGData {
       customBankProvider: '',
       hasDedicatedIban: false,
       ibanLast4: '',
-      targetOpeningTimeline: 'WITHIN_30_DAYS',
+      targetOpeningTimeline: '',
       notes: '',
     },
     step4: {
@@ -151,7 +231,7 @@ export function getDefaultModuleGData(): ModuleGData {
       hasProductLiability: false,
       currentInsurerName: '',
       policyRenewalDate: '',
-      targetCoverageTimeline: 'BEFORE_FIRST_SALE',
+      targetCoverageTimeline: '',
       notes: '',
     },
     step6: {
@@ -164,6 +244,7 @@ export function getDefaultModuleGData(): ModuleGData {
       legalAdvisorOrPlatform: '',
       notes: '',
     },
+    confirmedSteps: [],
   };
 }
 
@@ -181,7 +262,9 @@ export interface ModuleGWorkspaceProps {
   initialData?: ModuleGData;
   onSave?: (data: ModuleGData) => Promise<void>;
   onBackToModuleF?: () => void;
+  onBackToModuleK?: () => void;
   onContinueToModuleH?: () => void;
+  onContinueToModuleL?: () => void;
   initialStep?: number;
   highlightTarget?: string;
 }
@@ -193,7 +276,9 @@ export function ModuleGWorkspace({
   initialData,
   onSave,
   onBackToModuleF,
+  onBackToModuleK,
   onContinueToModuleH,
+  onContinueToModuleL,
   initialStep,
   highlightTarget,
 }: ModuleGWorkspaceProps) {
@@ -217,12 +302,12 @@ export function ModuleGWorkspace({
   const onSaveRef = React.useRef(onSave);
   onSaveRef.current = onSave;
   const isDirtyRef = React.useRef(false);
-  // Step Accordion View State: 0 = all collapsed by default, 1..7, or 'ALL'
+  // Step Accordion View State: default to Step 1 open so founders can act immediately
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 7) {
       return initialStep;
     }
-    return 0;
+    return 1;
   });
 
   // Handle deep-link scrolling and highlight
@@ -368,46 +453,32 @@ export function ModuleGWorkspace({
   const hasActiveIncorporationOrder =
     Boolean(data.step1.incorporationOrder) && data.step1.state !== 'ALREADY_HAVE';
 
-  // Step 1: Legal Readiness Check
-  const isStep1Done =
-    data.step1.state === 'ALREADY_HAVE'
-      ? !!data.step1.registeredEntityName.trim() && !!data.step1.registrationNumber.trim()
-      : !!data.step1.incorporationOrder || !!data.step1.targetFormationTimeline;
-
-  // Step 2: Domain & Email Readiness Check
+  // Step 2: Domain & Email Warning Check
   const isGmailDetected =
     data.step2.officialBusinessEmail.toLowerCase().includes('@gmail.com') ||
     data.step2.officialBusinessEmail.toLowerCase().includes('@hotmail.com') ||
     data.step2.officialBusinessEmail.toLowerCase().includes('@yahoo.com');
 
-  const isStep2Done =
-    data.step2.state === 'ALREADY_HAVE'
-      ? !!data.step2.primaryDomain.trim() && !!data.step2.officialBusinessEmail.trim()
-      : !!data.step2.primaryDomain.trim() || !!data.step2.emailProvider;
+  const {
+    isStep1Done,
+    isStep2Done,
+    isStep3Done,
+    isStep4Done,
+    isStep5Done,
+    isStep6Done,
+    doneCount: completedCoreStepsCount,
+    completionPercentage: opsReadinessScore,
+  } = computeModuleGPillarReadiness(data);
 
-  // Step 3: Bank Readiness Check
-  const isStep3Done =
-    data.step3.state === 'ALREADY_HAVE'
-      ? !!data.step3.bankProvider && (data.step3.hasDedicatedIban || !!data.step3.ibanLast4.trim())
-      : !!data.step3.targetOpeningTimeline;
-
-  // Step 4: Accounting & VAT Readiness Check
-  const isStep4Done =
-    data.step4.state === 'ALREADY_HAVE'
-      ? !!data.step4.softwareChoice || data.step4.hasAccountant
-      : !!data.step4.vatStatus;
-
-  // Step 5: Insurance Readiness Check
-  const isStep5Done =
-    data.step5.state === 'ALREADY_HAVE'
-      ? data.step5.hasPublicLiability || data.step5.hasProfessionalIndemnity || !!data.step5.currentInsurerName.trim()
-      : !!data.step5.targetCoverageTimeline;
-
-  // Step 6: Legal & IP Readiness Check
-  const isStep6Done =
-    data.step6.state === 'ALREADY_HAVE'
-      ? data.step6.hasIpAssignmentSigned || data.step6.hasPrivacyPolicy
-      : !!data.step6.legalAdvisorOrPlatform || data.step6.hasIpAssignmentSigned;
+  const toggleConfirmedStep = (stepNum: number) => {
+    setData((prev) => {
+      const current = Array.isArray(prev.confirmedSteps) ? prev.confirmedSteps : [];
+      const next = current.includes(stepNum)
+        ? current.filter((n) => n !== stepNum)
+        : [...current, stepNum];
+      return { ...prev, confirmedSteps: next };
+    });
+  };
 
   const readinessChecks = [
     { num: 1, title: 'Legal Entity & Registration', done: isStep1Done, state: data.step1.state, inProgress: hasActiveIncorporationOrder },
@@ -417,10 +488,6 @@ export function ModuleGWorkspace({
     { num: 5, title: 'Statutory Startup Insurance', done: isStep5Done, state: data.step5.state, inProgress: false },
     { num: 6, title: 'Baseline IP & GDPR Compliance', done: isStep6Done, state: data.step6.state, inProgress: false },
   ];
-
-  const completedCoreStepsCount = readinessChecks.filter((s) => s.done).length;
-  // Calculate an Operations Readiness percentage (0 - 100%)
-  const opsReadinessScore = Math.round((completedCoreStepsCount / 6) * 100);
 
   // Auto-persist Module G Launchpad edits to session & Cloud SQL via parent onSave
   useEffect(() => {
@@ -492,7 +559,7 @@ export function ModuleGWorkspace({
   return (
     <div className="space-y-6 pb-20">
       {/* Top Header Module Card */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -500,15 +567,15 @@ export function ModuleGWorkspace({
                 Module G • Getting Set Up (Launchpad &amp; Operations Hub)
               </Badge>
               <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
-                <Sparkles className="mr-1 h-3 w-3" />
-                From Concept to Legally Operational Firm
+                <ShieldCheck className="mr-1 h-3 w-3" />
+                Pre-Submission Operational Readiness
               </Badge>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Getting Set Up: Launchpad &amp; Operations Hub
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
-              Establish the 6 statutory operational foundations required by state grant bodies, investors, and banking institutions before taking paying customer revenue.
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
+              In Modules A–K you validated your business model, unit economics, 3-year financials, and grant match. Now confirm or plan the 6 operational foundations assessors and banks check before you compile your final business plan in Module L.
             </p>
           </div>
 
@@ -523,20 +590,20 @@ export function ModuleGWorkspace({
               >
                 {openStep === 'ALL' ? 'Collapse All Steps' : 'Expand All Steps'}
               </Button>
-              {onBackToModuleF && (
+              {(onBackToModuleK || onBackToModuleF) && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={onBackToModuleF}
+                  onClick={onBackToModuleK || onBackToModuleF}
                   className="border-emerald-400/40 bg-white/10 text-xs text-white hover:bg-white/20"
                 >
                   <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  Back to Module F
+                  {onBackToModuleK ? 'Back to Module K' : 'Back'}
                 </Button>
               )}
             </div>
-            <div className="text-right text-[11px] text-slate-300">
+            <div className="text-right text-[11px] text-slate-300 font-mono tabular-nums">
               Operations Readiness: <strong className="text-emerald-300">{opsReadinessScore}%</strong> ({completedCoreStepsCount} of 6 Setup Pillars Ready)
             </div>
           </div>
@@ -635,7 +702,9 @@ export function ModuleGWorkspace({
                       ? `Registered ${data.step1.legalStructure} • ${data.step1.registeredEntityName || 'Entity on file'} (${data.step1.registrationNumber || 'CRN recorded'})`
                       : hasActiveIncorporationOrder
                         ? `Setup In Progress • Formation Order with ${data.step1.incorporationOrder?.partnerName || 'Partner'} • Awaiting CRO/CRN Number`
-                        : `Setting Up • Target: ${data.step1.targetFormationTimeline.replace(/_/g, ' ')}`}
+                        : data.step1.targetFormationTimeline
+                          ? `Setting Up • Target: ${data.step1.targetFormationTimeline.replace(/_/g, ' ')}`
+                          : 'Not yet configured — choose incorporation timing or enter existing CRN'}
                   </p>
                 </div>
               </div>
@@ -737,7 +806,7 @@ export function ModuleGWorkspace({
                     }`}
                   >
                     <div className={`mt-0.5 rounded-full p-1 ${hasActiveIncorporationOrder ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-emerald-800'}`}>
-                      {hasActiveIncorporationOrder ? <Clock className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      {hasActiveIncorporationOrder ? <Clock className="h-3.5 w-3.5" /> : <SlidersHorizontal className="h-3.5 w-3.5" />}
                     </div>
                     <div>
                       <div className="text-xs font-bold text-slate-900">
@@ -1094,17 +1163,30 @@ export function ModuleGWorkspace({
               ) : (
                 /* State B2: Standard Help Me Set This Up (Before Placing Order) */
                 <div className="space-y-4">
+                  {/* Incorporation Timing Guardrail (18-Month LEO & 3-Year SEIS Clock Warning) */}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0" />
+                      <h4 className="text-xs font-bold text-amber-950">
+                        Timing Guardrail: Don&apos;t Start Your Grant &amp; Tax Relief Clocks Too Early
+                      </h4>
+                    </div>
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      Incorporating a Limited Company starts irreversible statutory timers — including the <strong>18-month Irish LEO Priming Grant window</strong> and the <strong>3-year UK HMRC SEIS trading limit</strong> — plus mandatory annual CRO / Companies House filings (~€300–€800/yr in accountancy fees even with €0 revenue). If you are still validating demand or applying for a <strong>LEO Feasibility Grant</strong> (which accepts Sole Traders / Individual Promoters), it is completely smart to stay pre-incorporation until you are ready to trade or draw down funding.
+                    </p>
+                  </div>
+
                   <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <Lightbulb className="h-4 w-4 text-amber-600" />
-                      <h4 className="text-xs font-bold text-slate-900">Should You Form a Limited Company Now?</h4>
+                      <h4 className="text-xs font-bold text-slate-900">When Is a Limited Company Required?</h4>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      For software, tech and high-potential startups in Ireland and the UK, a <strong>Private Limited Company (LTD)</strong> is virtually required before signing commercial contracts, granting employee equity, or applying for State Grants (LEO Priming / Enterprise Ireland PSSF / Innovate UK).
+                      Once you are ready to sign commercial B2B contracts, issue co-founder or angel shares, or draw down post-feasibility State Grants (LEO Priming, Enterprise Ireland PSSF, Innovate UK, or UK SEIS/EIS), incorporating a <strong>Private Limited Company (LTD)</strong> becomes essential.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                        <div className="text-[11px] font-bold text-slate-800">Direct Cost</div>
+                        <div className="text-[11px] font-bold text-slate-800">Direct Registry Fee</div>
                         <div className="text-xs text-slate-600">€50 (CRO Core, IE) / £50 (Companies House, UK)</div>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
@@ -1112,24 +1194,40 @@ export function ModuleGWorkspace({
                         <div className="text-xs text-slate-600">24–48 hours in the UK; 3–5 working days in Ireland</div>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                        <div className="text-[11px] font-bold text-slate-800">Grant Prerequisite</div>
+                        <div className="text-[11px] font-bold text-slate-800">Grant &amp; Investor Unlock</div>
                         <div className="text-xs text-emerald-700 font-medium">Unlocks SEIS/EIS, LEO Priming &amp; EI Funds</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Planned Formation Timeline</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Planned Incorporation Timing</Label>
                     <select
                       value={data.step1.targetFormationTimeline}
                       onChange={(e) => setData({ ...data, step1: { ...data.step1, targetFormationTimeline: e.target.value } })}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                     >
-                      <option value="IMMEDIATELY">Immediately (Next 7 days)</option>
-                      <option value="WITHIN_30_DAYS">Within the next 30 days</option>
-                      <option value="AFTER_VALIDATION">Only after completing customer waitlist validation (Module C)</option>
-                      <option value="UPON_GRANT_AWARD">Upon receiving formal grant or investor term sheet</option>
+                      <option value="">— Select your planned incorporation timing —</option>
+                      <option value="PRE_INCORPORATION_WAITING_GRANT">Staying Pre-Incorporation / Sole Trader until validation or grant award (Preserves 18-mo LEO / 3-yr SEIS clock)</option>
+                      <option value="AFTER_VALIDATION">After completing customer waitlist &amp; pilot validation</option>
+                      <option value="UPON_GRANT_AWARD">Upon receiving formal grant letter of offer or investor term sheet</option>
+                      <option value="WITHIN_30_DAYS">Ready to incorporate within the next 30 days</option>
+                      <option value="IMMEDIATELY">Ready to incorporate immediately (Next 7 days)</option>
+                      <option value="OTHER">Other / Custom Formation Timeline</option>
                     </select>
+                    {data.step1.targetFormationTimeline === 'OTHER' && (
+                      <Input
+                        value={data.step1.customFormationTimeline || ''}
+                        onChange={(e) =>
+                          setData({
+                            ...data,
+                            step1: { ...data.step1, customFormationTimeline: e.target.value },
+                          })
+                        }
+                        placeholder="Describe your custom incorporation timeline or condition..."
+                        className="mt-2 bg-white text-base sm:text-xs"
+                      />
+                    )}
                   </div>
 
                   {/* Partner Slot Hook */}
@@ -1159,10 +1257,19 @@ export function ModuleGWorkspace({
               )}
 
               {/* Bottom Step Bar */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <span className="text-[11px] text-slate-500">
-                  {isStep1Done ? '✅ Legal registration status recorded' : '⚠️ Action needed to complete legal setup'}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-slate-500">
+                    {isStep1Done ? '✅ Legal registration status recorded' : '⚠️ Action needed to complete legal setup'}
+                  </span>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepLabel="Module G • Step 1"
+                    suggestedQuestion="Should we start as a Sole Trader first or incorporate a Limited Company (LTD) immediately for grant/liability eligibility?"
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -1719,16 +1826,25 @@ export function ModuleGWorkspace({
               </div>
 
               {/* Bottom Step Bar */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenStep(1)}
-                  className="text-xs text-slate-600"
-                >
-                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  <span>Previous: Legal Entity</span>
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenStep(1)}
+                    className="text-xs text-slate-600"
+                  >
+                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    <span>Previous: Legal Entity</span>
+                  </Button>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepLabel="Module G • Step 2"
+                    suggestedQuestion="Confirm final company domain name (.ie / .co.uk / .com) and set up a dedicated @company email before customer outreach."
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -1772,7 +1888,9 @@ export function ModuleGWorkspace({
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     {data.step3.state === 'ALREADY_HAVE'
                       ? `${data.step3.bankProvider.replace(/_/g, ' ')} • Dedicated Account Active`
-                      : `Setting Up • Timeline: ${data.step3.targetOpeningTimeline.replace(/_/g, ' ')}`}
+                      : data.step3.targetOpeningTimeline
+                        ? `Setting Up • Timeline: ${data.step3.targetOpeningTimeline.replace(/_/g, ' ')}`
+                        : 'Not yet configured — record active IBAN or choose bank opening timeline'}
                   </p>
                 </div>
               </div>
@@ -1788,7 +1906,7 @@ export function ModuleGWorkspace({
                   {isStep3Done ? 'Configured' : 'Needs Setup'}
                 </Badge>
                 <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2.5 text-xs font-medium text-emerald-700 group-hover:bg-emerald-50">
-                  <span>Edit Step</span>
+                  <span>{isStep3Done ? 'Edit Step' : 'Open Step'}</span>
                   <ChevronDown className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -1856,7 +1974,7 @@ export function ModuleGWorkspace({
                     }`}
                   >
                     <div className="mt-0.5 rounded-full p-1 bg-slate-100 text-emerald-800">
-                      <Sparkles className="h-3.5 w-3.5" />
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-slate-900">Help Me Choose &amp; Open One</div>
@@ -1921,6 +2039,35 @@ export function ModuleGWorkspace({
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700">Planned Bank Account Opening Timeline</Label>
+                    <select
+                      value={data.step3.targetOpeningTimeline}
+                      onChange={(e) => setData({ ...data, step3: { ...data.step3, targetOpeningTimeline: e.target.value } })}
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
+                    >
+                      <option value="">— Select planned bank account opening timeline —</option>
+                      <option value="UPON_INCORPORATION">Immediately upon receiving CRO / Companies House CRN</option>
+                      <option value="WITHIN_30_DAYS">Within the next 30 days</option>
+                      <option value="BEFORE_FIRST_REVENUE">Before taking first customer payment or grant drawdown</option>
+                      <option value="SOLE_TRADER_SEPARATE_ACCOUNT">Opening a dedicated Sole Trader business account first</option>
+                      <option value="OTHER">Other / Custom Banking Timeline</option>
+                    </select>
+                    {data.step3.targetOpeningTimeline === 'OTHER' && (
+                      <Input
+                        value={data.step3.customOpeningTimeline || ''}
+                        onChange={(e) =>
+                          setData({
+                            ...data,
+                            step3: { ...data.step3, customOpeningTimeline: e.target.value },
+                          })
+                        }
+                        placeholder="Specify your planned business banking timeline..."
+                        className="mt-2 bg-white text-base sm:text-xs"
+                      />
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="rounded-xl border border-slate-200 bg-white p-4">
                       <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -1955,16 +2102,25 @@ export function ModuleGWorkspace({
               )}
 
               {/* Bottom Step Bar */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenStep(2)}
-                  className="text-xs text-slate-600"
-                >
-                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  <span>Previous: Domain &amp; Email</span>
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenStep(2)}
+                    className="text-xs text-slate-600"
+                  >
+                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    <span>Previous: Domain &amp; Email</span>
+                  </Button>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepLabel="Module G • Step 3"
+                    suggestedQuestion="Compare business bank accounts and confirm which documents are needed to open our dedicated business IBAN."
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -2058,6 +2214,48 @@ export function ModuleGWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-5">
+              {/* Two-State Pill Selector */}
+              <div>
+                <Label className="text-xs font-semibold text-slate-700">Bookkeeping &amp; VAT Setup Status</Label>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, step4: { ...data.step4, state: 'ALREADY_HAVE' } })}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                      data.step4.state === 'ALREADY_HAVE'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="mt-0.5 rounded-full p-1 bg-emerald-100 text-emerald-700">
+                      <Check className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">I Already Have This Set Up</div>
+                      <div className="text-[11px] text-slate-500">Bookkeeping ledger or accountant already active</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, step4: { ...data.step4, state: 'HELP_SETUP' } })}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                      data.step4.state === 'HELP_SETUP'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="mt-0.5 rounded-full p-1 bg-slate-100 text-emerald-800">
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Help Me Set This Up</div>
+                      <div className="text-[11px] text-slate-500">Choose bookkeeping software, VAT threshold posture &amp; perks</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">Accounting / Bookkeeping Software</Label>
@@ -2089,17 +2287,44 @@ export function ModuleGWorkspace({
                     onChange={(e) => setData({ ...data, step4: { ...data.step4, vatStatus: e.target.value as any } })}
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   >
-                    <option value="NOT_REGISTERED">Not Registered (Under statutory turnover threshold)</option>
+                    <option value="NOT_REGISTERED">Not Registered (Under statutory turnover threshold — 0% VAT charged)</option>
                     <option value="PLANNING_TO_REGISTER">Planning Voluntary Registration (To reclaim input VAT)</option>
                     <option value="REGISTERED">Active VAT Registration</option>
+                    <option value="VAT_EXEMPT_SECTOR">VAT-Exempt Sector (Healthcare, Education, Childcare, Financial Services)</option>
+                    <option value="OTHER">Other / Custom VAT Setup</option>
                   </select>
+                  {data.step4.vatStatus === 'OTHER' && (
+                    <Input
+                      value={data.step4.customVatStatus || ''}
+                      onChange={(e) =>
+                        setData({
+                          ...data,
+                          step4: { ...data.step4, customVatStatus: e.target.value },
+                        })
+                      }
+                      placeholder="Specify your custom VAT or tax registration status..."
+                      className="mt-2 bg-white text-base sm:text-xs"
+                    />
+                  )}
                   <p className="text-[11px] text-slate-500">
                     {normalizedCountry === 'IE'
-                      ? 'Ireland: €40k services / €80k goods threshold'
+                      ? 'Ireland: €42,500 services / €85,000 goods rolling 12-month threshold'
                       : 'UK: £90,000 rolling 12-month taxable turnover threshold'}
                   </p>
                 </div>
               </div>
+
+              {data.step4.state === 'HELP_SETUP' && (
+                <label className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/70 p-3 cursor-pointer text-xs font-medium text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(data.confirmedSteps?.includes(4))}
+                    onChange={() => toggleConfirmedStep(4)}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                  />
+                  <span>Confirm my bookkeeping &amp; VAT threshold posture above for my Business Plan</span>
+                </label>
+              )}
 
               {/* External Accountant Checkbox */}
               <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
@@ -2154,16 +2379,25 @@ export function ModuleGWorkspace({
               </div>
 
               {/* Bottom Step Bar */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenStep(3)}
-                  className="text-xs text-slate-600"
-                >
-                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  <span>Previous: Banking</span>
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenStep(3)}
+                    className="text-xs text-slate-600"
+                  >
+                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    <span>Previous: Banking</span>
+                  </Button>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepLabel="Module G • Step 4"
+                    suggestedQuestion="Ask an accountant whether voluntary VAT registration makes sense now or if we should wait until approaching the VAT threshold."
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -2207,7 +2441,9 @@ export function ModuleGWorkspace({
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     {data.step5.hasPublicLiability || data.step5.hasProfessionalIndemnity
                       ? 'Cover active (Public / PI Liability)'
-                      : `Target: ${data.step5.targetCoverageTimeline.replace(/_/g, ' ')}`}
+                      : data.step5.targetCoverageTimeline
+                        ? `Target: ${data.step5.targetCoverageTimeline.replace(/_/g, ' ')}`
+                        : 'Not yet configured — record active cover or choose target timeline'}
                   </p>
                 </div>
               </div>
@@ -2259,6 +2495,48 @@ export function ModuleGWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-5">
+              {/* Two-State Pill Selector */}
+              <div>
+                <Label className="text-xs font-semibold text-slate-700">Startup Insurance Status</Label>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, step5: { ...data.step5, state: 'ALREADY_HAVE' } })}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                      data.step5.state === 'ALREADY_HAVE'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="mt-0.5 rounded-full p-1 bg-emerald-100 text-emerald-700">
+                      <Check className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">I Already Have Active Insurance</div>
+                      <div className="text-[11px] text-slate-500">Record active Public, Employer&apos;s, PI or Product Liability cover</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, step5: { ...data.step5, state: 'HELP_SETUP' } })}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                      data.step5.state === 'HELP_SETUP'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="mt-0.5 rounded-full p-1 bg-slate-100 text-emerald-800">
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Help Me Set This Up</div>
+                      <div className="text-[11px] text-slate-500">Plan when cover starts &amp; match with startup insurers</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-xl border border-slate-200 p-4 space-y-3">
                   <h4 className="text-xs font-bold text-slate-900">Essential Policy Types Checklist</h4>
@@ -2280,7 +2558,7 @@ export function ModuleGWorkspace({
                         onChange={(e) => setData({ ...data, step5: { ...data.step5, hasEmployersLiability: e.target.checked } })}
                         className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
                       />
-                      <span><strong>Employer's Liability</strong> (Statutory when hiring staff)</span>
+                      <span><strong>Employer&apos;s Liability</strong> (Statutory when hiring staff)</span>
                     </label>
 
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
@@ -2313,11 +2591,26 @@ export function ModuleGWorkspace({
                       onChange={(e) => setData({ ...data, step5: { ...data.step5, targetCoverageTimeline: e.target.value } })}
                       className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                     >
+                      <option value="">— Select target insurance timeline —</option>
                       <option value="BEFORE_FIRST_SALE">Before launching first paid customer pilot</option>
                       <option value="BEFORE_FIRST_HIRE">Before hiring first employee</option>
                       <option value="COMMERCIAL_LEASE">When signing commercial lease</option>
                       <option value="ALREADY_ACTIVE">Policies currently active</option>
+                      <option value="OTHER">Other / Custom Insurance Timeline</option>
                     </select>
+                    {data.step5.targetCoverageTimeline === 'OTHER' && (
+                      <Input
+                        value={data.step5.customCoverageTimeline || ''}
+                        onChange={(e) =>
+                          setData({
+                            ...data,
+                            step5: { ...data.step5, customCoverageTimeline: e.target.value },
+                          })
+                        }
+                        placeholder="Specify when you plan to activate commercial insurance..."
+                        className="mt-2 bg-white text-base sm:text-xs"
+                      />
+                    )}
                   </div>
 
                   <PartnerSlot
@@ -2335,16 +2628,25 @@ export function ModuleGWorkspace({
               </div>
 
               {/* Bottom Step Bar */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenStep(4)}
-                  className="text-xs text-slate-600"
-                >
-                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  <span>Previous: VAT &amp; Accounts</span>
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenStep(4)}
+                    className="text-xs text-slate-600"
+                  >
+                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    <span>Previous: VAT &amp; Accounts</span>
+                  </Button>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepLabel="Module G • Step 5"
+                    suggestedQuestion="Confirm exact insurance policies (Public Liability, Product Liability, or Professional Indemnity) required before taking our first customer order."
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -2438,6 +2740,48 @@ export function ModuleGWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-5">
+              {/* Two-State Pill Selector */}
+              <div>
+                <Label className="text-xs font-semibold text-slate-700">Legal, IP &amp; GDPR Status</Label>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, step6: { ...data.step6, state: 'ALREADY_HAVE' } })}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                      data.step6.state === 'ALREADY_HAVE'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="mt-0.5 rounded-full p-1 bg-emerald-100 text-emerald-700">
+                      <Check className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">I Already Have These Executed</div>
+                      <div className="text-[11px] text-slate-500">IP assignment, Privacy Policy &amp; baseline contracts in place</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, step6: { ...data.step6, state: 'HELP_SETUP' } })}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                      data.step6.state === 'HELP_SETUP'
+                        ? 'border-emerald-700 bg-slate-50 ring-1 ring-emerald-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="mt-0.5 rounded-full p-1 bg-slate-100 text-emerald-800">
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Help Me Set This Up</div>
+                      <div className="text-[11px] text-slate-500">Checklist of IP &amp; GDPR essentials plus template partners</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Founder IP Assignment Callout */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                 <div className="flex items-center gap-2">
@@ -2498,16 +2842,27 @@ export function ModuleGWorkspace({
                     </label>
                   </div>
 
-                  {/* Micro-Coaching: Customer Service & Promised Reply Speed (SLA) */}
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-600">
-                    <span className="font-semibold text-slate-800">
-                      Promised Delivery &amp; Reply Speed (SLA):
-                    </span>{' '}
-                    SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem. You can outline your support speed policy in your customer terms.
+                  {/* Plain-English Legal Jargon Helpers */}
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                    <JargonTooltip term="IP_ASSIGNMENT" label="What is IP Assignment?" />
+                    <JargonTooltip term="EULA" label="Terms / EULA" />
+                    <JargonTooltip term="ROPA" label="GDPR Data List (ROPA)" />
                   </div>
                 </div>
 
                 <div className="space-y-4">
+                  {data.step6.state === 'HELP_SETUP' && (
+                    <label className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/70 p-3 cursor-pointer text-xs font-medium text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data.confirmedSteps?.includes(6))}
+                        onChange={() => toggleConfirmedStep(6)}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                      />
+                      <span>Confirm I will execute IP Assignment &amp; GDPR docs prior to incorporation / launch</span>
+                    </label>
+                  )}
+
                   <PartnerSlot
                     slot="OPS_STEP_6_LEGAL_IP"
                     projectId={plan.id}
@@ -2523,16 +2878,25 @@ export function ModuleGWorkspace({
               </div>
 
               {/* Bottom Step Bar */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenStep(5)}
-                  className="text-xs text-slate-600"
-                >
-                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  <span>Previous: Insurance</span>
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenStep(5)}
+                    className="text-xs text-slate-600"
+                  >
+                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    <span>Previous: Insurance</span>
+                  </Button>
+                  <ParkOpenQuestionPopover
+                    planId={plan.id}
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepLabel="Module G • Step 6"
+                    suggestedQuestion="Prepare website Privacy Policy, Terms of Service, and signed IP Assignment agreements before public launch."
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -2689,7 +3053,7 @@ export function ModuleGWorkspace({
                   Operational Foundations Configured
                 </h4>
                 <p className="text-[11px] text-slate-400">
-                  Ready to move on to <strong>Module H: Selling, Sales Assumptions &amp; Pocket Profit</strong>?
+                  Ready to compile your official application or investor dossier in <strong>Module L: Business Plan &amp; Grant Compiler</strong>?
                 </p>
               </div>
               <Button
@@ -2698,11 +3062,15 @@ export function ModuleGWorkspace({
                   if (!isVaultReadonly && onSave) {
                     onSave(data);
                   }
-                  onContinueToModuleH?.();
+                  if (onContinueToModuleL) {
+                    onContinueToModuleL();
+                  } else {
+                    onContinueToModuleH?.();
+                  }
                 }}
                 className="bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold text-white shrink-0"
               >
-                <span>Continue to Module H</span>
+                <span>Continue to Module L: Business Plan Compiler</span>
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   FileCheck2,
   CheckCircle2,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   Copy,
@@ -21,9 +20,11 @@ import {
   Download,
   Printer,
   Check,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
 import type {
   ActiveStartupPlan,
   ModuleKStep5FundingBriefSavedData,
@@ -38,6 +39,12 @@ import {
   saveModuleKStep5FundingBriefAction,
 } from '@/app/actions/module-k';
 import { getPlanTrackCapabilities } from '@/lib/localization';
+import {
+  formatGrantSchemeLabel,
+  formatBridgeStrategyLabel,
+  formatTaxReliefSchemeLabel,
+  formatAdvanceAssuranceStatusLabel,
+} from '@/lib/export/enum-labels';
 
 interface ModuleKFundingBriefStepProps {
   plan: ActiveStartupPlan;
@@ -136,7 +143,7 @@ export function ModuleKFundingBriefStep({
             agency: 'Innovate UK / Regional Growth Hub',
             amountFormatted: `${currencySymbol}50,000 – ${currencySymbol}250,000 (70% co-funded)`,
             timingTrigger: 'Months 4–9 — Post-MVP Commercial Validation',
-            prerequisites: 'Prototype proof of concept, Freedom to Operate (FTO), and 30% matching cash.',
+            prerequisites: 'Prototype proof of concept, Freedom to Operate check (confirming you do not infringe third-party patents), and 30% matching cash.',
             unlocksNext: 'Funds deep technical R&D and work packages (WP1–WP4) without founder dilution.',
           },
           {
@@ -393,7 +400,7 @@ export function ModuleKFundingBriefStep({
 
   const handleCopyBrief = () => {
     const textToCopy = `EXECUTIVE FUNDING STRATEGY DOSSIER: ${plan.title.toUpperCase()}
-Jurisdiction: ${isUK ? 'United Kingdom' : 'Ireland'} (${plan.baseCurrency})
+Jurisdiction: ${trackCaps.countryName} (${plan.baseCurrency})
 Overall Assessor Readiness Score: ${assessorReadinessScore}%
 
 1. EXECUTIVE NARRATIVE:
@@ -406,8 +413,8 @@ ${fundingRoadmap.map((p) => `Phase ${p.phaseNumber}: ${p.grantOrFundingName} (${
 - Target Runway: ${currencySymbol}${(step2?.totalTargetFundingGap || 0).toLocaleString()}
 - Confirmed Founder Skin-in-the-Game: ${currencySymbol}${(step2?.skinInTheGameCash || 0).toLocaleString()}
 - Non-Dilutive Grant Target: ${currencySymbol}${(step3?.expectedGrantDrawdownAmount || 0).toLocaleString()}
-- Reimbursement Float Buffer: ${currencySymbol}${(step3?.actualConfirmedBridgeLiquidity || 0).toLocaleString()} (${step3?.bridgeStrategy || 'Staged Buffer'})
-- Investor Tax Relief: ${step4?.primaryTaxScheme || 'State Tax Relief'} (${currencySymbol}${(step4?.targetReliefRaiseAmount || 0).toLocaleString()} target)
+- Reimbursement Float Buffer: ${currencySymbol}${(step3?.actualConfirmedBridgeLiquidity || 0).toLocaleString()} (${formatBridgeStrategyLabel(step3?.bridgeStrategy, step3?.otherBridgeStrategyText) || 'Staged Buffer'})
+- Investor Tax Relief: ${formatTaxReliefSchemeLabel(step4?.primaryTaxScheme, step4?.otherTaxSchemeText) || 'State Tax Relief'} (${currencySymbol}${(step4?.targetReliefRaiseAmount || 0).toLocaleString()} target)
 
 4. PRE-FLIGHT UNDERWRITER CONTRADICTION AUDIT:
 ${underwriterContradictionFlags.map((flag) => `• ${flag}`).join('\n')}
@@ -439,14 +446,20 @@ ${aiAssessorTip}
       aiAssessorTip,
       moduleLGrantMode,
     },
-    step1SelectedGrantName: step1?.selectedGrantKey?.replace(/_/g, ' '),
+    step1SelectedGrantName: formatGrantSchemeLabel(step1?.selectedGrantKey),
     step1ReadinessScore: step1?.overallAssessorReadinessScore,
     step2TotalGap: step2?.totalTargetFundingGap,
     step2SkinInTheGame: step2?.skinInTheGameCash,
     step3ReimbursementBuffer: step3?.actualConfirmedBridgeLiquidity,
-    step3BridgeStrategy: step3?.bridgeStrategy,
-    step4TaxScheme: step4?.primaryTaxScheme?.replace(/_/g, ' '),
-    step4AdvanceStatus: step4?.advanceAssuranceStatus?.replace(/_/g, ' '),
+    step3BridgeStrategy: formatBridgeStrategyLabel(
+      step3?.bridgeStrategy,
+      step3?.otherBridgeStrategyText
+    ),
+    step4TaxScheme: formatTaxReliefSchemeLabel(
+      step4?.primaryTaxScheme,
+      step4?.otherTaxSchemeText
+    ),
+    step4AdvanceStatus: formatAdvanceAssuranceStatusLabel(step4?.advanceAssuranceStatus),
   });
 
   const handleDownloadHtmlBrief = () => {
@@ -515,8 +528,8 @@ ${aiAssessorTip}
           disabled={isGeneratingAi || isVaultReadonly}
           className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
         >
-          <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-          {isGeneratingAi ? 'Synthesizing Assessor Dossier...' : 'AI Pre-Flight Audit & Brief Synthesis'}
+          <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+          {isGeneratingAi ? 'Synthesizing Assessor Dossier...' : 'Synthesize Pre-Flight Funding Brief'}
         </Button>
       </div>
 
@@ -598,7 +611,7 @@ ${aiAssessorTip}
               </div>
             </div>
             <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600 truncate">
-              {step1 ? `${step1.selectedGrantKey.replace(/_/g, ' ')}` : 'Target Grant Evaluated'}
+              {step1 ? formatGrantSchemeLabel(step1.selectedGrantKey) : 'Target Grant Evaluated'}
             </div>
             <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
               Based on official statutory evaluation guidelines.
@@ -651,7 +664,7 @@ ${aiAssessorTip}
                 : `Deficit: -${currencySymbol}${Math.abs(step3?.liquiditySafetySurplusOrDeficit || 0).toLocaleString()}`}
             </div>
             <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500 truncate">
-              Strategy: {step3?.bridgeStrategy?.replace(/_/g, ' ') || 'Buffer & Terms'}
+              Strategy: {formatBridgeStrategyLabel(step3?.bridgeStrategy, step3?.otherBridgeStrategyText) || 'Buffer & Terms'}
             </p>
           </div>
 
@@ -670,10 +683,10 @@ ${aiAssessorTip}
               </div>
             </div>
             <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-xs text-slate-600 truncate">
-              {step4 ? step4.primaryTaxScheme.replace(/_/g, ' ') : 'SEIS / SURE Relief'}
+              {step4 ? formatTaxReliefSchemeLabel(step4.primaryTaxScheme, step4.otherTaxSchemeText) : 'SEIS / SURE Relief'}
             </div>
             <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500 truncate">
-              Advance: {step4?.advanceAssuranceStatus?.replace(/_/g, ' ') || 'Pending'}
+              Advance: {formatAdvanceAssuranceStatusLabel(step4?.advanceAssuranceStatus) || 'Pending'}
             </p>
           </div>
         </div>
@@ -786,8 +799,8 @@ ${aiAssessorTip}
               disabled={isGeneratingAi || isVaultReadonly}
               className="h-8 border-slate-200 bg-slate-50/80 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
             >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-              {isGeneratingAi ? 'Synthesizing...' : 'Calibrate AI Overview'}
+              <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+              {isGeneratingAi ? 'Synthesizing...' : 'Calibrate Overview'}
             </Button>
 
             <Button
@@ -934,7 +947,7 @@ ${aiAssessorTip}
       {aiAssessorTip && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
           <div className="flex items-start gap-2.5">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <ShieldCheck className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed text-amber-900">
               <span className="font-semibold text-amber-950">Underwriter Insider Tip: </span>
               {aiAssessorTip}
@@ -1005,7 +1018,15 @@ ${aiAssessorTip}
           {isGrantsEnabled ? 'Back to Step 4 (Angel Tax Relief)' : 'Back to Step 1 (Capital Stack)'}
         </Button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ParkOpenQuestionPopover
+            planId={plan.id}
+            moduleCode="MOD_K_GRANTS_FUNDING"
+            stepLabel="Module K • Funding Overview Brief"
+            defaultQuestion="Confirm final grant application sequence and closing dates before compiling our official business plan."
+            disabled={isVaultReadonly}
+            align="end"
+          />
           <Button
             type="button"
             variant="outline"
@@ -1027,7 +1048,7 @@ ${aiAssessorTip}
             disabled={isSaving || isVaultReadonly}
             className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
           >
-            Complete Module K &amp; Compile Plan in Module L
+            Continue to Module L: Business Plan &amp; Grant Compiler
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         </div>
