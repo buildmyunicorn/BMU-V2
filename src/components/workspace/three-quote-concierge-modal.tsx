@@ -251,9 +251,9 @@ export function ThreeQuoteConciergeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 sm:p-4 backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Modal Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 border border-slate-800 bg-slate-950 text-white shadow-xs px-6 py-4 text-white">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 bg-slate-950 px-6 py-4 text-white shadow-xs">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/30 text-white font-bold text-xs border border-emerald-400/40">
@@ -344,7 +344,8 @@ export function ThreeQuoteConciergeModal({
             </Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
             {(validationError || dispatchResult?.error) && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
@@ -362,7 +363,7 @@ export function ThreeQuoteConciergeModal({
               <label className="block text-xs font-bold text-slate-900 mb-1.5">
                 Supplier / Provider Category:
               </label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {[
                   { id: 'DEV_AGENCY' as const, label: 'Dev / Software Agency', icon: '💻' },
                   { id: 'NO_CODE_STUDIO' as const, label: 'E-Commerce / No-Code', icon: '🛍️' },
@@ -374,14 +375,14 @@ export function ThreeQuoteConciergeModal({
                     key={cat.id}
                     type="button"
                     onClick={() => setRfpCategory(cat.id)}
-                    className={`rounded-lg border p-2 text-left text-xs transition ${
+                    className={`rounded-xl border p-3 text-left text-xs transition ${
                       rfpCategory === cat.id
                         ? 'border-emerald-700 bg-emerald-50 font-bold text-slate-900 ring-2 ring-emerald-700/20'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                     }`}
                   >
                     <div className="text-base">{cat.icon}</div>
-                    <div className="mt-1 truncate font-semibold">{cat.label}</div>
+                    <div className="mt-1 truncate text-sm font-semibold text-slate-900">{cat.label}</div>
                   </button>
                 ))}
               </div>
@@ -484,7 +485,7 @@ export function ThreeQuoteConciergeModal({
                 value={scopeSummary}
                 onChange={(e) => setScopeSummary(e.target.value)}
                 placeholder="Describe key features, technical requirements, materials, or required standards..."
-                className="w-full rounded-lg border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
+                className="min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-sm"
               />
             </div>
 
@@ -606,8 +607,10 @@ export function ThreeQuoteConciergeModal({
               </div>
             </div>
 
+            </div>
+
             {/* Bottom Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4">
               <Button
                 type="button"
                 variant="ghost"

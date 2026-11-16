@@ -197,7 +197,7 @@ export function ModuleKWorkspace({
       {/* ========================================================================= */}
       {/* 1. TOP HEADER MODULE CARD (Strict GEMINI.md Baseline Standard)            */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -215,7 +215,7 @@ export function ModuleKWorkspace({
                 ? 'Module K: Non-Dilutive Grants, Loans & Investor Tax Relief Hub'
                 : 'Module K: Capital Stack, Runway & Funding Readiness Hub'}
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               {isGrantsEnabled
                 ? 'Cross-examine your startup plan against official assessor underwriting criteria, match non-dilutive government capital, and bridge grant cashflow timing lag.'
                 : 'Structure your funding blend across founder bootstrapping, commercial bank facilities, angel/seed equity, and non-dilutive startup perks.'}
@@ -287,7 +287,7 @@ export function ModuleKWorkspace({
                       : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
-                <div className="flex items-center justify-between font-bold">
+                <div className="flex items-center justify-between font-semibold text-white/90 text-xs">
                   <span>{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
@@ -295,7 +295,7 @@ export function ModuleKWorkspace({
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}

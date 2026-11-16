@@ -7401,7 +7401,7 @@ export function ModuleDWorkspace({
       {/* ================================================================= */}
       {/* MODULE D HEADER CARD & 6-STEP ACCORDION NAVIGATION               */}
       {/* ================================================================= */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -7416,10 +7416,10 @@ export function ModuleDWorkspace({
                 {countryPack.countryName} ({plan.baseCurrency})
               </Badge>
             </div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module D: What Are We Actually Building? (Product &amp; V1 Blueprint)
             </h1>
-            <p className="max-w-3xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Turn your validated customer insights from Modules A–C into a
               right-sized Version 1 product—automatically tailored to whether
               you are building <strong className="text-white">SaaS/Software</strong>,
@@ -7546,14 +7546,14 @@ export function ModuleDWorkspace({
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
-                  <span>{item.step}</span>
+                  <span className="font-semibold text-white/90 text-xs">{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
                   ) : isStepOpen ? (
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -7881,7 +7881,7 @@ export function ModuleDWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {PRODUCT_TRACK_OPTIONS.map((track) => {
                   const Icon = track.icon;
                   const isSelected = step1Data.productTrack === track.value;
@@ -7891,7 +7891,7 @@ export function ModuleDWorkspace({
                       type="button"
                       disabled={isVaultReadonly}
                       onClick={() => handleSelectTrack(track.value)}
-                      className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                      className={`flex flex-col justify-between rounded-xl border p-4 text-left transition ${
                         isSelected
                           ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                           : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
@@ -7919,10 +7919,10 @@ export function ModuleDWorkspace({
                             {track.badgeText}
                           </Badge>
                         </div>
-                        <div className="mt-2.5 text-xs font-bold text-slate-900">
+                        <div className="mt-2.5 text-sm font-semibold text-slate-900">
                           {track.label}
                         </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
                           {track.subtitle}
                         </p>
                       </div>
@@ -7993,7 +7993,7 @@ export function ModuleDWorkspace({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {activeTrackConfig.formFactorOptions.map((opt) => {
                   const isSelected = step1Data.formFactor === opt.value;
                   return (
@@ -8007,7 +8007,7 @@ export function ModuleDWorkspace({
                           formFactor: opt.value,
                         }))
                       }
-                      className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                      className={`flex flex-col justify-between rounded-xl border p-4 text-left transition ${
                         isSelected
                           ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                           : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
@@ -8015,7 +8015,7 @@ export function ModuleDWorkspace({
                     >
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-slate-900">
+                          <span className="text-sm font-semibold text-slate-900">
                             {opt.label}
                           </span>
                           <Badge
@@ -8029,7 +8029,7 @@ export function ModuleDWorkspace({
                             {opt.tag}
                           </Badge>
                         </div>
-                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                        <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                           {opt.subtitle}
                         </p>
                       </div>
@@ -8088,7 +8088,7 @@ export function ModuleDWorkspace({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {activeTrackConfig.v1ApproachOptions.map((opt) => {
                   const isSelected =
                     step1Data.v1PrototypeApproach === opt.value;
@@ -8103,7 +8103,7 @@ export function ModuleDWorkspace({
                           v1PrototypeApproach: opt.value,
                         }))
                       }
-                      className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                      className={`flex flex-col justify-between rounded-xl border p-4 text-left transition ${
                         isSelected
                           ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20'
                           : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
@@ -8111,7 +8111,7 @@ export function ModuleDWorkspace({
                     >
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-slate-900">
+                          <span className="text-sm font-semibold text-slate-900">
                             {opt.label}
                           </span>
                           <Badge
@@ -8125,7 +8125,7 @@ export function ModuleDWorkspace({
                             {opt.tag}
                           </Badge>
                         </div>
-                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                        <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                           {opt.subtitle}
                         </p>
                       </div>
@@ -8216,7 +8216,7 @@ export function ModuleDWorkspace({
                   <Clock className="h-3.5 w-3.5 text-emerald-700" />
                   Target Time to Put Version 1 into Paying Customers&apos; Hands:
                 </label>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {LAUNCH_TIMELINE_OPTIONS.map((tl) => {
                     const isSelected = step1Data.launchTimeline === tl.value;
                     return (
@@ -8230,16 +8230,16 @@ export function ModuleDWorkspace({
                             launchTimeline: tl.value,
                           }))
                         }
-                        className={`rounded-xl border p-3 text-left transition ${
+                        className={`rounded-xl border p-4 text-left transition ${
                           isSelected
                             ? 'border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-emerald-300'
                         }`}
                       >
-                        <div className="text-xs font-bold text-slate-900">
+                        <div className="text-sm font-semibold text-slate-900">
                           {tl.label}
                         </div>
-                        <p className="mt-1 text-[10px] leading-snug text-slate-600">
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
                           {tl.subtitle}
                         </p>
                       </button>
@@ -13500,7 +13500,7 @@ export function ModuleDWorkspace({
                               produced?)
                             </label>
                             <textarea
-                              rows={2}
+                              rows={3}
                               value={
                                 wp.deliverableMilestone ??
                                 wp.deliverableMilestoneProof ??
@@ -13514,7 +13514,7 @@ export function ModuleDWorkspace({
                                 })
                               }
                               placeholder="e.g., Functional V1 core workflow or physical batch tested..."
-                              className="w-full rounded-lg border border-slate-200 bg-slate-50/70 p-2 text-base text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden sm:text-xs"
+                              className="min-h-[96px] w-full resize-y rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-base text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-hidden sm:text-sm"
                             />
                           </div>
 

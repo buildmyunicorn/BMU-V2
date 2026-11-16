@@ -152,9 +152,9 @@ export function LocalBugCaptureWidget({
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
             {/* Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
@@ -256,7 +256,8 @@ export function LocalBugCaptureWidget({
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+              <form onSubmit={handleSubmit} className="mt-4 flex flex-1 flex-col overflow-hidden">
+                <div className="flex-1 space-y-3.5 overflow-y-auto pr-1">
                 {/* Type Selector Pills (including OTHER) */}
                 <div>
                   <Label className="mb-1.5 block text-xs font-semibold text-slate-700">
@@ -382,7 +383,7 @@ export function LocalBugCaptureWidget({
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe the bug or idea so you remember all the context later..."
-                    className="w-full rounded-lg border border-slate-200 p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
+                    className="min-h-[96px] w-full resize-y rounded-lg border border-slate-200 p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
                   />
                 </div>
 
@@ -398,8 +399,9 @@ export function LocalBugCaptureWidget({
                     className="text-base sm:text-xs"
                   />
                 </div>
+                </div>
 
-                <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-3 flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-3">
                   <Button
                     type="button"
                     variant="outline"

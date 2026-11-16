@@ -654,7 +654,7 @@ export function ModuleGWorkspace({
                     <span className="text-[10px] text-slate-300/60">Pending</span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-slate-200/80">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}

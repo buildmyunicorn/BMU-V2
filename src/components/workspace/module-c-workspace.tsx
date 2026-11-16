@@ -2682,7 +2682,7 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {/* MODULE C TOP HEADER BANNER (GEMINI.md SECTION 6 STANDARD)           */}
       {/* =================================================================== */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -2697,10 +2697,10 @@ export function ModuleCWorkspace({
                 {completedCoreStepsCount} of 3 Core Steps Ready
               </Badge>
             </div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module C: Customer Validation Surveys &amp; 1-on-1 Discovery Hub
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Launch focused <em>Mom-Test</em> customer surveys in their own
               studio window for{' '}
               <strong className="text-white">{plan.title}</strong>, log live
@@ -2903,14 +2903,14 @@ export function ModuleCWorkspace({
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
-                  <span>{item.step}</span>
+                  <span className="font-semibold text-white/90 text-xs">{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
                   ) : isStepOpen ? (
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -3355,9 +3355,9 @@ export function ModuleCWorkspace({
       {/* =================================================================== */}
       {isSurveyStudioOpen && activeSurvey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-xs sm:p-4 lg:p-6">
-          <div className="relative flex max-h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl">
+          <div className="relative flex max-h-[85vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl">
             {/* STUDIO STICKY TOP HEADER BAR */}
-            <div className="border-b border-slate-200 bg-white px-4 py-3.5 shadow-2xs sm:px-6">
+            <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3.5 shadow-2xs sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 {/* Left: Back to Tiles + Survey Switcher + Slug & Status */}
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -4078,7 +4078,7 @@ export function ModuleCWorkspace({
                   Short Welcome Note (Shown at the top of your public survey page)
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   disabled={isSurveyLocked}
                   value={activeSurvey.introDescription}
                   onChange={(e) => {
@@ -4092,7 +4092,7 @@ export function ModuleCWorkspace({
                     );
                   }}
                   placeholder="e.g., Hi! We're researching how people handle this workflow today and what causes the biggest headaches. Takes ~60 seconds — no login or sales pitch!"
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
+                  className="min-h-[96px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
                 />
               </div>
             </CardContent>
@@ -7227,7 +7227,7 @@ export function ModuleCWorkspace({
                 <label className="block text-xs font-semibold text-slate-700">
                   Conversation Channel:
                 </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {INTERVIEW_CHANNEL_OPTIONS.map((ch) => {
                     const isSelected = interviewChannel === ch.code;
                     return (
@@ -7236,14 +7236,14 @@ export function ModuleCWorkspace({
                         type="button"
                         disabled={isVaultReadonly}
                         onClick={() => setInterviewChannel(ch.code)}
-                        className={`flex flex-col items-start rounded-xl border p-2.5 text-left transition-all ${
+                        className={`flex flex-col items-start rounded-xl border p-4 text-left transition-all ${
                           isSelected
                             ? 'border-emerald-700 bg-emerald-50/90 text-slate-950 ring-1 ring-emerald-700'
                             : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
                         }`}
                       >
-                        <span className="text-xs font-bold">{ch.label}</span>
-                        <span className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                        <span className="text-sm font-semibold text-slate-900">{ch.label}</span>
+                        <span className="mt-1 text-xs leading-relaxed text-slate-500">
                           {ch.subtitle}
                         </span>
                       </button>
@@ -7311,7 +7311,7 @@ export function ModuleCWorkspace({
                   value={interviewRawNotes}
                   onChange={(e) => setInterviewRawNotes(e.target.value)}
                   placeholder="e.g., Spoke with Sarah for 15 mins. Last Tuesday her clinic lost 3 hours chasing patient intake forms across email and Excel. They pay €140/mo for an older tool but staff hate using it. She asked if she can test our V1 next month with 2 receptionists..."
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
+                  className="min-h-[140px] w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-base leading-relaxed text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
                 />
               </div>
 
@@ -7381,14 +7381,14 @@ export function ModuleCWorkspace({
                       Best Verbatim Customer Quote:
                     </label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       value={interviewVerbatimQuote}
                       onChange={(e) =>
                         setInterviewVerbatimQuote(e.target.value)
                       }
                       placeholder='"Last Tuesday we spent 3 hours fixing a single batch by hand..."'
-                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
+                      className="min-h-[96px] w-full resize-y rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
                     />
                   </div>
                   <div>
@@ -7396,14 +7396,14 @@ export function ModuleCWorkspace({
                       Current Workaround &amp; Monthly Spend:
                     </label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       value={interviewWorkaroundAndSpend}
                       onChange={(e) =>
                         setInterviewWorkaroundAndSpend(e.target.value)
                       }
                       placeholder="e.g., Shared Excel tracker + €140/mo legacy software + 3 hrs/wk admin."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
+                      className="min-h-[96px] w-full resize-y rounded-xl border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
                     />
                   </div>
                 </div>

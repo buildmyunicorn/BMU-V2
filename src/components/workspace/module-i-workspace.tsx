@@ -3213,7 +3213,7 @@ export function ModuleIWorkspace({
       {/* ------------------------------------------------------------- */}
       {/* MODULE I TOP HEADER BANNER (Strict GEMINI.md Rule 6 Standard) */}
       {/* ------------------------------------------------------------- */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -3228,7 +3228,7 @@ export function ModuleIWorkspace({
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module I: Marketing, 4Ps &amp; First 10 Customers
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Craft an unforgettable 3-second hook, lock your 4Ps strategy, execute your day-1 hustle to win your first 10 customers, and reverse-engineer your marketing budget to prove CAC payback.
             </p>
           </div>
@@ -3300,7 +3300,7 @@ export function ModuleIWorkspace({
                       : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
-                <div className="flex items-center justify-between font-bold">
+                <div className="flex items-center justify-between font-semibold text-white/90 text-xs">
                   <span>{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
@@ -3308,7 +3308,7 @@ export function ModuleIWorkspace({
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -4550,7 +4550,7 @@ export function ModuleIWorkspace({
                   Price Justification vs. Cost of Inaction
                 </Label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={step2Data.priceP2.priceJustification}
                   onChange={(e) =>
                     setStep2Data((prev) => ({
@@ -4562,7 +4562,7 @@ export function ModuleIWorkspace({
                     }))
                   }
                   placeholder="e.g. Doing this manually takes 15 hours of senior executive time (€600+ cost). At €49/month, the customer recovers their investment on day two."
-                  className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
+                  className="min-h-[96px] w-full resize-y rounded-md border border-slate-200 p-2.5 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-400">
                   Explain why a rational buyer views this price as an absolute bargain compared to the cost of doing nothing.
@@ -4705,7 +4705,7 @@ export function ModuleIWorkspace({
                     Biggest Customer Journey Friction Point (Drop-Off Risk)
                   </Label>
                   <textarea
-                    rows={2}
+                    rows={3}
                     value={step2Data.placeP3.customerJourneyFrictionPoint}
                     onChange={(e) =>
                       setStep2Data((prev) => ({
@@ -4717,7 +4717,7 @@ export function ModuleIWorkspace({
                       }))
                     }
                     placeholder="e.g. Hesitation around connecting their real data, or fear of complex migration effort."
-                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
+                    className="min-h-[96px] w-full resize-y rounded-md border border-slate-200 p-2.5 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-400">
                     Where are potential customers most likely to abandon before paying?
@@ -4729,7 +4729,7 @@ export function ModuleIWorkspace({
                     Tactical Friction Mitigation Plan
                   </Label>
                   <textarea
-                    rows={2}
+                    rows={3}
                     value={step2Data.placeP3.frictionMitigationPlan}
                     onChange={(e) =>
                       setStep2Data((prev) => ({
@@ -4741,7 +4741,7 @@ export function ModuleIWorkspace({
                       }))
                     }
                     placeholder="e.g. 1-click sample dataset demo mode, pre-built templates, and personal onboarding assistance."
-                    className="w-full rounded-md border border-slate-200 p-2.5 text-base sm:text-xs text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
+                    className="min-h-[96px] w-full resize-y rounded-md border border-slate-200 p-2.5 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-400">
                     The concrete workflow mechanism you implement to remove that friction completely.
@@ -5565,10 +5565,10 @@ export function ModuleIWorkspace({
                       strategicRationale: e.target.value,
                     }))
                   }
-                  rows={2}
+                  rows={3}
                   disabled={isVaultReadonly}
                   placeholder="Explain why this approach is the fastest and least risky path to 10 customers..."
-                  className="w-full rounded-md border border-slate-300 p-2.5 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+                  className="min-h-[96px] w-full resize-y rounded-md border border-slate-300 p-2.5 text-base sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                 />
               </div>
             </div>
@@ -5727,7 +5727,7 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Pipeline summary counts */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 text-xs">
                 <div className="rounded-lg bg-slate-50 p-2 border border-slate-200">
                   <span className="text-[10px] text-slate-500">Total Pipeline</span>
                   <div className="text-sm font-bold text-slate-900">{step3Data.targetPipeline.length}</div>
@@ -6340,10 +6340,10 @@ export function ModuleIWorkspace({
                           },
                         }))
                       }
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       placeholder="e.g. You're an unproven early-stage startup..."
-                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+                      className="mt-1 min-h-[96px] w-full resize-y rounded-md border border-slate-200 bg-slate-50/70 p-2.5 text-base sm:text-sm italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     />
                   </div>
 
@@ -6440,10 +6440,10 @@ export function ModuleIWorkspace({
                           },
                         }))
                       }
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       placeholder="e.g. Our existing spreadsheet / manual routine isn't perfect..."
-                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+                      className="mt-1 min-h-[96px] w-full resize-y rounded-md border border-slate-200 bg-slate-50/70 p-2.5 text-base sm:text-sm italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     />
                   </div>
 
@@ -6540,10 +6540,10 @@ export function ModuleIWorkspace({
                           },
                         }))
                       }
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       placeholder="e.g. We really like the concept, but we cannot adopt unless..."
-                      className="w-full mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-2 text-base sm:text-xs italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
+                      className="mt-1 min-h-[96px] w-full resize-y rounded-md border border-slate-200 bg-slate-50/70 p-2.5 text-base sm:text-sm italic text-slate-700 leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-hidden"
                     />
                   </div>
 
@@ -7355,7 +7355,7 @@ export function ModuleIWorkspace({
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                     Mod H Y1 Breakeven
@@ -9699,8 +9699,8 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Funnel Waterfall Table */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full text-left text-xs">
+              <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[600px] text-left text-xs">
                   <thead className="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-700">
                     <tr>
                       <th className="py-2.5 px-3">Funnel Stage / Commercial Component</th>

@@ -222,9 +222,9 @@ export function CohortMilestoneClaimModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-xs sm:p-6">
-      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        {/* Top Gradient Header */}
-        <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-900 px-5 py-4 text-white sm:px-6 sm:py-5">
+      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        {/* Top Solid Slate Header */}
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 bg-slate-950 px-5 py-4 text-white sm:px-6 sm:py-5">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-emerald-400/40 bg-emerald-500/20 text-[10px] font-bold text-emerald-200">

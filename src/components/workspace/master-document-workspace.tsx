@@ -342,7 +342,7 @@ export function MasterDocumentWorkspace({
       {/* =================================================================== */}
       {/* TOP MASTER DOCUMENT CONTROL BAR & CHAPTER JUMP NAVIGATION           */}
       {/* =================================================================== */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-md sm:p-6">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -359,10 +359,10 @@ export function MasterDocumentWorkspace({
                 {facts.overallCompletionPercent}% Assembled)
               </span>
             </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               {facts.planTitle} — Whole-Picture Master Document
             </h1>
-            <p className="text-xs text-slate-300 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Prepared by <span className="font-semibold text-white">{facts.founderName}</span> •{' '}
               HQ: <span className="font-semibold text-white">{facts.countryName} ({facts.currency})</span> •{' '}
               Sector: <span className="font-semibold text-white">{facts.industryCategory}</span> •{' '}

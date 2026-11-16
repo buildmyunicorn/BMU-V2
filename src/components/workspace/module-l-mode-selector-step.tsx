@@ -1066,7 +1066,7 @@ export function ModuleLModeSelectorStep({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {availableCompilerModes.map((item) => {
               const isSelected = compilerMode === item.mode;
               const isRecommended = syncedRecommendedMode === item.mode;
@@ -1265,7 +1265,7 @@ export function ModuleLModeSelectorStep({
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     Evaluator Narrative Tone &amp; Voice
                   </label>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {NARRATIVE_TONE_OPTIONS.map((opt) => {
                       const active = narrativeTone === opt.value;
                       return (
@@ -1318,7 +1318,7 @@ export function ModuleLModeSelectorStep({
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     Primary Committee Approval Objective
                   </label>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {availableObjectiveOptions.map((opt) => {
                       const active = submissionObjective === opt.value;
                       return (
@@ -1372,7 +1372,7 @@ export function ModuleLModeSelectorStep({
                 <label className="block text-xs font-semibold text-slate-700">
                   Target Submission Window / Committee Intake
                 </label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {SUBMISSION_WINDOW_OPTIONS.map((win) => {
                     const active = submissionWindow === win.value;
                     return (
@@ -1381,16 +1381,16 @@ export function ModuleLModeSelectorStep({
                         type="button"
                         disabled={isVaultReadonly}
                         onClick={() => setSubmissionWindow(win.value)}
-                        className={`rounded-xl border p-2.5 text-left transition-all ${
+                        className={`rounded-xl border p-4 text-left transition-all ${
                           active
                             ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700/20'
                             : 'border-slate-200 bg-white hover:border-emerald-300'
                         }`}
                       >
-                        <div className="text-xs font-bold text-slate-900">
+                        <div className="text-sm font-semibold text-slate-900">
                           {win.label}
                         </div>
-                        <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                        <div className="mt-1 text-xs leading-relaxed text-slate-500">
                           {win.subtitle}
                         </div>
                       </button>

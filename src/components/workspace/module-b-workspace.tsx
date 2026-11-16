@@ -2134,7 +2134,7 @@ export function ModuleBWorkspace({
   return (
     <div className="space-y-6">
       {/* Module B Top Header Banner */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -2146,10 +2146,10 @@ export function ModuleBWorkspace({
                 Proving People Will Actually Pay
               </Badge>
             </div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module B: Market Research &amp; Competitive Intelligence
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Move from <em>&ldquo;I think everyone needs this&rdquo;</em> to a
               clear first customer group, real competitor research,
               plain-English market sizing, and your unfair competitive edge.
@@ -2265,14 +2265,14 @@ export function ModuleBWorkspace({
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
-                  <span>{item.step}</span>
+                  <span className="font-semibold text-white/90 text-xs">{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
                   ) : isStepOpen ? (
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -2644,7 +2644,7 @@ export function ModuleBWorkspace({
                   : 'Click multiple cards if you sell to both individuals & institutions/businesses'}
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {BUYER_MODEL_OPTIONS.map((opt) => {
                 const IconComp = opt.icon;
                 const selectedIndex = buyerTypes.indexOf(opt.value);
@@ -2655,7 +2655,7 @@ export function ModuleBWorkspace({
                     type="button"
                     disabled={isVaultReadonly}
                     onClick={() => toggleBuyerType(opt.value)}
-                    className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all ${
+                    className={`flex flex-col items-start rounded-xl border p-4 text-left transition-all ${
                       selected
                         ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -2679,10 +2679,10 @@ export function ModuleBWorkspace({
                         </Badge>
                       )}
                     </div>
-                    <div className="mt-2.5 text-xs font-bold text-slate-900">
+                    <div className="mt-2.5 text-sm font-semibold text-slate-900">
                       {opt.label}
                     </div>
-                    <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
                       {opt.subtitle}
                     </p>
                   </button>
@@ -2701,7 +2701,7 @@ export function ModuleBWorkspace({
                   value={otherBuyerModelText}
                   onChange={(e) => setOtherBuyerModelText(e.target.value)}
                   placeholder="e.g., B2B2C via Channel Partners, Non-Profits, Licensing, Franchisees, or Public Sector..."
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -2770,12 +2770,12 @@ export function ModuleBWorkspace({
 
             <textarea
               id="beachhead-segment-input"
-              rows={3}
+              rows={4}
               disabled={isVaultReadonly}
               value={beachheadSegment}
               onChange={(e) => setBeachheadSegment(e.target.value)}
               placeholder="Describe your first core customer group (who will buy from you first?)..."
-              className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
+              className="min-h-[110px] w-full resize-y rounded-xl border border-slate-300 bg-white p-3.5 text-base sm:text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
             />
             <p className="mt-1 text-[11px] text-slate-500">
               Tip: Be specific enough that if you searched LinkedIn or walked
@@ -2877,7 +2877,7 @@ export function ModuleBWorkspace({
                 value={decisionMakerRole}
                 onChange={(e) => setDecisionMakerRole(e.target.value)}
                 placeholder="Who approves the budget or pays for the product?"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-900 focus:border-emerald-700 focus:outline-hidden"
               />
             </div>
           </div>
@@ -2888,7 +2888,7 @@ export function ModuleBWorkspace({
               4. The &ldquo;Why Now?&rdquo; Trigger Moment (What Makes Them Look
               for a Solution Today?)
             </label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {BUYING_TRIGGER_OPTIONS.map((trig) => {
                 const selected = buyingTriggerPreset === trig.value;
                 return (
@@ -2897,19 +2897,19 @@ export function ModuleBWorkspace({
                     type="button"
                     disabled={isVaultReadonly}
                     onClick={() => setBuyingTriggerPreset(trig.value)}
-                    className={`rounded-xl border p-3 text-left transition-all ${
+                    className={`rounded-xl border p-4 text-left transition-all ${
                       selected
                         ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
                       <span>{trig.label}</span>
                       {selected && (
                         <Check className="h-3.5 w-3.5 text-emerald-700" />
                       )}
                     </div>
-                    <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
                       {trig.description}
                     </p>
                   </button>
@@ -2925,14 +2925,14 @@ export function ModuleBWorkspace({
                 Describe the exact moment right before a customer searches for{' '}
                 <strong>{plan.title}</strong>:
               </label>
-              <input
+              <textarea
                 id="trigger-notes-input"
-                type="text"
+                rows={3}
                 disabled={isVaultReadonly}
                 value={buyingTriggerNotes}
                 onChange={(e) => setBuyingTriggerNotes(e.target.value)}
                 placeholder="What happens right before they start searching for your solution?"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                className="min-h-[96px] w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-sm text-slate-900 focus:border-emerald-700 focus:outline-hidden"
               />
             </div>
           </div>
@@ -3756,12 +3756,12 @@ export function ModuleBWorkspace({
               </label>
               <textarea
                 id="why-switch-sentence-input"
-                rows={2}
+                rows={3}
                 disabled={isVaultReadonly}
                 value={whySwitchOneSentence}
                 onChange={(e) => setWhySwitchOneSentence(e.target.value)}
                 placeholder="Write a clear, 1-sentence reason why customers will switch to you..."
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
+                className="min-h-[96px] w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
               />
             </div>
           </div>
@@ -4561,7 +4561,7 @@ export function ModuleBWorkspace({
               {targetMarkets.join(', ')})?
             </p>
 
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-3 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {WIDER_MARKET_SCALE_OPTIONS.map((opt) => {
                 const selected = widerMarketMultiplier === opt.value;
                 return (
@@ -4570,21 +4570,21 @@ export function ModuleBWorkspace({
                     type="button"
                     disabled={isVaultReadonly}
                     onClick={() => setWiderMarketMultiplier(opt.value)}
-                    className={`rounded-xl border p-3 text-left transition-all ${
+                    className={`rounded-xl border p-4 text-left transition-all ${
                       selected
                         ? 'border-emerald-700 bg-emerald-50/90 ring-2 ring-emerald-700/15'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">
+                      <span className="text-sm font-semibold text-slate-900">
                         {opt.label}
                       </span>
                       {selected && (
                         <Check className="h-3.5 w-3.5 text-emerald-700" />
                       )}
                     </div>
-                    <p className="mt-1 text-[11px] leading-snug text-slate-600">
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
                       {opt.description}
                     </p>
                   </button>
@@ -4603,7 +4603,7 @@ export function ModuleBWorkspace({
                   value={otherWiderMarketScaleText}
                   onChange={(e) => setOtherWiderMarketScaleText(e.target.value)}
                   placeholder="e.g., Staying hyper-focused on our domestic niche for 3 years, or expanding 15× via licensing..."
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                 />
               </div>
             )}
@@ -4618,12 +4618,12 @@ export function ModuleBWorkspace({
               </label>
               <textarea
                 id="market-sizing-assumptions-input"
-                rows={2}
+                rows={3}
                 disabled={isVaultReadonly}
                 value={sourceAndAssumptionNotes}
                 onChange={(e) => setSourceAndAssumptionNotes(e.target.value)}
                 placeholder="Write a quick note on where your customer counts come from (or click 'Estimate Customer Counts with AI' above to draft this)..."
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
+                className="min-h-[96px] w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-base sm:text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20 disabled:bg-slate-100"
               />
             </div>
           </div>

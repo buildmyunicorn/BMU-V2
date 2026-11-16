@@ -4040,7 +4040,7 @@ export function ModuleFWorkspace({
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module F: Your Team, Roles &amp; Personal Runway
             </h1>
-            <p className="max-w-3xl text-xs text-slate-300 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               {isSoloFounderMode
                 ? 'Capture your founder bio and relevant background, map realistic weekly hours across the 7 Startup Hats, calculate your personal survival budget, and lock in 8 solo founder readiness & boundary checks.'
                 : 'Build your founder and team bios, assign clear ownership across the 7 Startup Hats, calculate each founder’s personal survival budget, and stress-test co-founder alignment before splitting equity.'}
@@ -4162,7 +4162,7 @@ export function ModuleFWorkspace({
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-semibold text-white/90">
+                  <span className="font-semibold text-white/90 text-xs">
                     {item.step}
                   </span>
                   {item.done ? (
@@ -4173,7 +4173,7 @@ export function ModuleFWorkspace({
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11px] text-slate-200/80">
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">
                   {item.title}
                 </div>
               </button>
@@ -7508,7 +7508,7 @@ export function ModuleFWorkspace({
                       <strong>{activeFounderResponse?.memberName || 'You'}</strong>
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                     {AWKWARD_QUESTION_CATEGORIES.map((cat) => {
                       const catQuestions = AWKWARD_QUESTIONS_CONFIG.filter(
                         (q) => q.category === cat.id
@@ -7524,7 +7524,7 @@ export function ModuleFWorkspace({
                           key={cat.id}
                           type="button"
                           onClick={() => setActiveQuestionCategory(cat.id)}
-                          className={`rounded-lg border p-2 text-left transition-all ${
+                          className={`rounded-lg border p-3 text-left transition-all ${
                             isActive
                               ? 'border-emerald-700 bg-emerald-50 text-slate-900 shadow-2xs ring-1 ring-emerald-700'
                               : isAllDone
@@ -7717,7 +7717,7 @@ export function ModuleFWorkspace({
                                   Specify Your Custom Approach or Nuanced Scenario (Rule 1.5 Edge-Case):
                                 </label>
                                 <textarea
-                                  rows={2}
+                                  rows={3}
                                   value={otherVal}
                                   onChange={(e) =>
                                     handleUpdateOtherText(
@@ -7728,7 +7728,7 @@ export function ModuleFWorkspace({
                                   }
                                   placeholder="Describe your exact compromise, conditional trigger, or hybrid terms..."
                                   disabled={isVaultReadonly}
-                                  className="w-full rounded-lg border border-emerald-300 bg-white p-2 text-base sm:text-xs text-slate-900 focus:border-emerald-700 focus:outline-hidden"
+                                  className="min-h-[96px] w-full resize-y rounded-lg border border-emerald-300 bg-white p-2.5 text-base sm:text-sm text-slate-900 focus:border-emerald-700 focus:outline-hidden"
                                 />
                               </div>
                             )}
@@ -10065,7 +10065,7 @@ export function ModuleFWorkspace({
                               Why It Matters to Assessors / Investors
                             </label>
                             <textarea
-                              rows={2}
+                              rows={3}
                               disabled={isVaultReadonly}
                               value={item.whyItMatters}
                               onChange={(e) =>
@@ -10073,7 +10073,7 @@ export function ModuleFWorkspace({
                                   whyItMatters: e.target.value,
                                 })
                               }
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-base text-slate-700 sm:text-xs"
+                              className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-700 sm:text-sm"
                             />
                           </div>
 
@@ -10082,7 +10082,7 @@ export function ModuleFWorkspace({
                               Recommended Action or Mitigation
                             </label>
                             <textarea
-                              rows={2}
+                              rows={3}
                               disabled={isVaultReadonly}
                               value={item.recommendedActionOrFix}
                               onChange={(e) =>
@@ -10090,7 +10090,7 @@ export function ModuleFWorkspace({
                                   recommendedActionOrFix: e.target.value,
                                 })
                               }
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-base text-slate-700 sm:text-xs"
+                              className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-700 sm:text-sm"
                             />
                           </div>
                         </div>

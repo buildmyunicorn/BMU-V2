@@ -6076,8 +6076,8 @@ export default function WorkspacePage() {
       )}
       {/* Clean Production Top Navigation Bar with Google Cloud-Style Project Switcher */}
       <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur no-print print:hidden">
-        <div className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
             <button
               type="button"
               onClick={openProjectDashboardWithHistory}
@@ -6090,23 +6090,23 @@ export default function WorkspacePage() {
             <button
               type="button"
               onClick={openProjectDashboardWithHistory}
-              className="hidden text-base font-bold tracking-tight text-slate-900 hover:text-emerald-800 sm:inline"
+              className="hidden shrink-0 text-base font-bold tracking-tight text-slate-900 hover:text-emerald-800 xl:inline"
             >
               Startup Preflight
             </button>
 
-            <span className="hidden text-slate-300 sm:inline">/</span>
+            <span className="hidden shrink-0 text-slate-300 xl:inline">/</span>
 
             {/* Google Cloud-Style Top Project Switcher Dropdown */}
-            <div className="relative">
+            <div className="relative min-w-0">
               <button
                 type="button"
                 onClick={() => setPlanDropdownOpen(!planDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-left shadow-2xs transition-all hover:border-emerald-300 hover:bg-white sm:px-3"
+                className="flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-left shadow-2xs transition-all hover:border-emerald-300 hover:bg-white sm:px-3"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="max-w-[140px] truncate text-xs font-bold text-slate-900 sm:max-w-[220px] sm:text-sm">
+                    <span className="max-w-[130px] truncate text-xs font-bold text-slate-900 sm:max-w-[180px] sm:text-sm xl:max-w-[240px]">
                       {currentPlan.title}
                     </span>
                     {currentPlan.isPivot && (
@@ -6116,12 +6116,12 @@ export default function WorkspacePage() {
                     )}
                     <Badge
                       variant="secondary"
-                      className="hidden border-slate-200 bg-white px-1.5 py-0 text-[10px] font-semibold text-slate-700 md:inline-flex"
+                      className="hidden shrink-0 border-slate-200 bg-white px-1.5 py-0 text-[10px] font-semibold text-slate-700 md:inline-flex"
                     >
                       {selectedCountry} • {countryPack.defaultCurrency}
                     </Badge>
                   </div>
-                  <div className="hidden truncate text-[10px] text-slate-500 sm:block">
+                  <div className="hidden max-w-[170px] truncate text-[10px] text-slate-500 sm:block xl:max-w-[260px]">
                     {countryPack.countryName} • {currentPlan.industryCategory} (
                     {session.plans.length || 1}/
                     {activeEntitlement.maxStartupPlans} Projects)
@@ -6366,25 +6366,71 @@ export default function WorkspacePage() {
               )}
             </div>
 
+            {/* Compact Top-Navbar Country Switcher [ 🇮🇪 | 🇬🇧 ] */}
+            <div className="hidden shrink-0 items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 sm:inline-flex">
+              {(
+                [
+                  { code: 'IE' as const, flag: '🇮🇪', label: 'IE' },
+                  { code: 'GB' as const, flag: '🇬🇧', label: 'UK' },
+                ] as const
+              ).map((reg) => {
+                const isSelectedReg = selectedCountry === reg.code;
+                return (
+                  <button
+                    key={reg.code}
+                    type="button"
+                    title={`Switch to ${reg.label} (${reg.code === 'IE' ? 'EUR' : 'GBP'})`}
+                    onClick={() => {
+                      const nextRule = getCountryRulePack(reg.code);
+                      setSelectedCountry(reg.code);
+                      setSession((prev) => {
+                        const next = {
+                          ...prev,
+                          plans: prev.plans.map((pl) =>
+                            pl.id === currentPlan.id
+                              ? {
+                                  ...pl,
+                                  hqCountryCode: reg.code,
+                                  baseCurrency: nextRule.defaultCurrency,
+                                }
+                              : pl
+                          ),
+                        };
+                        saveBmuSession(next);
+                        return next;
+                      });
+                    }}
+                    className={`rounded-md px-2 py-1 text-[11px] font-bold transition-colors ${
+                      isSelectedReg
+                        ? 'bg-emerald-700 text-white shadow-2xs'
+                        : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                    }`}
+                  >
+                    {reg.flag} <span className="hidden lg:inline">{reg.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {!isDashboardOpen && (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={openProjectDashboardWithHistory}
-                className="h-8 border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-emerald-800 hover:bg-slate-100"
+                className="h-8 shrink-0 border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-emerald-800 hover:bg-slate-100"
               >
-                <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
-                <span className="hidden md:inline">Project Dashboard</span>
-                <span className="md:hidden">Dashboard</span>
+                <LayoutGrid className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden xl:inline">Project Dashboard</span>
+                <span className="hidden sm:inline xl:hidden">Dashboard</span>
               </Button>
             )}
           </div>
 
           {/* Right User & Co-Pilot Actions */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs xl:flex">
-              <span className="font-semibold text-slate-800">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs 2xl:flex">
+              <span className="max-w-[120px] truncate font-semibold text-slate-800">
                 {session.user.name}
               </span>
               {(() => {
@@ -6416,12 +6462,12 @@ export default function WorkspacePage() {
               variant="outline"
               size="sm"
               onClick={() => setIsGuideOpen(true)}
-              className="h-8 border-amber-200 bg-amber-50/80 px-2.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+              className="h-8 shrink-0 border-amber-200 bg-amber-50/80 px-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 sm:px-2.5"
               title="How to Use Modules, Button Colors & Jargon Key"
             >
-              <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
-              <span className="hidden md:inline">Module Guide</span>
-              <span className="md:hidden">Guide</span>
+              <Lightbulb className="h-3.5 w-3.5 text-amber-600 sm:mr-1.5" />
+              <span className="hidden xl:inline">Module Guide</span>
+              <span className="hidden sm:inline xl:hidden">Guide</span>
             </Button>
 
             <GlobalFeedbackButton
@@ -6438,10 +6484,10 @@ export default function WorkspacePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="px-2 text-xs text-slate-600 sm:px-3"
+                className="h-8 px-2 text-xs text-slate-600 xl:px-2.5"
               >
-                <User className="h-3.5 w-3.5 text-emerald-700" />
-                <span className="hidden md:inline">My Account</span>
+                <User className="h-3.5 w-3.5 text-emerald-700 xl:mr-1" />
+                <span className="hidden xl:inline">My Account</span>
               </Button>
             </Link>
 
@@ -6451,10 +6497,10 @@ export default function WorkspacePage() {
               size="sm"
               title="Edit Plan Settings"
               onClick={openPlanSettingsModal}
-              className="px-2 text-xs text-slate-600 sm:px-3"
+              className="h-8 px-2 text-xs text-slate-600 xl:px-2.5"
             >
-              <Settings className="h-3.5 w-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Plan Settings</span>
+              <Settings className="h-3.5 w-3.5 text-slate-500 xl:mr-1" />
+              <span className="hidden xl:inline">Plan Settings</span>
             </Button>
 
             <Link
@@ -6468,10 +6514,10 @@ export default function WorkspacePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="px-2 text-xs text-slate-600 sm:px-3"
+                className="h-8 px-2 text-xs text-slate-600 xl:px-2.5"
               >
-                <LogOut className="h-3.5 w-3.5 text-slate-500" />
-                <span className="hidden sm:inline">Sign Out</span>
+                <LogOut className="h-3.5 w-3.5 text-slate-500 xl:mr-1" />
+                <span className="hidden xl:inline">Sign Out</span>
               </Button>
             </Link>
           </div>
@@ -8959,7 +9005,7 @@ export default function WorkspacePage() {
           ) : (
             <>
               {/* Module A Top Header Banner (Matches Module B Top Tile Style) */}
-              <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+              <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
@@ -8967,14 +9013,14 @@ export default function WorkspacePage() {
                         Module A • Ideation &amp; Founder Readiness
                       </Badge>
                       <Badge className="border-emerald-400/30 bg-emerald-500/20 text-emerald-200">
-                        <Sparkles className="mr-1 h-3 w-3" />
+                        <CheckCircle2 className="mr-1 h-3 w-3" />
                         Capture First, Expand Second
                       </Badge>
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+                    <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
                       Module A: Ideation, Concept Canvas &amp; Founder Fit
                     </h1>
-                    <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+                    <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
                       Capture your core idea for <strong className="text-white">{currentPlan.title}</strong>, shape a clean 1-page canvas, set your starting runway, and uncover your blind spots before spending a penny.
                     </p>
                   </div>
@@ -9130,14 +9176,14 @@ export default function WorkspacePage() {
                         }`}
                       >
                         <div className="flex items-center justify-between font-bold">
-                          <span>{item.step}</span>
+                          <span className="font-semibold text-white/90 text-xs">{item.step}</span>
                           {item.done ? (
                             <Check className="h-3.5 w-3.5 text-emerald-300" />
                           ) : isStepOpen ? (
                             <span className="h-2 w-2 rounded-full bg-amber-400" />
                           ) : null}
                         </div>
-                        <div className="mt-0.5 truncate text-[11px]">
+                        <div className="mt-0.5 truncate text-[11px] text-slate-400">
                           {item.title}
                         </div>
                       </button>
@@ -9426,7 +9472,7 @@ export default function WorkspacePage() {
                           onClick={() => setShowImStuckHelper(!showImStuckHelper)}
                           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-slate-100"
                         >
-                          <Wand2 className="h-3.5 w-3.5" />
+                          <HelpCircle className="h-3.5 w-3.5" />
                           I&apos;m Stuck — 3 Simple Prompts
                         </button>
                       </div>
@@ -9455,12 +9501,12 @@ export default function WorkspacePage() {
                     )}
 
                     <textarea
-                      rows={4}
+                      rows={5}
                       disabled={activeEntitlement.isVaultReadonly || isSavingCanvas}
                       value={brainDumpText}
                       onChange={(e) => setBrainDumpText(e.target.value)}
                       placeholder="e.g. Independent plumbers waste 3 hours every Friday chasing unpaid invoices. Our WhatsApp tool sends 1-click payment links with automatic reminders..."
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="min-h-[160px] w-full resize-y rounded-xl border border-slate-300 bg-white p-3.5 text-base sm:text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
 
                     {/* Step 1 Save Bar: Keep Founder's Exact Words */}
@@ -9742,7 +9788,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., Shop owners waste 3 hours every Friday checking expiry dates by hand..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 min-h-[110px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -9767,7 +9813,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder={`e.g., Independent grocers and convenience store owners in ${countryPack.countryName}...`}
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 min-h-[110px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -9792,7 +9838,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., A mobile app that scans shelf barcodes and automatically alerts staff 48 hours before items expire..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 min-h-[110px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -9817,7 +9863,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g., Takes 5 minutes to set up with zero hardware and works directly with their existing pos barcodes..."
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 min-h-[110px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -9842,7 +9888,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder={`e.g., Probably around ${formatPlanCurrency(35, countryPack.defaultCurrency)} per wholesale box or ${formatPlanCurrency(49, countryPack.defaultCurrency)}/month subscription (will test exact price in Module C & Module H)...`}
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-2 min-h-[110px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -10042,7 +10088,7 @@ export default function WorkspacePage() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     1. What is driving you to build this?
                   </label>
-                  <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                     {(
                       [
                         {
@@ -10102,7 +10148,7 @@ export default function WorkspacePage() {
                               primaryMotivation: option.id,
                             })
                           }
-                          className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                          className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                             isSelected
                               ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                               : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -10117,10 +10163,10 @@ export default function WorkspacePage() {
                                 </span>
                               )}
                             </div>
-                            <div className="mt-2 text-xs font-bold text-slate-900">
+                            <div className="mt-2 text-sm font-semibold text-slate-900">
                               {option.title}
                             </div>
-                            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                            <p className="mt-1 text-xs leading-relaxed text-slate-500">
                               {option.subtitle}
                             </p>
                           </div>
@@ -10144,7 +10190,7 @@ export default function WorkspacePage() {
                           })
                         }
                         placeholder="e.g. Spinning out a tool we built internally, or creating a seasonal lifestyle business..."
-                        className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                        className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                       />
                     </div>
                   )}
@@ -10216,7 +10262,7 @@ export default function WorkspacePage() {
                           })
                         }
                         placeholder="e.g. 2 full days per week (Thurs/Fri), or seasonal sprints..."
-                        className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                        className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                       />
                     </div>
                   )}
@@ -10241,7 +10287,7 @@ export default function WorkspacePage() {
                       })
                     }
                     placeholder="e.g. Hit €4,000/month recurring revenue, or help 100 paying customers..."
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                    className="mt-2 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                   />
                 </div>
 
@@ -10419,7 +10465,7 @@ export default function WorkspacePage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   1. Who is building this right now?
                 </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -10472,7 +10518,7 @@ export default function WorkspacePage() {
                             teamStructureType: option.id,
                           })
                         }
-                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                        className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                           isSelected
                             ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -10487,10 +10533,10 @@ export default function WorkspacePage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-900">
+                          <div className="mt-2 text-sm font-semibold text-slate-900">
                             {option.title}
                           </div>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">
                             {option.subtitle}
                           </p>
                         </div>
@@ -10514,7 +10560,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. University research spin-out with 2 advisors, or part-time partnership..."
-                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -10602,7 +10648,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. Using no-code tools + our own consulting team, or partnering with a manufacturer..."
-                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -10616,7 +10662,7 @@ export default function WorkspacePage() {
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Pick the range that feels realistic for your savings — we use this to protect your cashflow and check grant match-funding rules.
                 </p>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -10676,7 +10722,7 @@ export default function WorkspacePage() {
                             startingBudgetBracket: bucket.id,
                           })
                         }
-                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                        className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                           isSelected
                             ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -10691,10 +10737,10 @@ export default function WorkspacePage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-900">
+                          <div className="mt-2 text-sm font-semibold text-slate-900">
                             {bucket.amountLabel}
                           </div>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">
                             {bucket.subtitle}
                           </p>
                         </div>
@@ -10718,7 +10764,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder={`e.g. Funded out of cashflow from existing consultancy, or ${formatPlanCurrency(10000, countryPack.defaultCurrency)} voucher...`}
-                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -10743,7 +10789,7 @@ export default function WorkspacePage() {
                     })
                   }
                   placeholder="Write any extra details about who is involved, what skills you need, or your budget plans..."
-                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                  className="mt-2 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                 />
               </div>
 
@@ -10911,7 +10957,7 @@ export default function WorkspacePage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   1. The Monday Morning Test: How well do you know this industry?
                 </label>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                   {(
                     [
                       {
@@ -10957,7 +11003,7 @@ export default function WorkspacePage() {
                             industryConnection: option.id,
                           })
                         }
-                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                        className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                           isSelected
                             ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -10972,10 +11018,10 @@ export default function WorkspacePage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-900">
+                          <div className="mt-2 text-sm font-semibold text-slate-900">
                             {option.title}
                           </div>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">
                             {option.subtitle}
                           </p>
                         </div>
@@ -11001,7 +11047,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. My advisor runs a trade body, or we already serve an adjacent market..."
-                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -11076,7 +11122,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. On Enterprise Allowance for 12 months, or reinvesting all profits for 2 years..."
-                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -11168,7 +11214,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. No international travel away from family, or no perishable inventory..."
-                      className="mt-1.5 w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-base sm:text-xs text-slate-800 shadow-2xs focus:border-rose-600 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-rose-600 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -11182,7 +11228,7 @@ export default function WorkspacePage() {
                   </label>
                   <JargonTooltip term="VESTING_CLIFF" label="What is 4-Year Vesting?" />
                 </div>
-                <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -11234,7 +11280,7 @@ export default function WorkspacePage() {
                             growthTradeoff: option.id,
                           })
                         }
-                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                        className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                           isSelected
                             ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -11249,10 +11295,10 @@ export default function WorkspacePage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-900">
+                          <div className="mt-2 text-sm font-semibold text-slate-900">
                             {option.title}
                           </div>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">
                             {option.subtitle}
                           </p>
                         </div>
@@ -11276,7 +11322,7 @@ export default function WorkspacePage() {
                         })
                       }
                       placeholder="e.g. Open to strategic industry partner taking a minority stake, or revenue-based financing..."
-                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                      className="mt-1.5 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -11319,7 +11365,7 @@ export default function WorkspacePage() {
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   Every founder has a worry. Naming it now lets us turn it into your #1 validation test in Module B.
                 </p>
-                <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-2.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {(
                     [
                       {
@@ -11379,7 +11425,7 @@ export default function WorkspacePage() {
                             biggestWorryPreset: worry.id,
                           })
                         }
-                        className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
+                        className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                           isSelected
                             ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-600/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -11394,10 +11440,10 @@ export default function WorkspacePage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-1.5 text-xs font-bold text-slate-900">
+                          <div className="mt-1.5 text-sm font-semibold text-slate-900">
                             {worry.title}
                           </div>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">
                             {worry.subtitle}
                           </p>
                         </div>
@@ -11407,7 +11453,7 @@ export default function WorkspacePage() {
                 </div>
 
                 <textarea
-                  rows={2}
+                  rows={3}
                   disabled={activeEntitlement.isVaultReadonly}
                   value={founderRealityCheck.biggestWorryNotes}
                   onChange={(e) =>
@@ -11417,7 +11463,7 @@ export default function WorkspacePage() {
                     })
                   }
                   placeholder="Optional: Tell us what worries you most or where you feel least confident..."
-                  className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
+                  className="mt-2.5 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base sm:text-sm leading-relaxed text-slate-800 shadow-2xs focus:border-emerald-700 focus:outline-none disabled:opacity-60"
                 />
               </div>
 
@@ -12495,7 +12541,7 @@ export default function WorkspacePage() {
           : activeModule;
 
         return (
-          <div className="fixed bottom-3 left-3 right-3 z-40 flex max-h-[82vh] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
+          <div className="fixed bottom-16 left-3 right-3 z-40 flex max-h-[82vh] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:w-96 no-print print:hidden">
             <div className="flex items-center justify-between rounded-t-2xl border-b border-slate-800 bg-slate-950 px-4 py-3 text-white">
               <div className="flex items-center gap-2 min-w-0">
                 <Bot className="h-5 w-5 shrink-0 text-emerald-400" />
@@ -12629,8 +12675,8 @@ export default function WorkspacePage() {
       {/* ========================================================= */}
       {isPlanSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs no-print print:hidden">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-base font-bold text-slate-950">
                   Plan Settings — {currentPlan.title}
@@ -12648,7 +12694,8 @@ export default function WorkspacePage() {
               </button>
             </div>
 
-            <form onSubmit={handleSavePlanSettingsInPlace} className="mt-4 space-y-4">
+            <form onSubmit={handleSavePlanSettingsInPlace} className="mt-4 flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 space-y-4 overflow-y-auto pr-1">
               {planSettingsError && (
                 <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
                   {planSettingsError}
@@ -12750,8 +12797,9 @@ export default function WorkspacePage() {
                   </button>
                 </div>
               </div>
+              </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-4">
                 <Button
                   type="button"
                   variant="ghost"
@@ -12780,8 +12828,8 @@ export default function WorkspacePage() {
       {/* ========================================================= */}
       {paywallModalFeature && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs no-print print:hidden">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between">
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex shrink-0 items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
                   <Lock className="h-5 w-5" />
@@ -12805,7 +12853,8 @@ export default function WorkspacePage() {
               </button>
             </div>
 
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-950">
+            <div className="mt-4 flex-1 overflow-y-auto pr-1">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-950">
               <strong>Feature Requested:</strong> {paywallModalFeature}
             </div>
 
@@ -12930,8 +12979,9 @@ export default function WorkspacePage() {
                 </div>
               </div>
             </div>
+            </div>
 
-            <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3">
+            <div className="mt-4 flex shrink-0 items-center justify-between border-t border-slate-100 pt-3">
               <span className="text-[10px] text-slate-400">
                 Encrypted via Stripe 256-bit SSL
               </span>
@@ -12953,7 +13003,7 @@ export default function WorkspacePage() {
       {/* ========================================================= */}
       {planToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs no-print print:hidden">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">

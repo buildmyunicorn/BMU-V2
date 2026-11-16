@@ -5976,7 +5976,7 @@ export function ModuleJWorkspace({
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {COLLECTION_TIMING_OPTIONS.map((opt) => {
                   const isSelected = step2Data.customerCollectionTiming === opt.id;
                   return (
@@ -5990,7 +5990,7 @@ export function ModuleJWorkspace({
                           customerCollectionTiming: opt.id,
                         }))
                       }
-                      className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
+                      className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                         isSelected
                           ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700 shadow-xs'
                           : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
@@ -6005,10 +6005,10 @@ export function ModuleJWorkspace({
                             <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
                           )}
                         </div>
-                        <div className="mt-2 text-xs font-bold text-slate-900">
+                        <div className="mt-2 text-sm font-semibold text-slate-900">
                           {isPlainMode ? opt.plainTitle : opt.accountantTitle}
                         </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
                           {opt.description}
                         </p>
                       </div>
@@ -6256,7 +6256,7 @@ export function ModuleJWorkspace({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {SEASONALITY_RAMP_OPTIONS.map((opt) => {
                   const isSelected = step2Data.seasonalityRampCurve === opt.id;
                   return (
@@ -6270,7 +6270,7 @@ export function ModuleJWorkspace({
                           seasonalityRampCurve: opt.id,
                         }))
                       }
-                      className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
+                      className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                         isSelected
                           ? 'border-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-700 shadow-xs'
                           : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
@@ -6285,10 +6285,10 @@ export function ModuleJWorkspace({
                             <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
                           )}
                         </div>
-                        <div className="mt-2 text-xs font-bold text-slate-900">
+                        <div className="mt-2 text-sm font-semibold text-slate-900">
                           {isPlainMode ? opt.plainTitle : opt.accountantTitle}
                         </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
                           {opt.description}
                         </p>
                       </div>

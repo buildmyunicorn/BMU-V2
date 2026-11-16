@@ -4160,7 +4160,7 @@ export function ModuleEWorkspace({
       {/* ===================================================================== */}
       {/* MODULE E HEADER CARD & 6-STEP ACCORDION NAVIGATION                    */}
       {/* ===================================================================== */}
-      <div className="rounded-2xl border border-slate-200 border border-slate-800 bg-slate-950 text-white shadow-xs p-6 text-white shadow-sm">
+      <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -4180,10 +4180,10 @@ export function ModuleEWorkspace({
                 {countryPack.countryName} ({plan.baseCurrency})
               </Badge>
             </div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module E: How Your Business Actually Runs Day-to-Day
             </h1>
-            <p className="max-w-3xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               Map a single customer order from checkout to delivery, calculate hands-on maker/founder minutes and unit delivery COGS, schedule equipment &amp; premises (
               {!isGrantsEnabled
                 ? 'tracking CapEx, depreciation, and 3-quote supplier cost benchmarking'
@@ -4307,14 +4307,14 @@ export function ModuleEWorkspace({
                 }`}
               >
                 <div className="flex items-center justify-between font-bold">
-                  <span>{item.step}</span>
+                  <span className="font-semibold text-white/90 text-xs">{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
                   ) : isStepOpen ? (
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -5028,7 +5028,7 @@ export function ModuleEWorkspace({
                               What Happens Step-by-Step?
                             </label>
                             <textarea
-                              rows={2}
+                              rows={3}
                               disabled={isVaultReadonly}
                               value={stage.whatHappensStepByStep}
                               onChange={(e) =>
@@ -5036,7 +5036,7 @@ export function ModuleEWorkspace({
                                   whatHappensStepByStep: e.target.value,
                                 })
                               }
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 sm:text-xs"
+                              className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-800 sm:text-sm"
                             />
                           </div>
                           <div>
@@ -8118,7 +8118,7 @@ export function ModuleEWorkspace({
                       1B. Primary Suppliers, Couriers or Critical Cloud Stack
                     </label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       value={step3Data.primarySuppliersSummary}
                       onChange={(e) =>
@@ -8128,7 +8128,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="List your primary raw material suppliers, contract manufacturers, couriers, or primary cloud/API infrastructure..."
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
+                      className="min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-sm"
                     />
                   </div>
 
@@ -8137,7 +8137,7 @@ export function ModuleEWorkspace({
                       1C. Verified Backup Suppliers &amp; Failover Protocol
                     </label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       disabled={isVaultReadonly}
                       value={step3Data.backupSuppliersSummary}
                       onChange={(e) =>
@@ -8147,7 +8147,7 @@ export function ModuleEWorkspace({
                         }))
                       }
                       placeholder="List your secondary backup suppliers, alternate courier account, or automated cloud failover / circuit-breaker setup..."
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
+                      className="min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-700 focus:outline-hidden sm:text-sm"
                     />
                   </div>
                 </div>
@@ -8463,7 +8463,7 @@ export function ModuleEWorkspace({
                             Trigger
                           </label>
                           <textarea
-                            rows={2}
+                            rows={3}
                             disabled={isVaultReadonly}
                             value={risk.mitigationAndContingencyPlan}
                             onChange={(e) =>
@@ -8472,7 +8472,7 @@ export function ModuleEWorkspace({
                               })
                             }
                             placeholder="Explain your preventative controls today AND what automatic contingency triggers if this risk occurs..."
-                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 focus:border-emerald-700 focus:outline-hidden sm:text-xs"
+                            className="min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-800 focus:border-emerald-700 focus:outline-hidden sm:text-sm"
                           />
                         </div>
                       </div>
@@ -9847,7 +9847,7 @@ export function ModuleEWorkspace({
                         ✅ Measurable Pass / Fail Standard
                       </label>
                       <textarea
-                        rows={2}
+                        rows={3}
                         disabled={isVaultReadonly}
                         value={cp.passFailStandard}
                         onChange={(e) =>
@@ -9856,7 +9856,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="What objective measurement or test must pass before this order/release moves forward?"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
+                        className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-sm"
                       />
                     </div>
 
@@ -9865,7 +9865,7 @@ export function ModuleEWorkspace({
                         🛑 Defect Fallback / Quarantine Action if Failed
                       </label>
                       <textarea
-                        rows={2}
+                        rows={3}
                         disabled={isVaultReadonly}
                         value={cp.defectFallbackAction}
                         onChange={(e) =>
@@ -9874,7 +9874,7 @@ export function ModuleEWorkspace({
                           })
                         }
                         placeholder="What happens immediately if an item or build fails this gate?"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
+                        className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-sm"
                       />
                     </div>
                   </div>
@@ -12636,7 +12636,7 @@ export function ModuleEWorkspace({
                               Why It Matters (Grant &amp; Margin Impact)
                             </label>
                             <textarea
-                              rows={2}
+                              rows={3}
                               disabled={isVaultReadonly}
                               value={item.whyItMatters}
                               onChange={(e) =>
@@ -12644,7 +12644,7 @@ export function ModuleEWorkspace({
                                   whyItMatters: e.target.value,
                                 })
                               }
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base text-slate-800 sm:text-xs"
+                              className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base text-slate-800 sm:text-sm"
                             />
                           </div>
 
@@ -12653,7 +12653,7 @@ export function ModuleEWorkspace({
                               Constructive De-Risking Action
                             </label>
                             <textarea
-                              rows={2}
+                              rows={3}
                               disabled={isVaultReadonly}
                               value={item.recommendedActionOrFix}
                               onChange={(e) =>
@@ -12661,7 +12661,7 @@ export function ModuleEWorkspace({
                                   recommendedActionOrFix: e.target.value,
                                 })
                               }
-                              className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-base text-slate-800 sm:text-xs"
+                              className="mt-1 min-h-[96px] w-full resize-y rounded-lg border border-emerald-300 bg-white px-2.5 py-2 text-base text-slate-800 sm:text-sm"
                             />
                           </div>
                         </div>

@@ -817,7 +817,7 @@ export function ModuleAGrantCheckerStep({
                 Your Grant &amp; Funding Notes (Optional — Saved to your 1-Page Brief)
               </label>
               <textarea
-                rows={2}
+                rows={3}
                 disabled={isVaultReadonly}
                 value={grantCheck.customGrantNotes || ''}
                 onChange={(e) =>
@@ -831,7 +831,7 @@ export function ModuleAGrantCheckerStep({
                     ? 'e.g., Book initial mentor call with local LEO office; check New Frontiers Phase 1 intake dates at TU Dublin / ATU / MTU...'
                     : 'e.g., Prepare Personal Survival Budget for £25k Start Up Loan; apply for HMRC SEIS Advance Assurance after incorporating Ltd...'
                 }
-                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-xs"
+                className="mt-1.5 min-h-[96px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-2xs focus:border-emerald-700 focus:outline-none sm:text-sm"
               />
             </div>
           </div>
@@ -929,11 +929,11 @@ export function ModuleAGrantCheckerStep({
           onClick={() => setIsWizardModalOpen(false)}
         >
           <div
-            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Top Header */}
-            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950 px-5 py-4 text-white">
+            <div className="shrink-0 border-b border-slate-800 bg-slate-950 px-5 py-4 text-white">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
@@ -1007,7 +1007,7 @@ export function ModuleAGrantCheckerStep({
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {(
                       [
                         'PRE_INCORPORATION',
@@ -1090,7 +1090,7 @@ export function ModuleAGrantCheckerStep({
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {(
                       [
                         'EXPORT_SOFTWARE_DIGITAL',
@@ -1173,7 +1173,7 @@ export function ModuleAGrantCheckerStep({
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {(
                       [
                         'PAYE_LAST_6_YRS_GOING_FULLTIME',
@@ -1258,7 +1258,7 @@ export function ModuleAGrantCheckerStep({
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {regionalOptions.map((tier) => {
                       const selected = draftCheck.regionalLocationTier === tier;
                       return (

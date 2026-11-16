@@ -1836,7 +1836,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Module H: Pricing Architect &amp; Pocket Profit Engine
             </h1>
-            <p className="max-w-2xl text-xs text-slate-200/90 sm:text-sm">
+            <p className="max-w-2xl text-xs text-slate-300 sm:text-sm">
               How you get paid, what your profit looks like after Stripe fees and product costs,
               and exactly how many sales you need to pay yourself and your team each year.
             </p>
@@ -1965,7 +1965,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       : 'border-slate-800 bg-slate-900 text-slate-400'
                 }`}
               >
-                <div className="flex items-center justify-between font-bold">
+                <div className="flex items-center justify-between font-semibold text-white/90 text-xs">
                   <span>{item.step}</span>
                   {item.done ? (
                     <Check className="h-3.5 w-3.5 text-emerald-300" />
@@ -1973,7 +1973,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                   ) : null}
                 </div>
-                <div className="mt-0.5 truncate text-[11px]">{item.title}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-400">{item.title}</div>
               </button>
             );
           })}
@@ -2190,7 +2190,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 <span className="text-[11px] text-slate-400">Select one primary model</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {REVENUE_VEHICLE_OPTIONS.map((opt) => {
                   const isSelected = step1Data.revenueModelVehicle === opt.id;
                   const Icon = opt.icon;
@@ -2204,37 +2204,50 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           revenueModelVehicle: opt.id,
                         }))
                       }
-                      className={`relative cursor-pointer rounded-xl border p-3.5 transition-all ${
+                      className={`group relative cursor-pointer rounded-xl border p-4 sm:p-5 transition-all flex flex-col justify-between ${
                         isSelected
-                          ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20 shadow-xs'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                            isSelected
-                              ? 'bg-emerald-700 text-white'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-xs font-bold text-slate-900">{opt.title}</h3>
-                            {opt.isSuggested && (
-                              <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[9px] px-1 py-0">
-                                Suggested
-                              </Badge>
-                            )}
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-700 text-white'
+                                : 'bg-slate-100 text-slate-700 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
                           </div>
-                          <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
-                            {opt.description}
-                          </p>
-                          <p className="mt-1 text-[10px] text-slate-400 italic">{opt.example}</p>
+                          {opt.isSuggested ? (
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold px-2 py-0.5">
+                              Suggested
+                            </Badge>
+                          ) : isSelected ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                              Active
+                            </span>
+                          ) : null}
                         </div>
+
+                        <h3 className="mt-2.5 text-sm font-semibold text-slate-900 group-hover:text-emerald-950">
+                          {opt.title}
+                        </h3>
+                        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                          {opt.description}
+                        </p>
                       </div>
+
+                      {opt.example && (
+                        <div className="mt-3 border-t border-slate-100 pt-2">
+                          <p className="text-[11px] text-slate-400 italic leading-snug">
+                            {opt.example}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2273,7 +2286,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div
                   onClick={() =>
                     setStep1Data((prev) => ({
@@ -2281,31 +2294,36 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       offeringStructure: 'SINGLE_OFFERING',
                     }))
                   }
-                  className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
+                  className={`group cursor-pointer rounded-xl border p-4 sm:p-5 transition-all flex flex-col justify-between ${
                     step1Data.offeringStructure === 'SINGLE_OFFERING'
-                      ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
-                        step1Data.offeringStructure === 'SINGLE_OFFERING'
-                          ? 'bg-emerald-700 text-white'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      <Coins className="h-4 w-4" />
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          step1Data.offeringStructure === 'SINGLE_OFFERING'
+                            ? 'bg-emerald-700 text-white'
+                            : 'bg-slate-100 text-slate-700 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                        }`}
+                      >
+                        <Coins className="h-4 w-4" />
+                      </div>
+                      {step1Data.offeringStructure === 'SINGLE_OFFERING' && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                          Selected
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">
-                        Single Hero Product or Service
-                      </h4>
-                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
-                        One simple, flagship offer. Easiest to market, explain, and fulfill when
-                        launching.
-                      </p>
-                    </div>
+                    <h4 className="mt-2.5 text-sm font-semibold text-slate-900 group-hover:text-emerald-950">
+                      Single Hero Offer
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                      One simple, flagship offer. Easiest to market, explain, and fulfill when launching.
+                    </p>
                   </div>
                 </div>
 
@@ -2316,30 +2334,36 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       offeringStructure: 'MULTI_OFFERING_TIERS',
                     }))
                   }
-                  className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
+                  className={`group cursor-pointer rounded-xl border p-4 sm:p-5 transition-all flex flex-col justify-between ${
                     step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
-                      ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
-                        step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
-                          ? 'bg-emerald-700 text-white'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      <Layers className="h-4 w-4" />
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
+                            ? 'bg-emerald-700 text-white'
+                            : 'bg-slate-100 text-slate-700 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                        }`}
+                      >
+                        <Layers className="h-4 w-4" />
+                      </div>
+                      {step1Data.offeringStructure === 'MULTI_OFFERING_TIERS' && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                          Selected
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">
-                        2 to 3 Offerings, Tiers or Bundles
-                      </h4>
-                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
-                        e.g. Starter vs. Pro vs. Enterprise, or Flagship Item + Gift Bundle.
-                      </p>
-                    </div>
+                    <h4 className="mt-2.5 text-sm font-semibold text-slate-900 group-hover:text-emerald-950">
+                      2 to 3 Offerings / Tiers
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                      e.g. Starter vs. Pro vs. Enterprise, or Flagship Item + Gift Bundle.
+                    </p>
                   </div>
                 </div>
 
@@ -2350,30 +2374,36 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       offeringStructure: 'OTHER',
                     }))
                   }
-                  className={`cursor-pointer rounded-xl border p-3.5 transition-all ${
+                  className={`group cursor-pointer rounded-xl border p-4 sm:p-5 transition-all flex flex-col justify-between ${
                     step1Data.offeringStructure === 'OTHER'
-                      ? 'border-emerald-700 bg-slate-50 ring-2 ring-emerald-700/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
-                        step1Data.offeringStructure === 'OTHER'
-                          ? 'bg-emerald-700 text-white'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      <SlidersHorizontal className="h-4 w-4" />
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          step1Data.offeringStructure === 'OTHER'
+                            ? 'bg-emerald-700 text-white'
+                            : 'bg-slate-100 text-slate-700 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                        }`}
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                      </div>
+                      {step1Data.offeringStructure === 'OTHER' && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                          Custom
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">
-                        Other / Custom Packaging
-                      </h4>
-                      <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
-                        Bespoke quotes, base product + add-on modules, or seasonal drops.
-                      </p>
-                    </div>
+                    <h4 className="mt-2.5 text-sm font-semibold text-slate-900 group-hover:text-emerald-950">
+                      Other / Custom Packaging
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                      Bespoke quotes, base product + add-on modules, or seasonal drops.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -3122,13 +3152,13 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           What is included?
                         </Label>
                         <textarea
-                          rows={2}
+                          rows={3}
                           value={tier.deliverablesSummary}
                           onChange={(e) =>
                             handleUpdateTier(tier.id, { deliverablesSummary: e.target.value })
                           }
                           placeholder="e.g. Core dashboard access, 1,000 credits, email support"
-                          className="w-full mt-1 rounded-md border border-slate-200 p-2 text-base sm:text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                          className="mt-1 min-h-[96px] w-full resize-y rounded-md border border-slate-200 p-2.5 text-base sm:text-sm text-slate-900 focus:border-emerald-600 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -5361,7 +5391,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               </div>
 
               {/* Sales Motion Tiles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {SALES_MOTION_OPTIONS.map((motion) => {
                   const isSelected = step4Data.primarySalesMotion === motion.id;
                   const Icon = motion.icon;
@@ -5391,31 +5421,41 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           salesCycleDays: newCycle,
                         }));
                       }}
-                      className={`cursor-pointer rounded-xl border p-3 transition-all ${
+                      className={`group cursor-pointer rounded-xl border p-4 sm:p-5 transition-all flex flex-col justify-between ${
                         isSelected
-                          ? 'border-emerald-700 bg-slate-50 shadow-xs ring-1 ring-emerald-700'
-                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/50'
+                          ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/20 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-                            isSelected ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-700 text-white'
+                                : 'bg-slate-100 text-slate-700 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          {isSelected && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                              Active
+                            </span>
+                          )}
                         </div>
-                        <div className="font-bold text-xs text-slate-900 truncate flex-1">
+                        <h4 className="mt-2.5 text-sm font-semibold text-slate-900 group-hover:text-emerald-950">
                           {motion.title}
-                        </div>
-                        {isSelected && <Check className="h-3.5 w-3.5 text-emerald-700 shrink-0" />}
+                        </h4>
+                        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                          {motion.subtitle}
+                        </p>
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
-                        {motion.subtitle}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-1.5">
-                        <span>Bench Conv: <strong>{motion.benchmarkConv}</strong></span>
-                        <span>Cycle: <strong>{motion.benchmarkCycle}</strong></span>
+
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2 font-mono tabular-nums">
+                        <span>Conv: <strong className="text-slate-800 font-semibold">{motion.benchmarkConv}</strong></span>
+                        <span>Cycle: <strong className="text-slate-800 font-semibold">{motion.benchmarkCycle}</strong></span>
                       </div>
                     </div>
                   );
@@ -6159,8 +6199,8 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               </div>
 
               {/* Unit Economics Waterfall Table */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full text-left text-xs">
+              <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[600px] text-left text-xs">
                   <thead className="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-700">
                     <tr>
                       <th className="py-2.5 px-3">Revenue / Cost Component</th>

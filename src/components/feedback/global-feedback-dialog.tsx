@@ -295,7 +295,7 @@ export function GlobalFeedbackModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative my-auto w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
+        className="relative my-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
       >
         {/* Close Button */}
         <button
@@ -320,9 +320,9 @@ export function GlobalFeedbackModal({
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
             {/* Header */}
-            <div>
+            <div className="shrink-0 pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-emerald-800">
                   <MessageSquare className="h-4 w-4" />
@@ -336,6 +336,8 @@ export function GlobalFeedbackModal({
                 improve it right away.
               </p>
             </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto pr-1">
 
             {/* Category Selector */}
             <div>
@@ -396,7 +398,7 @@ export function GlobalFeedbackModal({
                       ? 'e.g., It would be great to export this specific table as a CSV or have a dark mode toggle...'
                       : 'Share your questions, feedback, or thoughts...'
                 }
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden sm:text-xs"
+                className="min-h-[96px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-hidden sm:text-sm"
               />
             </div>
 
@@ -441,9 +443,10 @@ export function GlobalFeedbackModal({
                 {errorMessage}
               </div>
             )}
+            </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="mt-3 flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-3">
               <Button
                 type="button"
                 variant="ghost"

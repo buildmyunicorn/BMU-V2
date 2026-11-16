@@ -59,9 +59,9 @@ export function PreflightGuideModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-0 sm:rounded-2xl">
+      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col overflow-hidden p-0 sm:rounded-2xl">
         {/* Header Hero */}
-        <div className="border-b border-slate-800 bg-slate-950 px-6 py-6 text-white sm:px-8">
+        <div className="shrink-0 border-b border-slate-800 bg-slate-950 px-6 py-5 text-white sm:px-8">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40">
               <Lightbulb className="h-4 w-4" />
@@ -119,7 +119,7 @@ export function PreflightGuideModal({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 sm:p-8">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
           {/* TAB 1: SUPPORT TOOLS & BADGES */}
           {activeTab === 'colors' && (
             <div className="space-y-6">
@@ -411,20 +411,20 @@ export function PreflightGuideModal({
               </div>
             </div>
           )}
+        </div>
 
-          {/* Footer Bar */}
-          <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
-            <span className="text-xs text-slate-500">
-              Need help on your current step? Open the <strong className="text-slate-800">Ask Preflight AI</strong> drawer anytime.
-            </span>
-            <Button
-              type="button"
-              onClick={onClose}
-              className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
-            >
-              Got It, Let&apos;s Build
-            </Button>
-          </div>
+        {/* Footer Bar */}
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-white px-6 py-4 sm:px-8">
+          <span className="text-xs text-slate-500">
+            Need help on your current step? Open the <strong className="text-slate-800">Ask Preflight AI</strong> drawer anytime.
+          </span>
+          <Button
+            type="button"
+            onClick={onClose}
+            className="bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800"
+          >
+            Got It, Let&apos;s Build
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
