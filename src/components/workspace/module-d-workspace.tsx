@@ -59,6 +59,10 @@ import {
   ThreeQuoteConciergeModal,
   PlanQuotesTrackerCard,
 } from '@/components/workspace/three-quote-concierge-modal';
+import {
+  FieldParkButton,
+  scrollAndHighlightElement,
+} from '@/components/workspace/field-park-button';
 import type { QuoteSupplierCategory } from '@/lib/partners/partner-catalog-store';
 import {
   getCountryRulePack,
@@ -246,6 +250,7 @@ export interface ModuleDWorkspaceProps {
   whiteLabelEnabled?: boolean;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
 }
 
 export function detectRecommendedProductTrack(
@@ -4805,6 +4810,7 @@ export function ModuleDWorkspace({
   whiteLabelEnabled,
   initialStep,
   highlightTarget,
+  navToken,
 }: ModuleDWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
 
@@ -4844,19 +4850,10 @@ export function ModuleDWorkspace({
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       setOpenStep(initialStep);
       setActiveTab(`STEP_${initialStep}` as any);
-      setTimeout(() => {
-        const targetId = highlightTarget || `module-d-step-${initialStep}`;
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth; // trigger reflow
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
-        }
-      }, 250);
+      const targetId = highlightTarget || `module-d-step-${initialStep}`;
+      scrollAndHighlightElement(targetId);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
   const [showModuleDBriefPreview, setShowModuleDBriefPreview] = useState(true);
 
   const [activeWhyStep, setActiveWhyStep] = useState<number | null>(null);
@@ -4875,8 +4872,6 @@ export function ModuleDWorkspace({
   const [isGeneratingStep6Ai, setIsGeneratingStep6Ai] = useState(false);
   const [briefCopied, setBriefCopied] = useState(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
-  const [parkQuestionInput, setParkQuestionInput] = useState('');
-  const [showParkInput, setShowParkInput] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [quoteModalCategory, setQuoteModalCategory] =
     useState<QuoteSupplierCategory>('DEV_AGENCY');
@@ -7698,16 +7693,6 @@ export function ModuleDWorkspace({
                     </>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowParkInput((prev) => !prev)}
-                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Not Sure Yet? Park Question
-                </Button>
               </div>
             </div>
 
@@ -7859,10 +7844,20 @@ export function ModuleDWorkspace({
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    1. What kind of product or business vehicle are you
-                    building?
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      1. What kind of product or business vehicle are you building?
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={1}
+                      fieldId="mod-d-step1-track"
+                      questionLabel="What kind of product or business vehicle are you building?"
+                      suggestedAction="Confirm product track (Software/SaaS, Physical Goods, Service/Consulting, Marketplace)."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     Your choice here dynamically switches all questions in
                     Module D (e.g., SaaS founders get Web vs. App questions;
@@ -7880,7 +7875,7 @@ export function ModuleDWorkspace({
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent id="mod-d-step1-track" className="space-y-4">
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {PRODUCT_TRACK_OPTIONS.map((track) => {
                   const Icon = track.icon;
@@ -7985,14 +7980,25 @@ export function ModuleDWorkspace({
           {/* QUESTION 2: ADAPTIVE FORM FACTOR / PRODUCT FORMAT */}
           <Card className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-slate-900">
-                {activeTrackConfig.formFactorQuestion}
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-bold text-slate-900">
+                  {activeTrackConfig.formFactorQuestion}
+                </CardTitle>
+                <FieldParkButton
+                  moduleCode="MOD_D_PRODUCT_BUILD"
+                  stepNumber={1}
+                  fieldId="mod-d-step1-form-factor"
+                  questionLabel="What is your product format / form factor?"
+                  suggestedAction="Decide on exact delivery vehicle (Web App, Mobile, Packaged Goods, Artisan Small-Batch)."
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <CardDescription className="text-xs text-slate-600">
                 {activeTrackConfig.formFactorSubtitle}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent id="mod-d-step1-form-factor" className="space-y-4">
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {activeTrackConfig.formFactorOptions.map((opt) => {
                   const isSelected = step1Data.formFactor === opt.value;
@@ -8080,14 +8086,25 @@ export function ModuleDWorkspace({
           {/* QUESTION 3: ADAPTIVE V1 LAUNCH / PROTOTYPE APPROACH */}
           <Card className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-slate-900">
-                {activeTrackConfig.v1ApproachQuestion}
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-bold text-slate-900">
+                  {activeTrackConfig.v1ApproachQuestion}
+                </CardTitle>
+                <FieldParkButton
+                  moduleCode="MOD_D_PRODUCT_BUILD"
+                  stepNumber={1}
+                  fieldId="mod-d-step1-v1-approach"
+                  questionLabel="What is your V1 prototype or launch approach?"
+                  suggestedAction="Define leanest path to first paid transaction or working beta."
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <CardDescription className="text-xs text-slate-600">
                 {activeTrackConfig.v1ApproachSubtitle}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent id="mod-d-step1-v1-approach" className="space-y-4">
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                 {activeTrackConfig.v1ApproachOptions.map((opt) => {
                   const isSelected =
@@ -8211,11 +8228,22 @@ export function ModuleDWorkspace({
             </CardHeader>
             <CardContent className="space-y-5">
               {/* Timeline Selector */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                  <Clock className="h-3.5 w-3.5 text-emerald-700" />
-                  Target Time to Put Version 1 into Paying Customers&apos; Hands:
-                </label>
+              <div id="mod-d-step1-launch-timeline" className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <Clock className="h-3.5 w-3.5 text-emerald-700" />
+                    Target Time to Put Version 1 into Paying Customers&apos; Hands:
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_D_PRODUCT_BUILD"
+                    stepNumber={1}
+                    fieldId="mod-d-step1-launch-timeline"
+                    questionLabel="What is your target V1 launch timeline?"
+                    suggestedAction="Assess build complexity to set a realistic go-live target (e.g. 30, 60, or 90 days)."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {LAUNCH_TIMELINE_OPTIONS.map((tl) => {
                     const isSelected = step1Data.launchTimeline === tl.value;
@@ -8270,10 +8298,21 @@ export function ModuleDWorkspace({
               </div>
 
               {/* Aha! Moment Narrative */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-800">
-                  {activeTrackConfig.ahaPromptLabel}
-                </label>
+              <div id="mod-d-step1-aha-moment" className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    {activeTrackConfig.ahaPromptLabel}
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_D_PRODUCT_BUILD"
+                    stepNumber={1}
+                    fieldId="mod-d-step1-aha-moment"
+                    questionLabel="What is the customer's 60-second Aha! moment?"
+                    suggestedAction="Clarify the immediate value or emotional payoff in their first session or unboxing."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-[11px] text-slate-500">
                   Describe what the customer physically unboxes, clicks, or
                   hears in their very first session—and the immediate win they
@@ -8295,10 +8334,21 @@ export function ModuleDWorkspace({
               </div>
 
               {/* Why This Vehicle Fits */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-800">
-                  {activeTrackConfig.whyFitsLabel}
-                </label>
+              <div id="mod-d-step1-why-fits" className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    {activeTrackConfig.whyFitsLabel}
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_D_PRODUCT_BUILD"
+                    stepNumber={1}
+                    fieldId="mod-d-step1-why-fits"
+                    questionLabel="Why does this product vehicle fit your customer and model?"
+                    suggestedAction="Document why this vehicle protects margins and maximizes speed to revenue."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-[11px] text-slate-500">
                   Grant assessors and investors look for pragmatic founders who
                   choose the simplest vehicle that solves the customer&apos;s
@@ -8322,16 +8372,6 @@ export function ModuleDWorkspace({
               {/* STEP 1 ACTION FOOTER */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput((prev) => !prev)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park a Product Question for Later
-                  </Button>
                   {step1Data.lastSavedAt && (
                     <span className="text-[11px] text-slate-500">
                       Last saved:{' '}
@@ -8383,34 +8423,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Should we offer custom board dimensions or stick strictly to 2 standard sizes for V1?"
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        'Parked question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
+              
             </CardContent>
           </Card>
 
@@ -8646,16 +8659,6 @@ export function ModuleDWorkspace({
                     </>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowParkInput((prev) => !prev)}
-                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Not Sure Yet? Park Question
-                </Button>
               </div>
             </div>
 
@@ -8782,11 +8785,22 @@ export function ModuleDWorkspace({
           </div>
 
           {/* QUESTION 1: PRIMARY SALES & CHECKOUT CHANNEL */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step2-primary-channel" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-slate-900">
-                {activeStep2TrackConfig.channelQuestionTitle}
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-bold text-slate-900">
+                  {activeStep2TrackConfig.channelQuestionTitle}
+                </CardTitle>
+                <FieldParkButton
+                  moduleCode="MOD_D_PRODUCT_BUILD"
+                  stepNumber={2}
+                  fieldId="mod-d-step2-primary-channel"
+                  questionLabel="What is your primary sales channel?"
+                  suggestedAction="Determine whether you own the customer channel (e.g. direct web) or rent via marketplace."
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <CardDescription className="text-xs text-slate-600">
                 {activeStep2TrackConfig.channelQuestionSubtitle}
               </CardDescription>
@@ -8901,13 +8915,24 @@ export function ModuleDWorkspace({
           </Card>
 
           {/* QUESTION 2: SECONDARY / COMPLEMENTARY CHANNELS (MULTI-SELECT) */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step2-secondary-channels" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    2. Secondary / Complementary Sales Channels (Multi-Select)
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      2. Secondary / Complementary Sales Channels (Multi-Select)
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={2}
+                      fieldId="mod-d-step2-secondary-channels"
+                      questionLabel="Which secondary sales channels will you use?"
+                      suggestedAction="Select discovery channels (e.g. Etsy, Amazon, App Store) to complement your primary channel."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     Most smart founders combine a discovery channel with a
                     direct high-margin channel. Select any additional channels
@@ -9043,10 +9068,20 @@ export function ModuleDWorkspace({
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900">
-                        3. Estimated Revenue Split (Primary vs. Secondary
-                        Channels) &amp; Live Pocket Revenue Preview
-                      </CardTitle>
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-base font-bold text-slate-900">
+                          3. Estimated Revenue Split &amp; Channel Fees
+                        </CardTitle>
+                        <FieldParkButton
+                          moduleCode="MOD_D_PRODUCT_BUILD"
+                          stepNumber={2}
+                          fieldId="mod-d-step2-channel-fees"
+                          questionLabel="What is your estimated channel revenue split and platform fee %?"
+                          suggestedAction="Validate take rates and payment gateway fees to prevent margin erosion."
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <CardDescription className="text-xs text-slate-600">
                         Adjust your expected sales split between your Primary
                         Channel (Tile 1) and Secondary Channels (Tile 2) to
@@ -9110,7 +9145,7 @@ export function ModuleDWorkspace({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
                     {/* Left Column: Revenue Split Selector + Channel Math Breakdown */}
-                    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs lg:col-span-7">
+                    <div id="mod-d-step2-channel-fees" className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs lg:col-span-7">
                       <div>
                         <label className="block text-xs font-bold text-slate-900">
                           Select Your Revenue Split (Primary vs. Secondary
@@ -9426,14 +9461,25 @@ export function ModuleDWorkspace({
           })()}
 
           {/* QUESTION 4: ADAPTIVE DELIVERY, ONBOARDING & FULFILLMENT MODEL */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step2-delivery-model" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-slate-900">
-                {activeStep2TrackConfig.deliveryQuestionTitle.replace(
-                  /^3\./,
-                  '4.'
-                )}
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-bold text-slate-900">
+                  {activeStep2TrackConfig.deliveryQuestionTitle.replace(
+                    /^3\./,
+                    '4.'
+                  )}
+                </CardTitle>
+                <FieldParkButton
+                  moduleCode="MOD_D_PRODUCT_BUILD"
+                  stepNumber={2}
+                  fieldId="mod-d-step2-delivery-model"
+                  questionLabel="What is your delivery and fulfillment model?"
+                  suggestedAction="Choose between in-house fulfillment, 3PL warehouse, automated cloud delivery, or hybrid."
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
+              </div>
               <CardDescription className="text-xs text-slate-600">
                 {activeStep2TrackConfig.deliveryQuestionSubtitle}
               </CardDescription>
@@ -9561,10 +9607,21 @@ export function ModuleDWorkspace({
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-800">
-                  {activeStep2TrackConfig.bridgePromptLabel}
-                </label>
+              <div id="mod-d-step2-bridge-strategy" className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    {activeStep2TrackConfig.bridgePromptLabel}
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_D_PRODUCT_BUILD"
+                    stepNumber={2}
+                    fieldId="mod-d-step2-bridge-strategy"
+                    questionLabel="What is your customer bridge strategy (Rent-to-Own)?"
+                    suggestedAction="Design the hook (QR card, portal login, email bonus) that converts marketplace buyers to direct accounts."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-[11px] text-slate-500">
                   Never let a third-party marketplace keep 100% of your customer
                   relationship. Explain the exact mechanism (QR box insert, free
@@ -9586,10 +9643,21 @@ export function ModuleDWorkspace({
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-800">
-                  {activeStep2TrackConfig.whyChannelFitsLabel}
-                </label>
+              <div id="mod-d-step2-why-channel-fits" className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    {activeStep2TrackConfig.whyChannelFitsLabel}
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_D_PRODUCT_BUILD"
+                    stepNumber={2}
+                    fieldId="mod-d-step2-why-channel-fits"
+                    questionLabel="Why does this channel and fulfillment strategy fit your startup?"
+                    suggestedAction="Explain why this channel mix gives you the highest margin and fastest customer access."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-[11px] text-slate-500">
                   Summarize why this channel and fulfillment mix is the smartest
                   way to get your first 50–100 paying customers while protecting
@@ -9628,16 +9696,6 @@ export function ModuleDWorkspace({
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                     Back to Step 1
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput((prev) => !prev)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park a Channel / Fee Question
                   </Button>
                   {step2Data.lastSavedAt && (
                     <span className="text-[11px] text-slate-500">
@@ -9690,34 +9748,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Check exact Amazon FBA size/weight tier for our boxed chopping board before locking RRP..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        'Parked channel question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
+              
             </CardContent>
           </Card>
 
@@ -9948,16 +9979,6 @@ export function ModuleDWorkspace({
                     </>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowParkInput((prev) => !prev)}
-                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Not Sure Yet? Park Question
-                </Button>
               </div>
             </div>
 
@@ -10153,13 +10174,24 @@ export function ModuleDWorkspace({
               v1Items.length > maxRec || highEffortV1Count >= 2;
 
             return (
-              <Card className="border-slate-200 shadow-xs">
+              <Card id="mod-d-step3-scope-board" className="border-slate-200 shadow-xs">
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900">
-                        {activeStep3TrackConfig.boardTitle}
-                      </CardTitle>
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-base font-bold text-slate-900">
+                          {activeStep3TrackConfig.boardTitle}
+                        </CardTitle>
+                        <FieldParkButton
+                          moduleCode="MOD_D_PRODUCT_BUILD"
+                          stepNumber={3}
+                          fieldId="mod-d-step3-scope-board"
+                          questionLabel="What are your Must-Have vs Icebox V1 scope items?"
+                          suggestedAction="Review candidate features and ruthlessly move non-core items to Fast-Follow or V2 Icebox."
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <CardDescription className="text-xs text-slate-600">
                         {activeStep3TrackConfig.boardSubtitle}
                       </CardDescription>
@@ -10739,13 +10771,24 @@ export function ModuleDWorkspace({
           {/* =============================================================== */}
           {/* TILE 2: NON-NEGOTIABLE V1 SCOPE DISCIPLINE RULE (+ OTHER)       */}
           {/* =============================================================== */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step3-scope-discipline" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    2. Your Non-Negotiable Version 1 Scope Discipline &amp; Guardrail Rules
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      2. Your Non-Negotiable Version 1 Scope Discipline &amp; Guardrail Rules
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={3}
+                      fieldId="mod-d-step3-scope-discipline"
+                      questionLabel="What is your core scope guardrail rule?"
+                      suggestedAction="Pick a clear threshold (e.g. Max 3 Core Actions, Under 60 Days, Zero Custom Code)."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     Combines your launch gate deliverables from{' '}
                     <strong className="text-emerald-700">
@@ -11017,10 +11060,21 @@ export function ModuleDWorkspace({
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-800">
-                      {activeStep3TrackConfig.refusePromptLabel}
-                    </label>
+                  <div id="mod-d-step3-refuse-to-build">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        {activeStep3TrackConfig.refusePromptLabel}
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_D_PRODUCT_BUILD"
+                        stepNumber={3}
+                        fieldId="mod-d-step3-refuse-to-build"
+                        questionLabel="What features or variants do you explicitly refuse to build in V1?"
+                        suggestedAction="Clarify scope exclusions to protect your delivery deadline and runway."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={3}
                       disabled={isVaultReadonly}
@@ -11038,10 +11092,21 @@ export function ModuleDWorkspace({
                       className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 shadow-2xs focus:border-emerald-600 focus:outline-hidden sm:text-xs"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-800">
-                      {activeStep3TrackConfig.whyLeanWinsLabel}
-                    </label>
+                  <div id="mod-d-step3-why-lean-wins">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        {activeStep3TrackConfig.whyLeanWinsLabel}
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_D_PRODUCT_BUILD"
+                        stepNumber={3}
+                        fieldId="mod-d-step3-why-lean-wins"
+                        questionLabel="Why does this lean V1 scope win faster?"
+                        suggestedAction="Explain why launching a focused product speeds up customer validation and preserves runway."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={3}
                       disabled={isVaultReadonly}
@@ -11080,16 +11145,6 @@ export function ModuleDWorkspace({
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                     Back to Step 2
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput((prev) => !prev)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park a V1 Scope Question
                   </Button>
                   {step3Data.lastSavedAt && (
                     <span className="text-[11px] text-slate-500">
@@ -11142,34 +11197,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Confirm whether gift-box laser engraving adds more than 4 minutes per unit before Batch 1..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        'Parked scope question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
+              
             </CardContent>
           </Card>
 
@@ -11417,16 +11445,6 @@ export function ModuleDWorkspace({
                     </>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowParkInput((prev) => !prev)}
-                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Not Sure Yet? Park Question
-                </Button>
               </div>
             </div>
 
@@ -11553,13 +11571,24 @@ export function ModuleDWorkspace({
           {/* =============================================================== */}
           {/* SECTION 1: 3-TIER BUILD-VS-BUY BOARD & SMART COST MODEL         */}
           {/* =============================================================== */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step4-build-vs-buy-board" className="border-slate-200 shadow-xs">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    1. 3-Tier Build-vs-Buy Board &amp; Smart Cost Cards
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      1. 3-Tier Build-vs-Buy Board &amp; Smart Cost Cards
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={4}
+                      fieldId="mod-d-step4-build-vs-buy-board"
+                      questionLabel="What components should we build in-house vs buy off-the-shelf vs partner?"
+                      suggestedAction="Evaluate build vs buy costs and timeline impact for your core technical stack."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="mt-0.5 text-xs text-slate-600">
                     Starts completely empty so you are in full control. Add your
                     own items below (smartly detects{' '}
@@ -12302,14 +12331,24 @@ export function ModuleDWorkspace({
           {/* =============================================================== */}
           {/* SECTION 2: CORE IP OWNERSHIP RULE & DEFENSIBILITY CHARTER       */}
           {/* =============================================================== */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step4-ip-rule" className="border-slate-200 shadow-xs">
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    2. Core IP Ownership Rule &amp; Defensible &ldquo;Secret
-                    Sauce&rdquo; Charter
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      2. Core IP Ownership Rule &amp; Secret Sauce Charter
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={4}
+                      fieldId="mod-d-step4-ip-rule"
+                      questionLabel="What is your core IP ownership rule?"
+                      suggestedAction="Clarify ownership of code, formulations, CAD models, or brand trademarks."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="mt-0.5 text-xs text-slate-600">
                     Grant assessors (LEO, Enterprise Ireland, Innovate UK) and
                     SEIS/EIS investors require clarity on what Intellectual
@@ -12417,10 +12456,21 @@ export function ModuleDWorkspace({
 
               {/* Narrative 1: Secret Sauce In-House Narrative */}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-900">
-                    {activeStep4TrackConfig.secretSaucePromptLabel}
-                  </label>
+                <div id="mod-d-step4-secret-sauce" className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-900">
+                      {activeStep4TrackConfig.secretSaucePromptLabel}
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={4}
+                      fieldId="mod-d-step4-secret-sauce"
+                      questionLabel="What is your defensible secret sauce owned 100% in-house?"
+                      suggestedAction="Clarify what core algorithm, design, formulation or logic you own."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <textarea
                     rows={4}
                     value={step4Data.secretSauceInHouseNarrative}
@@ -12440,10 +12490,21 @@ export function ModuleDWorkspace({
                 </div>
 
                 {/* Narrative 2: Why Buy & Partner Saves Time & Capital */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-900">
-                    {activeStep4TrackConfig.whyBuySavesTimeLabel}
-                  </label>
+                <div id="mod-d-step4-why-buy-partner" className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-900">
+                      {activeStep4TrackConfig.whyBuySavesTimeLabel}
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={4}
+                      fieldId="mod-d-step4-why-buy-partner"
+                      questionLabel="Why does buying or partnering for non-core items save time and capital?"
+                      suggestedAction="Document commercial reasoning for using existing tools or suppliers."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <textarea
                     rows={4}
                     value={step4Data.whyBuyAndPartnerSavesTimeNarrative}
@@ -12481,16 +12542,6 @@ export function ModuleDWorkspace({
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                     Back to Step 3 (V1 Scope)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput((prev) => !prev)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park a Supplier / Tool Question
                   </Button>
                   {step4Data.lastSavedAt && (
                     <span className="text-[11px] text-slate-500">
@@ -12553,34 +12604,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Get 3 quotes from kiln-dried timber suppliers or compare Google Cloud vs. Vercel pricing..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        'Parked supplier/tool question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
+              
             </CardContent>
           </Card>
 
@@ -12855,16 +12879,6 @@ export function ModuleDWorkspace({
                     </>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowParkInput((prev) => !prev)}
-                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                  Not Sure Yet? Park Question
-                </Button>
               </div>
             </div>
 
@@ -12972,13 +12986,24 @@ export function ModuleDWorkspace({
           </Card>
 
           {/* STEP 5 PART 1: GRANT-READY WORK PACKAGES (WP1-WP4) BOARD */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step5-work-packages" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    {activeStep5TrackConfig.wpBoardTitle}
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      {activeStep5TrackConfig.wpBoardTitle}
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={5}
+                      fieldId="mod-d-step5-work-packages"
+                      questionLabel="What are your core Work Packages (WP1..n) for grant and build execution?"
+                      suggestedAction="Structure build milestones into 3-4 distinct work packages with budget and timeline."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     {activeStep5TrackConfig.wpBoardSubtitle}
                   </CardDescription>
@@ -13647,13 +13672,24 @@ export function ModuleDWorkspace({
           </Card>
 
           {/* STEP 5 PART 2: 4-STAGE VISUAL SYSTEM / PRODUCTION FLOW DIAGRAM */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step5-flow-stages" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    {activeStep5TrackConfig.flowDiagramTitle}
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      {activeStep5TrackConfig.flowDiagramTitle}
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={5}
+                      fieldId="mod-d-step5-flow-stages"
+                      questionLabel="What are your sequential production or build stages?"
+                      suggestedAction="Map out the sequence from customer trigger through final delivery."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     {activeStep5TrackConfig.flowDiagramSubtitle}
                   </CardDescription>
@@ -13817,13 +13853,24 @@ export function ModuleDWorkspace({
           </Card>
 
           {/* STEP 5 PART 3: EXECUTION CADENCE RULE & TECHNICAL MERIT / DE-RISKING CHARTER */}
-          <Card className="border-slate-200 shadow-xs">
+          <Card id="mod-d-step5-cadence-rule" className="border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    3. Execution Cadence Rule &amp; Grant Technical Merit Charter
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      3. Execution Cadence Rule &amp; Grant Technical Merit Charter
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={5}
+                      fieldId="mod-d-step5-cadence-rule"
+                      questionLabel="What is your execution cadence and review cycle?"
+                      suggestedAction="Choose a regular sprint or milestone review rhythm."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     Select how you run build sprints or production batches (with
                     an Other option for custom cadences) and draft the
@@ -13921,10 +13968,21 @@ export function ModuleDWorkspace({
 
               {/* TWO GRANT NARRATIVE TEXTAREAS */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-800">
-                    {activeStep5TrackConfig.technicalMeritLabel}
-                  </label>
+                <div id="mod-d-step5-tech-merit">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      {activeStep5TrackConfig.technicalMeritLabel}
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={5}
+                      fieldId="mod-d-step5-tech-merit"
+                      questionLabel="What is your technical merit & innovation narrative?"
+                      suggestedAction="Document technical challenges, novelty, or craftsmanship for grant assessors."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mb-1.5 text-[11px] text-slate-500">
                     Why does your WP1–WP4 build plan create genuine technical,
                     craft, or operational differentiation?
@@ -13946,10 +14004,21 @@ export function ModuleDWorkspace({
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-800">
-                    {activeStep5TrackConfig.deRiskingLabel}
-                  </label>
+                <div id="mod-d-step5-de-risking">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      {activeStep5TrackConfig.deRiskingLabel}
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={5}
+                      fieldId="mod-d-step5-de-risking"
+                      questionLabel="How do your validation gates and stage breakdown de-risk delivery?"
+                      suggestedAction="Explain how proof points prevent cost or timeline overruns."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mb-1.5 text-[11px] text-slate-500">
                     How do your validation gates prevent costly rework, supply
                     delays, or compliance bottlenecks?
@@ -14019,15 +14088,6 @@ export function ModuleDWorkspace({
                   >
                     &larr; Back to Step 4
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput(!showParkInput)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    Park Open Question
-                  </Button>
                   {step5Data.lastSavedAt && (
                     <span className="text-[11px] text-emerald-700">
                       ✓ Saved{' '}
@@ -14089,34 +14149,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Confirm lead time for WP2 prototype batch or check Enterprise Ireland Innovation Voucher eligibility..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        'Parked Work Package / milestone question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
+              
             </CardContent>
           </Card>
 
@@ -14790,24 +14823,15 @@ export function ModuleDWorkspace({
                               >
                                 <CheckCircle2 className="mr-1 h-3 w-3" />
                                 {bs.isResolved ? 'Addressed' : 'Mark Addressed'}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
+                              </Button><FieldParkButton
+                                moduleCode="MOD_D_PRODUCT_BUILD"
+                                stepNumber={6}
+                                fieldId={`blindspot-card-${bs.id}`}
+                                questionLabel={`Blind Spot: ${bs.title}`}
+                                suggestedAction={bs.recommendedActionOrFix}
+                                onPark={onParkOpenQuestion}
                                 disabled={isVaultReadonly}
-                                onClick={async () => {
-                                  await onParkOpenQuestion(
-                                    `[Module D Blind Spot] ${bs.title} — Action: ${bs.recommendedActionOrFix}`
-                                  );
-                                  setSaveBanner(
-                                    `Parked "${bs.title}" in your Open Questions Parking Lot!`
-                                  );
-                                }}
-                                className="h-7 border-amber-300 bg-amber-50/80 px-2 text-[11px] text-amber-900 hover:bg-amber-100"
-                              >
-                                Park Question
-                              </Button>
+                              />
                               <button
                                 type="button"
                                 disabled={isVaultReadonly}
@@ -14985,11 +15009,22 @@ export function ModuleDWorkspace({
               {/* ============================================================= */}
               {/* 2. OVERALL V1 PRODUCT & BUILD READINESS CONFIDENCE SELECTOR   */}
               {/* ============================================================= */}
-              <div className="space-y-2.5 border-t border-slate-200 pt-4">
+              <div id="mod-d-step6-readiness-confidence" className="space-y-2.5 border-t border-slate-200 pt-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                    2. Overall V1 Product &amp; Build Readiness Assessment
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                      2. Overall V1 Product &amp; Build Readiness Assessment
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={6}
+                      fieldId="mod-d-step6-readiness-confidence"
+                      questionLabel="What is your overall product build readiness status?"
+                      suggestedAction="Assess readiness to advance from technical planning to physical or operational setup."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500">
                     Where does your Version 1 product blueprint stand right now
                     before moving into Module E (Operations)?
@@ -15062,11 +15097,21 @@ export function ModuleDWorkspace({
               {/* 3. EXECUTIVE PRODUCT BRIEF SUMMARY & DE-RISKING SIGN-OFF      */}
               {/* ============================================================= */}
               <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 lg:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-800">
-                    Executive Product &amp; Technical Brief Summary (Feeds
-                    Module K &amp; 1-Page Export)
-                  </label>
+                <div id="mod-d-step6-executive-summary">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Executive Product &amp; Technical Brief Summary
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={6}
+                      fieldId="mod-d-step6-executive-summary"
+                      questionLabel="Executive Product & Technical Brief Summary"
+                      suggestedAction="Synthesize product scope, tech stack, and build timeline into a 2-3 sentence brief."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mb-1.5 text-[11px] text-slate-500">
                     A crisp 2–3 sentence synthesis of what you are building in
                     V1, how customers access it, and your core cost/milestone
@@ -15087,10 +15132,21 @@ export function ModuleDWorkspace({
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-800">
-                    Key De-Risking &amp; Grant Compliance Sign-Off Statement
-                  </label>
+                <div id="mod-d-step6-derisking-signoff">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Key De-Risking &amp; Grant Compliance Sign-Off Statement
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_D_PRODUCT_BUILD"
+                      stepNumber={6}
+                      fieldId="mod-d-step6-derisking-signoff"
+                      questionLabel="Key De-Risking & Grant Compliance Sign-Off Statement"
+                      suggestedAction="Confirm IP posture and procurement adherence for grant/investor review."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mb-1.5 text-[11px] text-slate-500">
                     How your V1 scope gates, channel margin buffer, and{' '}
                     {countryPack.countryName} IP/procurement rules protect time
@@ -15131,15 +15187,6 @@ export function ModuleDWorkspace({
                     className="text-xs"
                   >
                     &larr; Back to Step 5
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput(!showParkInput)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    Park Open Question
                   </Button>
                   {step6Data.lastSavedAt && (
                     <span className="text-[11px] text-emerald-700">
@@ -15198,34 +15245,7 @@ export function ModuleDWorkspace({
                 </div>
               </div>
 
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Double-check supplier MOQ or confirm IP assignment wording with solicitor..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        'Parked question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
+              
             </CardContent>
           </Card>
 

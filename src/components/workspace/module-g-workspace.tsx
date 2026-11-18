@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PartnerSlot, type PaidConciergeOrderSummary } from '@/components/workspace/partner-slot';
-import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import { FieldParkButton, scrollAndHighlightElement } from '@/components/workspace/field-park-button';
 import { JargonTooltip } from '@/components/workspace/jargon-tooltip';
 import type { SavedConceptCanvas } from '@/lib/auth/session-store';
 
@@ -267,6 +267,8 @@ export interface ModuleGWorkspaceProps {
   onContinueToModuleL?: () => void;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
+  onParkOpenQuestion?: (questionText: string) => Promise<void> | void;
 }
 
 export function ModuleGWorkspace({
@@ -281,6 +283,8 @@ export function ModuleGWorkspace({
   onContinueToModuleL,
   initialStep,
   highlightTarget,
+  navToken,
+  onParkOpenQuestion,
 }: ModuleGWorkspaceProps) {
   const [data, setData] = useState<ModuleGData>(() => {
     const defaults = getDefaultModuleGData();
@@ -314,19 +318,12 @@ export function ModuleGWorkspace({
   useEffect(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 7) {
       setOpenStep(initialStep);
-      setTimeout(() => {
-        const targetId = highlightTarget || `mod-g-step-${initialStep}`;
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth;
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
-        }
-      }, 250);
     }
-  }, [initialStep, highlightTarget]);
+    const targetId = highlightTarget || (initialStep ? `mod-g-step-${initialStep}` : undefined);
+    if (targetId) {
+      scrollAndHighlightElement(targetId);
+    }
+  }, [initialStep, highlightTarget, navToken]);
   const [isCopiedBrief, setIsCopiedBrief] = useState(false);
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
@@ -776,7 +773,18 @@ export function ModuleGWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Two-State Pill Selector */}
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Current Status of this Entity</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label id="mod-g-step1-status" className="text-xs font-semibold text-slate-700">Current Status of this Entity</Label>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={1}
+                    fieldId="mod-g-step1-status"
+                    questionLabel="Company Legal Registration Status"
+                    suggestedAction="Confirm whether already incorporated or staying pre-incorporation to protect grant clocks"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -827,7 +835,18 @@ export function ModuleGWorkspace({
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-4 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-700">Legal Entity Type</Label>
+                      <div className="flex items-center justify-between">
+                        <Label id="mod-g-step1-structure" className="text-xs font-semibold text-slate-700">Legal Entity Type</Label>
+                        <FieldParkButton
+                          moduleCode="MOD_G_LAUNCHPAD"
+                          stepNumber={1}
+                          fieldId="mod-g-step1-structure"
+                          questionLabel="Legal Entity Structure"
+                          suggestedAction="Decide between Private Limited Company (LTD), Sole Trader, or DAC"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <select
                         value={data.step1.legalStructure}
                         onChange={(e) => setData({ ...data, step1: { ...data.step1, legalStructure: e.target.value as any } })}
@@ -842,7 +861,18 @@ export function ModuleGWorkspace({
                     </div>
 
                     <div className="space-y-1.5 sm:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-700">Official Registered Name</Label>
+                      <div className="flex items-center justify-between">
+                        <Label id="mod-g-step1-entity-details" className="text-xs font-semibold text-slate-700">Official Registered Name & Registration Number</Label>
+                        <FieldParkButton
+                          moduleCode="MOD_G_LAUNCHPAD"
+                          stepNumber={1}
+                          fieldId="mod-g-step1-entity-details"
+                          questionLabel="Official Registered Entity Details"
+                          suggestedAction="Enter registered company name and CRO / Companies House CRN"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <Input
                         value={data.step1.registeredEntityName}
                         onChange={(e) => setData({ ...data, step1: { ...data.step1, registeredEntityName: e.target.value } })}
@@ -1201,7 +1231,18 @@ export function ModuleGWorkspace({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Planned Incorporation Timing</Label>
+                    <div className="flex items-center justify-between">
+                      <Label id="mod-g-step1-timeline" className="text-xs font-semibold text-slate-700">Planned Incorporation Timing</Label>
+                      <FieldParkButton
+                        moduleCode="MOD_G_LAUNCHPAD"
+                        stepNumber={1}
+                        fieldId="mod-g-step1-timeline"
+                        questionLabel="Planned Incorporation Timing"
+                        suggestedAction="Decide when to incorporate to preserve the 18-month LEO / 3-year SEIS clock"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <select
                       value={data.step1.targetFormationTimeline}
                       onChange={(e) => setData({ ...data, step1: { ...data.step1, targetFormationTimeline: e.target.value } })}
@@ -1262,13 +1303,7 @@ export function ModuleGWorkspace({
                   <span className="text-[11px] text-slate-500">
                     {isStep1Done ? '✅ Legal registration status recorded' : '⚠️ Action needed to complete legal setup'}
                   </span>
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_G_LAUNCHPAD"
-                    stepLabel="Module G • Step 1"
-                    suggestedQuestion="Should we start as a Sole Trader first or incorporate a Limited Company (LTD) immediately for grant/liability eligibility?"
-                    disabled={isVaultReadonly}
-                  />
+
                 </div>
                 <Button
                   size="sm"
@@ -1421,7 +1456,18 @@ export function ModuleGWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Two-State Pill Selector */}
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Domain &amp; Business Email Status</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label id="mod-g-step2-status" className="text-xs font-semibold text-slate-700">Domain &amp; Business Email Status</Label>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={2}
+                    fieldId="mod-g-step2-status"
+                    questionLabel="Domain & Business Email Status"
+                    suggestedAction="Confirm whether you already own your domain or need to check availability"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -1676,9 +1722,20 @@ export function ModuleGWorkspace({
               {/* Form Inputs (Saved Back Into Plan) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Confirmed Primary Domain Name (Saved in Plan)
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label id="mod-g-step2-domain" className="text-xs font-semibold text-slate-700">
+                      Confirmed Primary Domain Name (Saved in Plan)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={2}
+                      fieldId="mod-g-step2-domain"
+                      questionLabel="Primary Domain Name"
+                      suggestedAction="Confirm official .ie / .co.uk / .com domain name for company"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <Input
                       value={data.step2.primaryDomain}
@@ -1706,9 +1763,20 @@ export function ModuleGWorkspace({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Official Founder / Contact Email
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label id="mod-g-step2-email" className="text-xs font-semibold text-slate-700">
+                      Official Founder / Contact Email
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={2}
+                      fieldId="mod-g-step2-email"
+                      questionLabel="Official Business Email"
+                      suggestedAction="Set up professional @company email instead of consumer webmail for grants & investors"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     value={data.step2.officialBusinessEmail}
                     onChange={(e) =>
@@ -1732,9 +1800,20 @@ export function ModuleGWorkspace({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Business Email &amp; Workspace Platform
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label id="mod-g-step2-provider" className="text-xs font-semibold text-slate-700">
+                      Business Email &amp; Workspace Platform
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={2}
+                      fieldId="mod-g-step2-provider"
+                      questionLabel="Email & Workspace Platform"
+                      suggestedAction="Choose Google Workspace, Microsoft 365, or host webmail"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <select
                     value={data.step2.emailProvider}
                     onChange={(e) =>
@@ -1837,13 +1916,7 @@ export function ModuleGWorkspace({
                     <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                     <span>Previous: Legal Entity</span>
                   </Button>
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_G_LAUNCHPAD"
-                    stepLabel="Module G • Step 2"
-                    suggestedQuestion="Confirm final company domain name (.ie / .co.uk / .com) and set up a dedicated @company email before customer outreach."
-                    disabled={isVaultReadonly}
-                  />
+
                 </div>
                 <Button
                   size="sm"
@@ -1944,7 +2017,18 @@ export function ModuleGWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Two-State Pill Selector */}
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Bank Account Setup Status</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label id="mod-g-step3-status" className="text-xs font-semibold text-slate-700">Bank Account Setup Status</Label>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={3}
+                    fieldId="mod-g-step3-status"
+                    questionLabel="Business Bank Account Setup Status"
+                    suggestedAction="Confirm whether you have an active dedicated business bank account or need to choose a provider"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -1988,7 +2072,18 @@ export function ModuleGWorkspace({
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-4 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-1.5 sm:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-700">Banking Provider</Label>
+                      <div className="flex items-center justify-between">
+                        <Label id="mod-g-step3-banking" className="text-xs font-semibold text-slate-700">Banking Provider &amp; Dedicated IBAN</Label>
+                        <FieldParkButton
+                          moduleCode="MOD_G_LAUNCHPAD"
+                          stepNumber={3}
+                          fieldId="mod-g-step3-banking"
+                          questionLabel="Banking Provider & Dedicated IBAN"
+                          suggestedAction="Record official business banking institution (e.g. Revolut Business, AIB, BOI, Barclays, Tide)"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <select
                         value={data.step3.bankProvider}
                         onChange={(e) => setData({ ...data, step3: { ...data.step3, bankProvider: e.target.value as any } })}
@@ -2040,7 +2135,18 @@ export function ModuleGWorkspace({
               ) : (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Planned Bank Account Opening Timeline</Label>
+                    <div className="flex items-center justify-between">
+                      <Label id="mod-g-step3-timeline" className="text-xs font-semibold text-slate-700">Planned Bank Account Opening Timeline</Label>
+                      <FieldParkButton
+                        moduleCode="MOD_G_LAUNCHPAD"
+                        stepNumber={3}
+                        fieldId="mod-g-step3-timeline"
+                        questionLabel="Planned Bank Opening Timeline"
+                        suggestedAction="Choose target timeline for opening your dedicated business account"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <select
                       value={data.step3.targetOpeningTimeline}
                       onChange={(e) => setData({ ...data, step3: { ...data.step3, targetOpeningTimeline: e.target.value } })}
@@ -2113,13 +2219,7 @@ export function ModuleGWorkspace({
                     <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                     <span>Previous: Domain &amp; Email</span>
                   </Button>
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_G_LAUNCHPAD"
-                    stepLabel="Module G • Step 3"
-                    suggestedQuestion="Compare business bank accounts and confirm which documents are needed to open our dedicated business IBAN."
-                    disabled={isVaultReadonly}
-                  />
+
                 </div>
                 <Button
                   size="sm"
@@ -2216,7 +2316,18 @@ export function ModuleGWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Two-State Pill Selector */}
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Bookkeeping &amp; VAT Setup Status</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label id="mod-g-step4-status" className="text-xs font-semibold text-slate-700">Bookkeeping &amp; VAT Setup Status</Label>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={4}
+                    fieldId="mod-g-step4-status"
+                    questionLabel="Bookkeeping & VAT Setup Status"
+                    suggestedAction="Confirm whether accounting and VAT registration is active or needs setup"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -2258,7 +2369,18 @@ export function ModuleGWorkspace({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Accounting / Bookkeeping Software</Label>
+                  <div className="flex items-center justify-between">
+                    <Label id="mod-g-step4-accounting" className="text-xs font-semibold text-slate-700">Accounting / Bookkeeping Software</Label>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={4}
+                      fieldId="mod-g-step4-accounting"
+                      questionLabel="Accounting / Bookkeeping Software"
+                      suggestedAction="Choose between Xero, QuickBooks, Surf Accounts, or manual ledger"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <select
                     value={data.step4.softwareChoice}
                     onChange={(e) => setData({ ...data, step4: { ...data.step4, softwareChoice: e.target.value as any } })}
@@ -2281,7 +2403,18 @@ export function ModuleGWorkspace({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">VAT Registration Status</Label>
+                  <div className="flex items-center justify-between">
+                    <Label id="mod-g-step4-vat" className="text-xs font-semibold text-slate-700">VAT Registration Status</Label>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={4}
+                      fieldId="mod-g-step4-vat"
+                      questionLabel="VAT Registration Status"
+                      suggestedAction="Decide whether to register voluntarily for VAT or stay unregistered under threshold"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <select
                     value={data.step4.vatStatus}
                     onChange={(e) => setData({ ...data, step4: { ...data.step4, vatStatus: e.target.value as any } })}
@@ -2330,15 +2463,26 @@ export function ModuleGWorkspace({
               <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">Appointed Certified Accountant</h4>
+                    <h4 id="mod-g-step4-accountant" className="text-xs font-bold text-slate-900">Appointed Certified Accountant</h4>
                     <p className="text-[11px] text-slate-500">Do you have an external chartered accountant or tax advisor?</p>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={data.step4.hasAccountant}
-                    onChange={(e) => setData({ ...data, step4: { ...data.step4, hasAccountant: e.target.checked } })}
-                    className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
-                  />
+                  <div className="flex items-center gap-2">
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={4}
+                      fieldId="mod-g-step4-accountant"
+                      questionLabel="Appointed External Accountant"
+                      suggestedAction="Confirm external chartered accountant or tax advisor for year-end compliance"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                    <input
+                      type="checkbox"
+                      checked={data.step4.hasAccountant}
+                      onChange={(e) => setData({ ...data, step4: { ...data.step4, hasAccountant: e.target.checked } })}
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                    />
+                  </div>
                 </div>
 
                 {data.step4.hasAccountant && (
@@ -2390,13 +2534,7 @@ export function ModuleGWorkspace({
                     <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                     <span>Previous: Banking</span>
                   </Button>
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_G_LAUNCHPAD"
-                    stepLabel="Module G • Step 4"
-                    suggestedQuestion="Ask an accountant whether voluntary VAT registration makes sense now or if we should wait until approaching the VAT threshold."
-                    disabled={isVaultReadonly}
-                  />
+
                 </div>
                 <Button
                   size="sm"
@@ -2497,7 +2635,18 @@ export function ModuleGWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Two-State Pill Selector */}
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Startup Insurance Status</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label id="mod-g-step5-status" className="text-xs font-semibold text-slate-700">Startup Insurance Status</Label>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={5}
+                    fieldId="mod-g-step5-status"
+                    questionLabel="Startup Insurance Status"
+                    suggestedAction="Confirm whether you have active business insurance or need to plan cover"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -2539,7 +2688,18 @@ export function ModuleGWorkspace({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-xl border border-slate-200 p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-900">Essential Policy Types Checklist</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 id="mod-g-step5-insurance" className="text-xs font-bold text-slate-900">Essential Policy Types Checklist</h4>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={5}
+                      fieldId="mod-g-step5-insurance"
+                      questionLabel="Essential Insurance Policies"
+                      suggestedAction="Confirm Public Liability, Employer Liability, PI, or Product Liability needs"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <div className="space-y-2.5">
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                       <input
@@ -2585,7 +2745,18 @@ export function ModuleGWorkspace({
 
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Target Coverage Timeline</Label>
+                    <div className="flex items-center justify-between">
+                      <Label id="mod-g-step5-timeline" className="text-xs font-semibold text-slate-700">Target Coverage Timeline</Label>
+                      <FieldParkButton
+                        moduleCode="MOD_G_LAUNCHPAD"
+                        stepNumber={5}
+                        fieldId="mod-g-step5-timeline"
+                        questionLabel="Target Insurance Coverage Timeline"
+                        suggestedAction="Choose when policies need to be active (before first sale, hire, or lease)"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <select
                       value={data.step5.targetCoverageTimeline}
                       onChange={(e) => setData({ ...data, step5: { ...data.step5, targetCoverageTimeline: e.target.value } })}
@@ -2639,13 +2810,7 @@ export function ModuleGWorkspace({
                     <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                     <span>Previous: VAT &amp; Accounts</span>
                   </Button>
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_G_LAUNCHPAD"
-                    stepLabel="Module G • Step 5"
-                    suggestedQuestion="Confirm exact insurance policies (Public Liability, Product Liability, or Professional Indemnity) required before taking our first customer order."
-                    disabled={isVaultReadonly}
-                  />
+
                 </div>
                 <Button
                   size="sm"
@@ -2742,7 +2907,18 @@ export function ModuleGWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Two-State Pill Selector */}
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Legal, IP &amp; GDPR Status</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label id="mod-g-step6-status" className="text-xs font-semibold text-slate-700">Legal, IP &amp; GDPR Status</Label>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={6}
+                    fieldId="mod-g-step6-status"
+                    questionLabel="Legal, IP & GDPR Status"
+                    suggestedAction="Confirm whether IP assignment, privacy policy, and baseline contracts are executed"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -2784,11 +2960,22 @@ export function ModuleGWorkspace({
 
               {/* Founder IP Assignment Callout */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-800" />
-                  <h4 className="text-xs font-bold text-slate-950">
-                    The #1 Diligence Showstopper: Founder IP Assignment
-                  </h4>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-800" />
+                    <h4 id="mod-g-step6-ip" className="text-xs font-bold text-slate-950">
+                      The #1 Diligence Showstopper: Founder IP Assignment
+                    </h4>
+                  </div>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={6}
+                    fieldId="mod-g-step6-ip"
+                    questionLabel="Founder IP Assignment Agreement"
+                    suggestedAction="Assign prior source code, designs, and brand IP to the corporate entity before fundraising"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
                   Even if you are the sole creator, code, branding, and designs created before incorporation remain your <em>personal</em> property unless assigned in writing to the company. Enterprise Ireland, Innovate UK, and angels will halt term sheets if IP isn't formally assigned.
@@ -2809,7 +2996,18 @@ export function ModuleGWorkspace({
               {/* Legal Documentation Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-xl border border-slate-200 p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-900">Statutory Digital Documents</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 id="mod-g-step6-docs" className="text-xs font-bold text-slate-900">Statutory Digital Documents</h4>
+                    <FieldParkButton
+                      moduleCode="MOD_G_LAUNCHPAD"
+                      stepNumber={6}
+                      fieldId="mod-g-step6-docs"
+                      questionLabel="Statutory Legal & Privacy Documents"
+                      suggestedAction="Set up GDPR Privacy Policy, Terms of Service / EULA, and Mutual NDA"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                       <input
@@ -2889,13 +3087,7 @@ export function ModuleGWorkspace({
                     <ArrowLeft className="mr-1 h-3.5 w-3.5" />
                     <span>Previous: Insurance</span>
                   </Button>
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_G_LAUNCHPAD"
-                    stepLabel="Module G • Step 6"
-                    suggestedQuestion="Prepare website Privacy Policy, Terms of Service, and signed IP Assignment agreements before public launch."
-                    disabled={isVaultReadonly}
-                  />
+
                 </div>
                 <Button
                   size="sm"
@@ -2959,12 +3151,21 @@ export function ModuleGWorkspace({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-emerald-700" />
-                  <h3 className="text-base font-bold text-slate-900">
+                  <h3 id="mod-g-step7-score" className="text-base font-bold text-slate-900">
                     Operations Readiness &amp; Launchpad Schedule
                   </h3>
                   <Badge className="text-[10px] font-medium border-emerald-300 bg-emerald-50 text-emerald-800">
                     Score: {opsReadinessScore}%
                   </Badge>
+                  <FieldParkButton
+                    moduleCode="MOD_G_LAUNCHPAD"
+                    stepNumber={7}
+                    fieldId="mod-g-step7-score"
+                    questionLabel="Operations Readiness & Launchpad Schedule"
+                    suggestedAction="Review 6-pillar operations readiness score and unresolved setup items"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
                 </div>
                 <p className="text-xs text-slate-600">
                   Executive overview of legal, banking, accounting, insurance and compliance pillars ready for export or grant appendix compilation.

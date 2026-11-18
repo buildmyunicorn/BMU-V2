@@ -54,6 +54,10 @@ import {
   ThreeQuoteConciergeModal,
   PlanQuotesTrackerCard,
 } from '@/components/workspace/three-quote-concierge-modal';
+import {
+  FieldParkButton,
+  scrollAndHighlightElement,
+} from '@/components/workspace/field-park-button';
 import type { QuoteSupplierCategory } from '@/lib/partners/partner-catalog-store';
 import {
   getCountryRulePack,
@@ -286,6 +290,7 @@ export interface ModuleEWorkspaceProps {
   whiteLabelEnabled?: boolean;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
 }
 
 const FULFILLMENT_MODE_OPTIONS: Array<{
@@ -2030,6 +2035,7 @@ export function ModuleEWorkspace({
   onContinueToModuleF,
   initialStep,
   highlightTarget,
+  navToken,
 }: ModuleEWorkspaceProps) {
   const countryPack = getCountryRulePack(selectedCountry);
   const inheritedTrack: ProductTrackType =
@@ -2076,19 +2082,10 @@ export function ModuleEWorkspace({
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       setOpenStep(initialStep);
       setActiveTab(`STEP_${initialStep}` as any);
-      setTimeout(() => {
-        const targetId = highlightTarget || `module-e-step-${initialStep}`;
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth;
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
-        }
-      }, 250);
+      const targetId = highlightTarget || `module-e-step-${initialStep}`;
+      scrollAndHighlightElement(targetId);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
 
   useEffect(() => {
     if (plan.currentModuleStep === 'MOD_E_STEP_6') {
@@ -2135,15 +2132,12 @@ export function ModuleEWorkspace({
   const [examplePersonaTab, setExamplePersonaTab] = useState<
     'BMU_SAAS' | 'WOODWORKER_BOARDS'
   >('WOODWORKER_BOARDS');
-  const [showParkInput, setShowParkInput] = useState(false);
-  const [parkQuestionInput, setParkQuestionInput] = useState('');
+
   const [isSavingStep1, setIsSavingStep1] = useState(false);
   const [isGeneratingAiStep1, setIsGeneratingAiStep1] = useState(false);
 
   const [showWhyAskingStep2, setShowWhyAskingStep2] = useState(false);
   const [showExampleDrawerStep2, setShowExampleDrawerStep2] = useState(false);
-  const [showParkInputStep2, setShowParkInputStep2] = useState(false);
-  const [parkQuestionInputStep2, setParkQuestionInputStep2] = useState('');
   const [isSavingStep2, setIsSavingStep2] = useState(false);
   const [isGeneratingAiStep2, setIsGeneratingAiStep2] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
@@ -2154,29 +2148,21 @@ export function ModuleEWorkspace({
 
   const [showWhyAskingStep3, setShowWhyAskingStep3] = useState(false);
   const [showExampleDrawerStep3, setShowExampleDrawerStep3] = useState(false);
-  const [showParkInputStep3, setShowParkInputStep3] = useState(false);
-  const [parkQuestionInputStep3, setParkQuestionInputStep3] = useState('');
   const [isSavingStep3, setIsSavingStep3] = useState(false);
   const [isGeneratingAiStep3, setIsGeneratingAiStep3] = useState(false);
 
   const [showWhyAskingStep4, setShowWhyAskingStep4] = useState(false);
   const [showExampleDrawerStep4, setShowExampleDrawerStep4] = useState(false);
-  const [showParkInputStep4, setShowParkInputStep4] = useState(false);
-  const [parkQuestionInputStep4, setParkQuestionInputStep4] = useState('');
   const [isSavingStep4, setIsSavingStep4] = useState(false);
   const [isGeneratingAiStep4, setIsGeneratingAiStep4] = useState(false);
 
   const [showWhyAskingStep5, setShowWhyAskingStep5] = useState(false);
   const [showExampleDrawerStep5, setShowExampleDrawerStep5] = useState(false);
-  const [showParkInputStep5, setShowParkInputStep5] = useState(false);
-  const [parkQuestionInputStep5, setParkQuestionInputStep5] = useState('');
   const [isSavingStep5, setIsSavingStep5] = useState(false);
   const [isGeneratingAiStep5, setIsGeneratingAiStep5] = useState(false);
 
   const [showWhyAskingStep6, setShowWhyAskingStep6] = useState(false);
   const [showExampleDrawerStep6, setShowExampleDrawerStep6] = useState(false);
-  const [showParkInputStep6, setShowParkInputStep6] = useState(false);
-  const [parkQuestionInputStep6, setParkQuestionInputStep6] = useState('');
   const [isSavingStep6, setIsSavingStep6] = useState(false);
   const [isGeneratingAiStep6, setIsGeneratingAiStep6] = useState(false);
 
@@ -4646,10 +4632,21 @@ export function ModuleEWorkspace({
               {/* 1. PRIMARY OPERATING & FULFILLMENT MODE SELECTOR (+ OTHER)    */}
               {/* ============================================================= */}
               <div className="space-y-2.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                  1A. Primary Operating &amp; Fulfillment Mode
-                </label>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    1A. Primary Operating &amp; Fulfillment Mode
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_E_OPERATIONS"
+                    stepNumber={1}
+                    fieldId="mod-e-step1-fulfillment-mode"
+                    questionLabel="What is your primary operating & fulfillment mode?"
+                    suggestedAction="Confirm whether you operate via automated cloud, in-house craft, drop-ship, or 3PL."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
+                <div id="mod-e-step1-fulfillment-mode" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {FULFILLMENT_MODE_OPTIONS.map((opt) => {
                     const isSelected = step1Data.fulfillmentMode === opt.value;
                     return (
@@ -4715,10 +4712,21 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* 1B. ORDER-TO-DELIVERY SLA TARGET (+ OTHER)                    */}
               {/* ============================================================= */}
-              <div className="space-y-2.5 border-t border-slate-100 pt-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                  1B. Promised Delivery &amp; Reply Speed — Order-to-Delivery Turnaround Target (SLA)
-                </label>
+              <div id="mod-e-step1-turnaround-sla" className="space-y-2.5 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                    1B. Promised Delivery &amp; Reply Speed — Order-to-Delivery Turnaround Target (SLA)
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_E_OPERATIONS"
+                    stepNumber={1}
+                    fieldId="mod-e-step1-turnaround-sla"
+                    questionLabel="What is your promised order-to-delivery SLA?"
+                    suggestedAction="Determine customer expectation vs. your fulfillment capacity."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="text-xs text-slate-500">
                   SLA (Service Level Agreement) means how quickly you promise to deliver an order or reply when a customer has a problem.
                 </p>
@@ -4783,12 +4791,22 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* 1C. PRIMARY BOTTLENECK / CAPACITY CONSTRAINT (+ OTHER)        */}
               {/* ============================================================= */}
-              <div className="space-y-2.5 border-t border-slate-100 pt-4">
+              <div id="mod-e-step1-capacity-constraint" className="space-y-2.5 border-t border-slate-100 pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                    1C. Primary Operational Bottleneck (What Breaks First at
-                    100 Orders?)
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                      1C. Primary Operational Bottleneck (What Breaks First at 100 Orders?)
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_E_OPERATIONS"
+                      stepNumber={1}
+                      fieldId="mod-e-step1-capacity-constraint"
+                      questionLabel="What is your primary operational bottleneck at 100 orders?"
+                      suggestedAction="Identify what resource constraint (founder hours, supplier capacity, storage) hits a ceiling first."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <div className="flex items-center gap-2 text-xs">
                     <span className="font-semibold text-slate-600">
                       Weekly Workshop / Ops Hours Available:
@@ -4879,10 +4897,20 @@ export function ModuleEWorkspace({
               <div className="space-y-3 border-t border-slate-200 pt-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
-                      2. Interactive 5-Stage &ldquo;Day in the Life of an
-                      Order&rdquo; Lifecycle Table
-                    </h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
+                        2. Interactive 5-Stage &ldquo;Day in the Life of an Order&rdquo; Lifecycle Table
+                      </h3>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={1}
+                        fieldId="mod-e-step1-order-stages"
+                        questionLabel="What are the 5 sequential stages in the life of an order?"
+                        suggestedAction="Review and calibrate steps from placement through fulfillment and post-sale check."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <p className="text-[11px] text-slate-500">
                       Edit each operational step below. Hands-on minutes and
                       incremental order fulfillment costs automatically total at the
@@ -4942,7 +4970,7 @@ export function ModuleEWorkspace({
                 </div>
 
                 {/* Stages List */}
-                <div className="space-y-3">
+                <div id="mod-e-step1-order-stages" className="space-y-3">
                   {step1Data.orderLifecycleStages.map((stage, idx) => (
                     <div
                       key={stage.id}
@@ -5242,11 +5270,21 @@ export function ModuleEWorkspace({
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      3A. End-to-End Order Fulfillment &amp; Quality Handover
-                      Narrative
-                    </label>
+                  <div id="mod-e-step1-fulfillment-narrative" className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        3A. End-to-End Order Fulfillment &amp; Quality Handover Narrative
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={1}
+                        fieldId="mod-e-step1-fulfillment-narrative"
+                        questionLabel="End-to-End Order Fulfillment & Quality Handover Narrative"
+                        suggestedAction="Detail the handoff between order confirmation, assembly, packaging, and dispatch."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={4}
                       disabled={isVaultReadonly}
@@ -5262,11 +5300,21 @@ export function ModuleEWorkspace({
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      3B. How We Scale Order Volume 5x Without Breaking
-                      Fulfillment
-                    </label>
+                  <div id="mod-e-step1-capacity-derisking" className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        3B. How We Scale Order Volume 5x Without Breaking Fulfillment
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={1}
+                        fieldId="mod-e-step1-capacity-derisking"
+                        questionLabel="How do you scale order volume 5x without breaking fulfillment?"
+                        suggestedAction="Explain hiring, automation triggers, or 3PL partnerships that unlock scale."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={4}
                       disabled={isVaultReadonly}
@@ -5290,16 +5338,6 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInput(!showParkInput)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park Operations Question
-                  </Button>
                   {step1Data.lastSavedAt && (
                     <span className="text-[11px] font-medium text-emerald-700">
                       ✓ Saved{' '}
@@ -5353,35 +5391,6 @@ export function ModuleEWorkspace({
                   </Button>
                 </div>
               </div>
-
-              {showParkInput && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInput}
-                    onChange={(e) => setParkQuestionInput(e.target.value)}
-                    placeholder="e.g., Confirm DPD vs. An Post Advantage parcel rates for 3kg packaged chopping boards..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInput.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInput('');
-                      setShowParkInput(false);
-                      setSaveBanner(
-                        '📌 Parked question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -6254,12 +6263,23 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* SECTION 1: PREMISES, WORKSHOP & LOCATION FOOTPRINT            */}
               {/* ============================================================= */}
-              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+              <div id="mod-e-step2-premises-mode" className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    1. Premises, Workshop &amp; Operating Footprint
-                  </h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      1. Premises, Workshop &amp; Operating Footprint
+                    </h3>
+                    <FieldParkButton
+                      moduleCode="MOD_E_OPERATIONS"
+                      stepNumber={2}
+                      fieldId="mod-e-step2-premises-mode"
+                      questionLabel="What is your premises and operating footprint posture?"
+                      suggestedAction="Confirm whether you operate from home/garage, co-working, commercial lease, or virtual."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -6438,14 +6458,25 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* SECTION 2: GRANT-READY EQUIPMENT & CAPEX SCHEDULE             */}
               {/* ============================================================= */}
-              <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <div id="mod-e-step2-equipment-schedule" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
                       <Hammer className="h-4 w-4 text-emerald-700" />
-                      <h3 className="text-sm font-bold text-slate-900">
-                        2. Capital Equipment, Machinery &amp; 3-Quote Schedule
-                      </h3>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-slate-900">
+                          2. Capital Equipment, Machinery &amp; 3-Quote Schedule
+                        </h3>
+                        <FieldParkButton
+                          moduleCode="MOD_E_OPERATIONS"
+                          stepNumber={2}
+                          fieldId="mod-e-step2-equipment-schedule"
+                          questionLabel="What capital equipment, machinery, and tooling do you need?"
+                          suggestedAction="Itemize required equipment and gather 3 comparable supplier quotes for items over threshold."
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-600">
                       List each piece of machinery, fit-out, or hardware. Items{' '}
@@ -7123,10 +7154,21 @@ export function ModuleEWorkspace({
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      3A. Premises, Workshop &amp; Location Justification
-                    </label>
+                  <div id="mod-e-step2-premises-justification" className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        3A. Premises, Workshop &amp; Location Justification
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={2}
+                        fieldId="mod-e-step2-premises-justification"
+                        questionLabel="Premises, Workshop & Location Justification"
+                        suggestedAction="Justify your premises cost, strategic location advantages, and proximity to suppliers/customers."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={4}
                       disabled={isVaultReadonly}
@@ -7189,16 +7231,6 @@ export function ModuleEWorkspace({
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                     Back to Step 1
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInputStep2(!showParkInputStep2)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park Equipment / Quote Question
-                  </Button>
                   {step2Data.lastSavedAt && (
                     <span className="text-[11px] font-medium text-emerald-700">
                       ✓ Saved{' '}
@@ -7252,35 +7284,6 @@ export function ModuleEWorkspace({
                   </Button>
                 </div>
               </div>
-
-              {showParkInputStep2 && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInputStep2}
-                    onChange={(e) => setParkQuestionInputStep2(e.target.value)}
-                    placeholder="e.g., Request written quote #3 from Caulfield Industrial for Jet Dual-Drum Sander..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInputStep2.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInputStep2('');
-                      setShowParkInputStep2(false);
-                      setSaveBanner(
-                        '📌 Parked equipment/quote question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -8049,7 +8052,7 @@ export function ModuleEWorkspace({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                <div id="mod-e-step3-supplier-posture" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {SUPPLIER_REDUNDANCY_POSTURE_OPTIONS.map((opt) => {
                     const isSelected =
                       step3Data.supplierRedundancyPosture === opt.value;
@@ -8112,11 +8115,22 @@ export function ModuleEWorkspace({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div id="mod-e-step3-supplier-summary" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-bold text-slate-800">
-                      1B. Primary Suppliers, Couriers or Critical Cloud Stack
-                    </label>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        1B. Primary Suppliers, Couriers or Critical Cloud Stack
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={3}
+                        fieldId="mod-e-step3-supplier-summary"
+                        questionLabel="Who are your primary and backup suppliers/couriers?"
+                        suggestedAction="Document supplier terms, lead times, minimum order quantities, and secondary vendors."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={3}
                       disabled={isVaultReadonly}
@@ -8156,13 +8170,23 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* SECTION 2: INTERACTIVE 4-CATEGORY PROJECT RISK REGISTER       */}
               {/* ============================================================= */}
-              <div className="space-y-4">
+              <div id="mod-e-step3-risk-table" className="space-y-4">
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">
-                      2. Interactive 4-Category Project Risk Register (Likelihood
-                      1–5 &times; Impact 1–5 = Gross Score /25)
-                    </h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold text-slate-900">
+                        2. Interactive 4-Category Project Risk Register
+                      </h3>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={3}
+                        fieldId="mod-e-step3-risk-table"
+                        questionLabel="What are your key project risks and mitigation plans?"
+                        suggestedAction="Score top risks across technical, commercial, financial, and managerial categories."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <p className="text-xs text-slate-600">
                       {selectedCountry === 'IE'
                         ? 'Score each operational risk and document concrete preventative actions & contingency triggers for your IE LEO / Enterprise Ireland evaluation.'
@@ -8539,11 +8563,21 @@ export function ModuleEWorkspace({
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      3A. Supply-Chain Resilience &amp; Backup Sourcing
-                      Narrative
-                    </label>
+                  <div id="mod-e-step3-supply-resilience" className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        3A. Supply-Chain Resilience &amp; Backup Sourcing Narrative
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={3}
+                        fieldId="mod-e-step3-supply-resilience"
+                        questionLabel="Supply-Chain Resilience & Backup Sourcing Narrative"
+                        suggestedAction="Demonstrate how you avoid single-source bottlenecks and handle shipping delays."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={4}
                       disabled={isVaultReadonly}
@@ -8559,11 +8593,21 @@ export function ModuleEWorkspace({
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      3B. Project Risk Management &amp; Mitigation Governance
-                      Narrative
-                    </label>
+                  <div id="mod-e-step3-risk-governance" className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        3B. Project Risk Management &amp; Mitigation Governance Narrative
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={3}
+                        fieldId="mod-e-step3-risk-governance"
+                        questionLabel="Project Risk Management & Mitigation Governance Narrative"
+                        suggestedAction="Summarize oversight cadence and contingency triggers for grant and investor review."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <textarea
                       rows={4}
                       disabled={isVaultReadonly}
@@ -8601,16 +8645,6 @@ export function ModuleEWorkspace({
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                     Back to Step 2
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowParkInputStep3(!showParkInputStep3)}
-                    className="border-amber-300 bg-amber-50/70 text-xs text-amber-900 hover:bg-amber-100"
-                  >
-                    <BookmarkPlus className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                    Park Supply-Chain / Risk Question
                   </Button>
                   {step3Data.lastSavedAt && (
                     <span className="text-[11px] font-medium text-emerald-700">
@@ -8665,35 +8699,6 @@ export function ModuleEWorkspace({
                   </Button>
                 </div>
               </div>
-
-              {showParkInputStep3 && (
-                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInputStep3}
-                    onChange={(e) => setParkQuestionInputStep3(e.target.value)}
-                    placeholder="e.g., Confirm secondary packaging supplier lead time and minimum order quantity..."
-                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-amber-500 focus:outline-hidden sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      const clean = parkQuestionInputStep3.trim();
-                      if (!clean) return;
-                      await onParkOpenQuestion(clean);
-                      setParkQuestionInputStep3('');
-                      setShowParkInputStep3(false);
-                      setSaveBanner(
-                        '📌 Parked supply-chain/risk question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-amber-600 text-xs text-white hover:bg-amber-700"
-                  >
-                    Save to Parking Lot
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -8979,16 +8984,6 @@ export function ModuleEWorkspace({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowParkInputStep4((v) => !v)}
-                    className="h-7 border-slate-200 bg-white text-[11px] font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                    Park Open Question
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
                     disabled={isVaultReadonly || isGeneratingAiStep4}
                     onClick={() =>
                       handleRunAiStep4('POPULATE_QC_AND_NARRATIVES')
@@ -9117,37 +9112,6 @@ export function ModuleEWorkspace({
                       </p>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Layer 3: Park It in Open Questions */}
-              {showParkInputStep4 && (
-                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInputStep4}
-                    onChange={(e) => setParkQuestionInputStep4(e.target.value)}
-                    placeholder="e.g., Confirm whether our custom gift bundles qualify for the bespoke cooling-off exemption or require a 3% return buffer..."
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-base text-slate-900 focus:border-emerald-600 focus:outline-none sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      if (!parkQuestionInputStep4.trim()) return;
-                      await onParkOpenQuestion(
-                        `[Module E Step 4 — Support, Returns & QC] ${parkQuestionInputStep4.trim()}`
-                      );
-                      setParkQuestionInputStep4('');
-                      setShowParkInputStep4(false);
-                      setSaveBanner(
-                        '📌 Parked question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-emerald-700 text-xs text-white hover:bg-emerald-800"
-                  >
-                    Save to Parking Lot
-                  </Button>
                 </div>
               )}
             </CardContent>
@@ -9350,10 +9314,21 @@ export function ModuleEWorkspace({
             </CardHeader>
             <CardContent className="space-y-5">
               {/* Support Operating Model Tiles */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-800">
-                  1. Primary Customer Support Operating Model
-                </label>
+              <div id="mod-e-step4-support-model" className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    1. Primary Customer Support Operating Model
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_E_OPERATIONS"
+                    stepNumber={4}
+                    fieldId="mod-e-step4-support-model"
+                    questionLabel="What is your primary customer support operating model?"
+                    suggestedAction="Select founder-led, ticketed email, AI copilot, or dedicated omnichannel."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {SUPPORT_OPERATING_MODEL_OPTIONS.map((opt) => {
                     const isSelected =
@@ -9417,10 +9392,21 @@ export function ModuleEWorkspace({
               </div>
 
               {/* Support Response SLA Tiles */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-800">
-                  2. Committed Customer Support Response SLA
-                </label>
+              <div id="mod-e-step4-response-sla" className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    2. Committed Customer Support Response SLA
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_E_OPERATIONS"
+                    stepNumber={4}
+                    fieldId="mod-e-step4-response-sla"
+                    questionLabel="What is your committed customer support response SLA?"
+                    suggestedAction="Balance responsive customer service against operational focus and team capacity."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {SUPPORT_RESPONSE_SLA_OPTIONS.map((opt) => {
                     const isSelected =
@@ -9935,11 +9921,21 @@ export function ModuleEWorkspace({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-800">
-                    1. Quality Control (QC) &amp; Operational Standards
-                    Narrative
-                  </label>
+                <div id="mod-e-step4-qc-narrative">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      1. Quality Control (QC) &amp; Operational Standards Narrative
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_E_OPERATIONS"
+                      stepNumber={4}
+                      fieldId="mod-e-step4-qc-narrative"
+                      questionLabel="Quality Control (QC) & Operational Standards Narrative"
+                      suggestedAction="Describe testing protocols, defect benchmarks, and compliance with industry quality marks."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     Explains how your 3-gate inspection SOP prevents defects,
                     protects brand reputation, and keeps return rates at{' '}
@@ -9960,11 +9956,21 @@ export function ModuleEWorkspace({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-800">
-                    2. Customer Support SLA, Returns &amp; Statutory Warranty
-                    Narrative
-                  </label>
+                <div id="mod-e-step4-support-narrative">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      2. Customer Support SLA, Returns &amp; Statutory Warranty Narrative
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_E_OPERATIONS"
+                      stepNumber={4}
+                      fieldId="mod-e-step4-support-narrative"
+                      questionLabel="Customer Support SLA, Returns & Statutory Warranty Narrative"
+                      suggestedAction="Detail helpdesk workflow, warranty remediation, and dispute resolution procedures."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {selectedCountry === 'IE'
                       ? 'Explains your support SLA, Ireland Consumer Rights Act 2022 (CRAA) / CCPC compliance, and unit return allowance.'
@@ -10295,16 +10301,6 @@ export function ModuleEWorkspace({
                     <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Use Industry Benchmark
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowParkInputStep5((prev) => !prev)}
-                    className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                  >
-                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-500" />
-                    Park It
-                  </Button>
                 </div>
               </div>
 
@@ -10522,50 +10518,7 @@ export function ModuleEWorkspace({
                 </div>
               )}
 
-              {/* Layer 3: Park Open Question Input */}
-              {showParkInputStep5 && (
-                <div className="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
-                  <input
-                    value={parkQuestionInputStep5}
-                    onChange={(e) => setParkQuestionInputStep5(e.target.value)}
-                    placeholder={
-                      selectedCountry === 'IE'
-                        ? 'e.g., Confirm with Arachas/Hiscox Ireland whether US/UK export sales require an extended Product Liability endorsement...'
-                        : 'e.g., Confirm with Hiscox UK/Superscript whether our AI feature requires a specialist Tech E&O endorsement...'
-                    }
-                    className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-xs"
-                  />
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={async () => {
-                        if (!parkQuestionInputStep5.trim()) return;
-                        await onParkOpenQuestion(
-                          parkQuestionInputStep5.trim()
-                        );
-                        setParkQuestionInputStep5('');
-                        setShowParkInputStep5(false);
-                        setSaveBanner(
-                          '📌 Parked compliance/insurance question in your Open Questions Parking Lot!'
-                        );
-                      }}
-                      className="h-9 bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800"
-                    >
-                      Save to Parking Lot
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setShowParkInputStep5(false)}
-                      className="h-9 text-xs text-slate-600"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
+
             </CardHeader>
           </Card>
 
@@ -10729,10 +10682,21 @@ export function ModuleEWorkspace({
             </CardHeader>
             <CardContent className="space-y-6">
               {/* A1. Regulatory Sector Posture Selector */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-slate-800">
-                  1. Primary Regulatory &amp; Sector Licensing Posture
-                </label>
+              <div id="mod-e-step5-regulatory-posture" className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-800">
+                    1. Primary Regulatory &amp; Sector Licensing Posture
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_E_OPERATIONS"
+                    stepNumber={5}
+                    fieldId="mod-e-step5-regulatory-posture"
+                    questionLabel="What is your primary regulatory & sector licensing posture?"
+                    suggestedAction="Check certifications (e.g. CE/UKCA mark, food safety, financial services, medical, standard commercial)."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {REGULATORY_SECTOR_POSTURE_OPTIONS.map((option) => {
                     const isSelected =
@@ -10940,10 +10904,21 @@ export function ModuleEWorkspace({
               </div>
 
               {/* B1. Insurance Coverage Bundle Selector */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-slate-800">
-                  1. Select Your Target Startup Insurance Coverage Bundle
-                </label>
+              <div id="mod-e-step5-insurance-bundle" className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-800">
+                    1. Select Your Target Startup Insurance Coverage Bundle
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_E_OPERATIONS"
+                    stepNumber={5}
+                    fieldId="mod-e-step5-insurance-bundle"
+                    questionLabel="What startup insurance coverage bundle do you need?"
+                    suggestedAction="Confirm required policies (Public Liability, Professional Indemnity, Employers Liability, Cyber)."
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {INSURANCE_COVERAGE_BUNDLE_OPTIONS.map((bundle) => {
                     const isSelected =
@@ -11324,20 +11299,30 @@ export function ModuleEWorkspace({
           </Card>
 
           {/* 5. Part C: Dynamic Statutory Compliance, Tax Clearance, H&S & GDPR Checklist */}
-          <Card className="border-slate-200 bg-white shadow-xs">
+          <Card id="mod-e-step5-compliance-checklist" className="border-slate-200 bg-white shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    Part C:{' '}
-                    {selectedCountry === 'IE'
-                      ? '🇮🇪'
-                      : selectedCountry === 'GB'
-                        ? '🇬🇧'
-                        : '🌍'}{' '}
-                    {countryPack.countryName} Statutory Compliance, Tax
-                    Clearance, H&amp;S &amp; GDPR Checklist
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Part C:{' '}
+                      {selectedCountry === 'IE'
+                        ? '🇮🇪'
+                        : selectedCountry === 'GB'
+                          ? '🇬🇧'
+                          : '🌍'}{' '}
+                      {countryPack.countryName} Statutory Compliance, Tax Clearance, H&amp;S &amp; GDPR Checklist
+                    </CardTitle>
+                    <FieldParkButton
+                      moduleCode="MOD_E_OPERATIONS"
+                      stepNumber={5}
+                      fieldId="mod-e-step5-compliance-checklist"
+                      questionLabel="What statutory permits, health & safety statements, and compliance registrations do you need?"
+                      suggestedAction="Review compliance obligations (CRO/Companies House, Tax Clearance, HSA Safety Statement, GDPR)."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <CardDescription className="text-xs text-slate-600">
                     Track every mandatory registration, tax clearance, safety
                     statement, and sector license required for launch and grant
@@ -11997,16 +11982,6 @@ export function ModuleEWorkspace({
                     <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-600" />
                     Use Industry Benchmark
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowParkInputStep6((v) => !v)}
-                    className="h-8 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
-                  >
-                    <BookmarkPlus className="mr-1 h-3.5 w-3.5 text-slate-600" />
-                    Park Question
-                  </Button>
                 </div>
               </div>
 
@@ -12105,37 +12080,6 @@ export function ModuleEWorkspace({
                       </p>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Park Open Question Drawer */}
-              {showParkInputStep6 && (
-                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={parkQuestionInputStep6}
-                    onChange={(e) => setParkQuestionInputStep6(e.target.value)}
-                    placeholder="e.g., Confirm working capital bridge for 60-day grant reimbursement lag..."
-                    className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 sm:text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={async () => {
-                      if (!parkQuestionInputStep6.trim()) return;
-                      await onParkOpenQuestion(
-                        `[Step 6 - Ops Blind-Spot Audit] ${parkQuestionInputStep6.trim()}`
-                      );
-                      setParkQuestionInputStep6('');
-                      setShowParkInputStep6(false);
-                      setSaveBanner(
-                        '📌 Parked question in your Open Questions Parking Lot!'
-                      );
-                    }}
-                    className="bg-slate-900 text-xs text-white hover:bg-slate-800"
-                  >
-                    Save to Parking Lot
-                  </Button>
                 </div>
               )}
             </CardHeader>
@@ -12342,12 +12286,23 @@ export function ModuleEWorkspace({
               {/* ============================================================= */}
               {/* PART A: OPERATIONAL LAUNCH READINESS POSTURE (+ OTHER)        */}
               {/* ============================================================= */}
-              <div className="space-y-3">
+              <div id="mod-e-step6-readiness-confidence" className="space-y-3">
                 <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Part A: Operational Launch &amp; Grant Audit Readiness
-                    Posture
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      Part A: Operational Launch &amp; Grant Audit Readiness
+                      Posture
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_E_OPERATIONS"
+                      stepNumber={6}
+                      fieldId="mod-e-step6-readiness-confidence"
+                      questionLabel="What is your operational launch and grant audit readiness posture?"
+                      suggestedAction="Assess operational readiness confidence across fulfillment, premises, and team."
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <span className="text-[11px] text-slate-500">
                     Includes &ldquo;Other&rdquo; custom readiness posture option
                   </span>
@@ -12482,6 +12437,7 @@ export function ModuleEWorkspace({
                     return (
                       <div
                         key={item.id}
+                        id={`blindspot-card-${item.id}`}
                         className={`rounded-xl border p-3.5 transition ${
                           item.isResolved
                             ? 'border-emerald-300 bg-emerald-50/40'
@@ -12562,23 +12518,15 @@ export function ModuleEWorkspace({
                                 : 'Mark Addressed'}
                             </Button>
 
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={async () => {
-                                await onParkOpenQuestion(
-                                  `[Ops Blind Spot] ${item.title}: ${item.recommendedActionOrFix}`
-                                );
-                                setSaveBanner(
-                                  `📌 Parked "${item.title}" in Open Questions!`
-                                );
-                              }}
-                              className="h-7 border-slate-300 bg-white px-2 text-[11px] text-slate-700 hover:bg-slate-100"
-                            >
-                              <BookmarkPlus className="mr-1 h-3 w-3" />
-                              Park
-                            </Button>
+                            <FieldParkButton
+                              moduleCode="MOD_E_OPERATIONS"
+                              stepNumber={6}
+                              fieldId={`blindspot-card-${item.id}`}
+                              questionLabel={`Blind Spot: ${item.title}`}
+                              suggestedAction={item.recommendedActionOrFix}
+                              onPark={onParkOpenQuestion}
+                              disabled={isVaultReadonly}
+                            />
 
                             {step6Data.blindSpots.length > 1 && (
                               <button
@@ -12717,16 +12665,28 @@ export function ModuleEWorkspace({
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      1. Executive Operations &amp; Fulfillment Summary (Module
-                      K Section 6)
-                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label htmlFor="mod-e-step6-executive-summary" className="block text-xs font-bold text-slate-800">
+                        1. Executive Operations &amp; Fulfillment Summary (Module
+                        K Section 6)
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={6}
+                        fieldId="mod-e-step6-executive-summary"
+                        questionLabel="Executive Operations & Fulfillment Summary"
+                        suggestedAction="Synthesize fulfillment workflow, premises, risk register, QC, and statutory compliance."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <p className="text-[11px] text-slate-500">
                       Synthesizes your 5-stage fulfillment workflow, premises &amp;
                       equipment schedule, 4-category risk register, 3-gate QC
                       SOP, and statutory compliance.
                     </p>
                     <textarea
+                      id="mod-e-step6-executive-summary"
                       rows={5}
                       disabled={isVaultReadonly}
                       value={step6Data.executiveOperationsSummaryNarrative}
@@ -12742,16 +12702,28 @@ export function ModuleEWorkspace({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
-                      2. Operations-to-Finance &amp; Team Handshake Narrative
-                      (Modules F, G &amp; I)
-                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label htmlFor="mod-e-step6-finance-handshake" className="block text-xs font-bold text-slate-800">
+                        2. Operations-to-Finance &amp; Team Handshake Narrative
+                        (Modules F, G &amp; I)
+                      </label>
+                      <FieldParkButton
+                        moduleCode="MOD_E_OPERATIONS"
+                        stepNumber={6}
+                        fieldId="mod-e-step6-finance-handshake"
+                        questionLabel="Operations-to-Finance & Team Handshake Narrative"
+                        suggestedAction="Document unit COGS, return buffers, premises overheads, and insurance estimates."
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <p className="text-[11px] text-slate-500">
                       Documents how unit COGS, return buffers, premises costs,
                       and your indicative insurance estimate (actual coverage
                       may vary) flow into your financial model.
                     </p>
                     <textarea
+                      id="mod-e-step6-finance-handshake"
                       rows={5}
                       disabled={isVaultReadonly}
                       value={

@@ -60,7 +60,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import { FieldParkButton } from '@/components/workspace/field-park-button';
 import type {
   ActiveStartupPlan,
   BrandPositioningStep1Data,
@@ -153,6 +153,8 @@ interface ModuleIWorkspaceProps {
   ) => void;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
+  onParkOpenQuestion?: (questionText: string) => Promise<void> | void;
 }
 
 export interface UpstreamPriceResolution {
@@ -452,6 +454,8 @@ export function ModuleIWorkspace({
   onNavigateToModule,
   initialStep,
   highlightTarget,
+  navToken,
+  onParkOpenQuestion,
 }: ModuleIWorkspaceProps) {
   // Step expansion state: default to Step 1 open so founders land directly in action
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
@@ -469,19 +473,33 @@ export function ModuleIWorkspace({
   useEffect(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 5) {
       setOpenStep(initialStep);
-      setTimeout(() => {
-        const targetId = highlightTarget || `module-i-step-${initialStep}`;
+    }
+    const targetId = highlightTarget;
+    if (targetId) {
+      const scrollAndHighlight = () => {
         const el = document.getElementById(targetId);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth;
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
+          el.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'transition-all');
+          if (typeof (el as HTMLElement).focus === 'function') {
+            (el as HTMLElement).focus();
+          }
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2');
+          }, 3000);
+        }
+      };
+      const timer = setTimeout(scrollAndHighlight, 350);
+      return () => clearTimeout(timer);
+    } else if (initialStep && initialStep >= 1 && initialStep <= 5) {
+      setTimeout(() => {
+        const el = document.getElementById(`module-i-step-${initialStep}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 250);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
 
   // Micro-coaching drawer states
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
@@ -3545,11 +3563,21 @@ export function ModuleIWorkspace({
             {/* ----------------------------------------------------------- */}
             {/* 1.1 THE 3-SECOND ELEVATOR HOOK (140 CHARS)                  */}
             {/* ----------------------------------------------------------- */}
-            <div className="space-y-2">
+            <div id="mod-i-step1-elevator-hook" className="space-y-2 scroll-mt-24">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-slate-800">
-                  1. The 3-Second Elevator Hook (Max 140 Characters)
-                </Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-bold text-slate-800">
+                    1. The 3-Second Elevator Hook (Max 140 Characters)
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={1}
+                    fieldId="mod-i-step1-elevator-hook"
+                    questionLabel="The 3-Second Elevator Hook (Max 140 Characters)"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <span
                   className={`text-[11px] font-mono font-medium ${
                     step1Data.elevatorHook140.length > 140
@@ -3604,10 +3632,20 @@ export function ModuleIWorkspace({
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-700">
-                    For (Target Customer / Persona)
-                  </Label>
+                <div id="mod-i-step1-target-customer" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-slate-700">
+                      For (Target Customer / Persona)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={1}
+                      fieldId="mod-i-step1-target-customer"
+                      questionLabel="For (Target Customer / Persona)"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step1Data.positioningFormula.targetCustomer}
@@ -3625,10 +3663,20 @@ export function ModuleIWorkspace({
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-700">
-                    Who struggle with (Core Urgent Problem)
-                  </Label>
+                <div id="mod-i-step1-customer-problem" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-slate-700">
+                      Who struggle with (Core Urgent Problem)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={1}
+                      fieldId="mod-i-step1-customer-problem"
+                      questionLabel="Who struggle with (Core Urgent Problem)"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step1Data.positioningFormula.customerProblem}
@@ -3646,10 +3694,20 @@ export function ModuleIWorkspace({
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-700">
-                    {planTitle} is a (Product Category / Vehicle)
-                  </Label>
+                <div id="mod-i-step1-solution-category" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-slate-700">
+                      {planTitle} is a (Product Category / Vehicle)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={1}
+                      fieldId="mod-i-step1-solution-category"
+                      questionLabel="Product Category / Vehicle"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step1Data.positioningFormula.solutionCategory}
@@ -3667,10 +3725,20 @@ export function ModuleIWorkspace({
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-700">
-                    That provides (Primary Transformation / Benefit)
-                  </Label>
+                <div id="mod-i-step1-primary-benefit" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-slate-700">
+                      That provides (Primary Transformation / Benefit)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={1}
+                      fieldId="mod-i-step1-primary-benefit"
+                      questionLabel="That provides (Primary Transformation / Benefit)"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step1Data.positioningFormula.primaryBenefit}
@@ -3688,10 +3756,20 @@ export function ModuleIWorkspace({
                   />
                 </div>
 
-                <div className="sm:col-span-2 space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-700">
-                    Unlike (Competitors / Status Quo Alternatives), our product...
-                  </Label>
+                <div id="mod-i-step1-competitive-wedge" className="sm:col-span-2 space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-slate-700">
+                      Unlike (Competitors / Status Quo Alternatives), our product...
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={1}
+                      fieldId="mod-i-step1-competitive-wedge"
+                      questionLabel="Unlike (Competitors / Status Quo Alternatives)"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step1Data.positioningFormula.competitiveWedge}
@@ -3724,14 +3802,24 @@ export function ModuleIWorkspace({
             {/* ----------------------------------------------------------- */}
             {/* 1.3 BRAND PERSONALITY & TONE OF VOICE                       */}
             {/* ----------------------------------------------------------- */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs font-bold text-slate-800">
-                  3. Brand Personality &amp; Tone of Voice
-                </Label>
-                <p className="text-xs text-slate-500">
-                  How does your brand speak across social media, email newsletters, and customer support?
-                </p>
+            <div id="mod-i-step1-tone-of-voice" className="space-y-3 scroll-mt-24">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold text-slate-800">
+                    3. Brand Personality &amp; Tone of Voice
+                  </Label>
+                  <p className="text-xs text-slate-500">
+                    How does your brand speak across social media, email newsletters, and customer support?
+                  </p>
+                </div>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={1}
+                  fieldId="mod-i-step1-tone-of-voice"
+                  questionLabel="Brand Personality & Tone of Voice"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -3776,10 +3864,20 @@ export function ModuleIWorkspace({
 
               {/* Edge Case: Mandatory "OTHER" text input */}
               {step1Data.toneOfVoice === 'OTHER' && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-950">
-                    Describe your custom tone of voice:
-                  </Label>
+                <div id="mod-i-step1-other-tone" className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-950">
+                      Describe your custom tone of voice:
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={1}
+                      fieldId="mod-i-step1-other-tone"
+                      questionLabel="Describe your custom tone of voice"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step1Data.otherToneOfVoiceText || ''}
@@ -3799,14 +3897,24 @@ export function ModuleIWorkspace({
             {/* ----------------------------------------------------------- */}
             {/* 1.4 BRAND VOICE BOUNDARIES: "WE ARE [X] BUT NEVER [Y]"       */}
             {/* ----------------------------------------------------------- */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-              <div>
-                <Label className="text-xs font-bold text-slate-800">
-                  4. Tone Guardrails: &quot;We Are [X] but Never [Y]&quot;
-                </Label>
-                <p className="text-xs text-slate-500">
-                  Setting clear negative constraints prevents marketing writers or team members from sounding inconsistent or off-brand.
-                </p>
+            <div id="mod-i-step1-tone-guardrails" className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3 scroll-mt-24">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold text-slate-800">
+                    4. Tone Guardrails: &quot;We Are [X] but Never [Y]&quot;
+                  </Label>
+                  <p className="text-xs text-slate-500">
+                    Setting clear negative constraints prevents marketing writers or team members from sounding inconsistent or off-brand.
+                  </p>
+                </div>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={1}
+                  fieldId="mod-i-step1-tone-guardrails"
+                  questionLabel="Tone Guardrails: We Are [X] but Never [Y]"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -3863,14 +3971,24 @@ export function ModuleIWorkspace({
             {/* ----------------------------------------------------------- */}
             {/* 1.5 THREE CORE BRAND PILLARS                                */}
             {/* ----------------------------------------------------------- */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs font-bold text-slate-800">
-                  5. Three Core Brand Value Pillars
-                </Label>
-                <p className="text-xs text-slate-500">
-                  The 3 fundamental reasons why customers choose you. These become the 3 main feature bullets on your landing page and sales collateral.
-                </p>
+            <div id="mod-i-step1-core-pillars" className="space-y-3 scroll-mt-24">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold text-slate-800">
+                    5. Three Core Brand Value Pillars
+                  </Label>
+                  <p className="text-xs text-slate-500">
+                    The 3 fundamental reasons why customers choose you. These become the 3 main feature bullets on your landing page and sales collateral.
+                  </p>
+                </div>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={1}
+                  fieldId="mod-i-step1-core-pillars"
+                  questionLabel="Three Core Brand Value Pillars"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -3904,51 +4022,7 @@ export function ModuleIWorkspace({
               </div>
             </div>
 
-            {/* ----------------------------------------------------------- */}
-            {/* MOMENTUM PROTECTION: PARK UNRESOLVED QUESTION IN LOT        */}
-            {/* ----------------------------------------------------------- */}
-            <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bookmark className="h-4 w-4 text-amber-600" />
-                  <span className="text-xs font-bold text-amber-950">
-                    Momentum Protection: Park an Unresolved Brand Question
-                  </span>
-                </div>
-                {parkingSuccess && (
-                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
-                    <Check className="mr-1 h-3 w-3" /> Question Parked
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-amber-800">
-                Stuck between two different taglines or unsure about your tone? Don’t let it stop you. Park it here to discuss with mentors or customers later.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  type="text"
-                  value={parkingQuestionText}
-                  onChange={(e) => setParkingQuestionText(e.target.value)}
-                  placeholder="e.g. Should our tone be playful like Duolingo or serious like Bloomberg?"
-                  className="text-base sm:text-xs bg-white flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleParkQuestion}
-                  disabled={!parkingQuestionText.trim() || isParkingQuestion}
-                  className="border-amber-300 bg-white text-xs font-medium text-amber-900 hover:bg-amber-100 shrink-0"
-                >
-                  {isParkingQuestion ? (
-                    <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Bookmark className="mr-1 h-3.5 w-3.5" />
-                  )}
-                  Park in Open Questions
-                </Button>
-              </div>
-            </div>
+
 
             {/* Bottom Step Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -4239,17 +4313,27 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 2.1 PRODUCT (P1)                                          */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <Package className="h-4 w-4 text-emerald-700 shrink-0" />
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    2.1 Product (P1): Packaging Format &amp; Tangible Deliverable
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    How is your offer packaged, and what concrete deliverable does the customer receive upon purchase?
-                  </p>
+            <div id="mod-i-step2-packaging" className="space-y-4 scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-emerald-700 shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      2.1 Product (P1): Packaging Format &amp; Tangible Deliverable
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      How is your offer packaged, and what concrete deliverable does the customer receive upon purchase?
+                    </p>
+                  </div>
                 </div>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={2}
+                  fieldId="mod-i-step2-packaging"
+                  questionLabel="Product Packaging Vehicle"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               {/* Packaging Selector Tiles */}
@@ -4296,10 +4380,20 @@ export function ModuleIWorkspace({
 
                 {/* Inline "OTHER" Custom Packaging Input */}
                 {step2Data.productP1.packagingType === 'OTHER' && (
-                  <div className="mt-2.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <Label className="text-xs font-semibold text-slate-950">
-                      Specify Custom Packaging Format
-                    </Label>
+                  <div id="mod-i-step2-other-packaging" className="mt-2.5 rounded-lg border border-slate-200 bg-slate-50 p-3 scroll-mt-24">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-950">
+                        Specify Custom Packaging Format
+                      </Label>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={2}
+                        fieldId="mod-i-step2-other-packaging"
+                        questionLabel="Specify Custom Packaging Format"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <Input
                       value={step2Data.productP1.otherPackagingTypeText || ''}
                       onChange={(e) =>
@@ -4323,10 +4417,20 @@ export function ModuleIWorkspace({
 
               {/* Core Deliverable & Perceived Value Driver */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Core Deliverable Summary (What does the buyer receive Day 1?)
-                  </Label>
+                <div id="mod-i-step2-core-deliverable" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Core Deliverable Summary (What does the buyer receive Day 1?)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={2}
+                      fieldId="mod-i-step2-core-deliverable"
+                      questionLabel="Core Deliverable Summary (What does the buyer receive Day 1?)"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <textarea
                     rows={3}
                     value={step2Data.productP1.coreDeliverableSummary}
@@ -4347,10 +4451,20 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Primary Perceived Value Driver (What makes it feel high-ticket?)
-                  </Label>
+                <div id="mod-i-step2-perceived-value-driver" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Primary Perceived Value Driver (What makes it feel high-ticket?)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={2}
+                      fieldId="mod-i-step2-perceived-value-driver"
+                      questionLabel="Primary Perceived Value Driver"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <textarea
                     rows={3}
                     value={step2Data.productP1.perceivedValueDriver}
@@ -4390,11 +4504,21 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Pricing Stance Selector */}
-              <div className="space-y-1.5">
+              <div id="mod-i-step2-pricing-stance" className="space-y-1.5 scroll-mt-24">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Select Pricing Strategy Stance
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Select Pricing Strategy Stance
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={2}
+                      fieldId="mod-i-step2-pricing-stance"
+                      questionLabel="Pricing Strategy Stance"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   {plan.moduleHData?.step2PricingTiers?.tiers?.[0] && (
                     <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px]">
                       💡 Synced with Module H Revenue: {currencySymbol}
@@ -4440,10 +4564,20 @@ export function ModuleIWorkspace({
 
                 {/* Inline "OTHER" Custom Pricing Stance */}
                 {step2Data.priceP2.pricingStance === 'OTHER' && (
-                  <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
-                    <Label className="text-xs font-semibold text-emerald-950">
-                      Specify Custom Pricing Stance
-                    </Label>
+                  <div id="mod-i-step2-other-pricing-stance" className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 scroll-mt-24">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-emerald-950">
+                        Specify Custom Pricing Stance
+                      </Label>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={2}
+                        fieldId="mod-i-step2-other-pricing-stance"
+                        questionLabel="Specify Custom Pricing Stance"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <Input
                       value={step2Data.priceP2.otherPricingStanceText || ''}
                       onChange={(e) =>
@@ -4464,11 +4598,21 @@ export function ModuleIWorkspace({
 
               {/* Headline Price Point & Payment Terms */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+                <div id="mod-i-step2-headline-price" className="space-y-1.5 scroll-mt-24">
                   <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Headline Price Point (Target Customer Price)
-                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Headline Price Point (Target Customer Price)
+                      </Label>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={2}
+                        fieldId="mod-i-step2-headline-price"
+                        questionLabel="Headline Price Point (Target Customer Price)"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     {resolvedUpstreamPrice.isFromUpstream && (
                       step2Data.priceP2.headlinePricePoint?.trim() === resolvedUpstreamPrice.priceHeadline ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
@@ -4520,10 +4664,20 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Payment Terms &amp; Friction Reducer
-                  </Label>
+                <div id="mod-i-step2-payment-terms" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Payment Terms &amp; Friction Reducer
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={2}
+                      fieldId="mod-i-step2-payment-terms"
+                      questionLabel="Payment Terms & Friction Reducer"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     value={step2Data.priceP2.paymentTermsOrFrictionReducer}
                     onChange={(e) =>
@@ -4545,10 +4699,20 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Price Justification vs Cost of Inaction */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Price Justification vs. Cost of Inaction
-                </Label>
+              <div id="mod-i-step2-price-justification" className="space-y-1.5 scroll-mt-24">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Price Justification vs. Cost of Inaction
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={2}
+                    fieldId="mod-i-step2-price-justification"
+                    questionLabel="Price Justification vs. Cost of Inaction"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <textarea
                   rows={3}
                   value={step2Data.priceP2.priceJustification}
@@ -4587,10 +4751,20 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Primary Channel Selector */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Primary Distribution Route
-                </Label>
+              <div id="mod-i-step2-primary-channel" className="space-y-1.5 scroll-mt-24">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Primary Distribution Route
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={2}
+                    fieldId="mod-i-step2-primary-channel"
+                    questionLabel="Primary Distribution Route"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {DISTRIBUTION_CHANNEL_OPTIONS.map((channel) => {
                     const isSelected = step2Data.placeP3.primaryChannel === channel.id;
@@ -4630,10 +4804,20 @@ export function ModuleIWorkspace({
 
                 {/* Inline "OTHER" Custom Channel */}
                 {step2Data.placeP3.primaryChannel === 'OTHER' && (
-                  <div className="mt-2.5 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
-                    <Label className="text-xs font-semibold text-blue-950">
-                      Specify Custom Distribution Route
-                    </Label>
+                  <div id="mod-i-step2-other-primary-channel" className="mt-2.5 rounded-lg border border-blue-200 bg-blue-50/40 p-3 scroll-mt-24">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-blue-950">
+                        Specify Custom Distribution Route
+                      </Label>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={2}
+                        fieldId="mod-i-step2-other-primary-channel"
+                        questionLabel="Specify Custom Distribution Route"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <Input
                       value={step2Data.placeP3.otherPrimaryChannelText || ''}
                       onChange={(e) =>
@@ -4653,10 +4837,20 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Secondary Supporting Channels (Multi-select pills) */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Secondary Supporting Channels (Optional)
-                </Label>
+              <div id="mod-i-step2-secondary-channels" className="space-y-1.5 scroll-mt-24">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Secondary Supporting Channels (Optional)
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={2}
+                    fieldId="mod-i-step2-secondary-channels"
+                    questionLabel="Secondary Supporting Channels"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { id: 'OUTBOUND_DIRECT_SALES', label: 'Direct Outbound Sales' },
@@ -4700,10 +4894,20 @@ export function ModuleIWorkspace({
 
               {/* Friction & Mitigation */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Biggest Customer Journey Friction Point (Drop-Off Risk)
-                  </Label>
+                <div id="mod-i-step2-friction-point" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Biggest Customer Journey Friction Point (Drop-Off Risk)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={2}
+                      fieldId="mod-i-step2-friction-point"
+                      questionLabel="Biggest Customer Journey Friction Point"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <textarea
                     rows={3}
                     value={step2Data.placeP3.customerJourneyFrictionPoint}
@@ -4724,10 +4928,20 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Tactical Friction Mitigation Plan
-                  </Label>
+                <div id="mod-i-step2-mitigation-plan" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Tactical Friction Mitigation Plan
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={2}
+                      fieldId="mod-i-step2-mitigation-plan"
+                      questionLabel="Tactical Friction Mitigation Plan"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <textarea
                     rows={3}
                     value={step2Data.placeP3.frictionMitigationPlan}
@@ -4767,10 +4981,20 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Acquisition Engine Selector */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Select Primary Beachhead Engine
-                </Label>
+              <div id="mod-i-step2-primary-engine" className="space-y-1.5 scroll-mt-24">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Select Primary Beachhead Engine
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={2}
+                    fieldId="mod-i-step2-primary-engine"
+                    questionLabel="Primary Beachhead Engine"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {ACQUISITION_ENGINE_OPTIONS.map((engine) => {
                     const isSelected = step2Data.promotionP4.primaryAcquisitionEngine === engine.id;
@@ -4880,10 +5104,20 @@ export function ModuleIWorkspace({
               </div>
 
               {/* Beachhead Channel Tactics */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Beachhead Channel Execution Tactics (Weekly Playbook)
-                </Label>
+              <div id="mod-i-step2-channel-tactics" className="space-y-1.5 scroll-mt-24">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Beachhead Channel Execution Tactics (Weekly Playbook)
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={2}
+                    fieldId="mod-i-step2-channel-tactics"
+                    questionLabel="Beachhead Channel Execution Tactics"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <textarea
                   rows={3}
                   value={step2Data.promotionP4.beachheadChannelTactics}
@@ -4908,17 +5142,27 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 2.5 DIGITAL PRESENCE READINESS CHECKLIST                  */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <Globe className="h-4 w-4 text-teal-600 shrink-0" />
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    2.5 Day-1 Digital Presence Readiness Checklist
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Verify the four foundational digital trust signals before initiating outbound outreach or marketing spend.
-                  </p>
+            <div id="mod-i-step2-digital-presence" className="space-y-3 scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-teal-600 shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      2.5 Day-1 Digital Presence Readiness Checklist
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Verify the four foundational digital trust signals before initiating outbound outreach or marketing spend.
+                    </p>
+                  </div>
                 </div>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={2}
+                  fieldId="mod-i-step2-digital-presence"
+                  questionLabel="Day-1 Digital Presence Readiness Checklist"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -5006,53 +5250,7 @@ export function ModuleIWorkspace({
               </div>
             )}
 
-            {/* --------------------------------------------------------- */}
-            {/* 2.6 MOMENTUM PROTECTION: PARK IN OPEN QUESTIONS           */}
-            {/* --------------------------------------------------------- */}
-            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2">
-                  <Bookmark className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-                  <div>
-                    <p className="text-xs font-semibold text-amber-950">
-                      Unsure about your pricing tier or distribution route? Don&apos;t get stuck.
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-amber-800">
-                      Park any unresolved questions (e.g. &quot;Should our enterprise tier be €99 or €149?&quot;) in your Open Questions Parking Lot so you can keep moving forward.
-                    </p>
-                  </div>
-                </div>
-                {parkingSuccessStep2 && (
-                  <Badge className="bg-emerald-600 text-[10px] text-white shrink-0">
-                    <Check className="mr-1 h-3 w-3" /> Question Parked!
-                  </Badge>
-                )}
-              </div>
 
-              <div className="mt-2.5 flex items-center gap-2">
-                <Input
-                  value={parkingQuestionTextStep2}
-                  onChange={(e) => setParkingQuestionTextStep2(e.target.value)}
-                  placeholder="e.g. Should we offer an annual prepayment discount of 20% or 30%?"
-                  className="text-base sm:text-xs bg-white flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleParkStep2Question}
-                  disabled={!parkingQuestionTextStep2.trim() || isParkingQuestionStep2}
-                  className="border-amber-300 bg-white text-xs font-medium text-amber-900 hover:bg-amber-100 shrink-0"
-                >
-                  {isParkingQuestionStep2 ? (
-                    <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Bookmark className="mr-1 h-3.5 w-3.5" />
-                  )}
-                  Park in Open Questions
-                </Button>
-              </div>
-            </div>
 
             {/* Bottom Step Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -5459,17 +5657,27 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.1: FIRST 10 ACQUISITION ARCHETYPE                       */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    3.1 Choose Your First 10 Customer Acquisition Archetype
-                  </h3>
+            <div id="mod-i-step3-archetype" className="space-y-4 scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-emerald-700" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      3.1 Choose Your First 10 Customer Acquisition Archetype
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Select the primary day-1 activation motion best suited to your founder background and customer buying habits.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600">
-                  Select the primary day-1 activation motion best suited to your founder background and customer buying habits.
-                </p>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={3}
+                  fieldId="mod-i-step3-archetype"
+                  questionLabel="Which acquisition archetype best fits our immediate network and resources?"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -5532,10 +5740,20 @@ export function ModuleIWorkspace({
 
               {/* Edge-Case "OTHER" input (Strict GEMINI.md Rule 1.5) */}
               {step3Data.acquisitionArchetype === 'OTHER' && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-                  <Label className="text-xs font-bold text-slate-900">
-                    Describe Your Custom Customer Acquisition Archetype
-                  </Label>
+                <div id="mod-i-step3-other-archetype" className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Describe Your Custom Customer Acquisition Archetype
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={3}
+                      fieldId="mod-i-step3-other-archetype"
+                      questionLabel="Describe Your Custom Customer Acquisition Archetype"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step3Data.otherAcquisitionArchetypeText || ''}
@@ -5553,10 +5771,20 @@ export function ModuleIWorkspace({
               )}
 
               {/* Rationale */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-900">
-                  Strategic Rationale for This Archetype
-                </Label>
+              <div id="mod-i-step3-rationale" className="space-y-1.5 scroll-mt-24">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-900">
+                    Strategic Rationale for This Archetype
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={3}
+                    fieldId="mod-i-step3-rationale"
+                    questionLabel="Strategic Rationale for This Archetype"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <textarea
                   value={step3Data.strategicRationale || ''}
                   onChange={(e) =>
@@ -5590,14 +5818,24 @@ export function ModuleIWorkspace({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+                <div id="mod-i-step3-pilot-price" className="space-y-1.5 scroll-mt-24">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-bold text-slate-900">
                       Headline Commercial Price Point
                     </Label>
-                    <span className="text-[10px] text-emerald-700 font-medium">
-                      Synced from Step 2 / Upstream
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-emerald-700 font-medium">
+                        Synced from Step 2 / Upstream
+                      </span>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={3}
+                        fieldId="mod-i-step3-pilot-price"
+                        questionLabel="Headline Commercial Price Point"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                   </div>
                   <Input
                     type="text"
@@ -5620,10 +5858,20 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-900">
-                    Pilot Structure &amp; Founding Discount
-                  </Label>
+                <div id="mod-i-step3-founding-discount" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Pilot Structure &amp; Founding Discount
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={3}
+                      fieldId="mod-i-step3-founding-discount"
+                      questionLabel="Pilot Structure & Founding Discount"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step3Data.pilotOffer.pilotStructure}
@@ -5645,10 +5893,20 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-900">
-                    The Quid-Pro-Quo Founder Ask
-                  </Label>
+                <div id="mod-i-step3-quid-pro-quo" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-900">
+                      The Quid-Pro-Quo Founder Ask
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={3}
+                      fieldId="mod-i-step3-quid-pro-quo"
+                      questionLabel="The Quid-Pro-Quo Founder Ask"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step3Data.pilotOffer.quidProQuoFounderAsk}
@@ -5670,10 +5928,20 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-900">
-                    Skin-in-the-Game Risk Reversal Guarantee
-                  </Label>
+                <div id="mod-i-step3-risk-guarantee" className="space-y-1.5 scroll-mt-24">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Skin-in-the-Game Risk Reversal Guarantee
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_I_MARKETING"
+                      stepNumber={3}
+                      fieldId="mod-i-step3-risk-guarantee"
+                      questionLabel="Skin-in-the-Game Risk Reversal Guarantee"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
                     type="text"
                     value={step3Data.pilotOffer.riskReversal}
@@ -5700,7 +5968,7 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.3: THE "DREAM 10" TARGET CUSTOMER PIPELINE TRACKER       */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-i-step3-dream10-pipeline" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -5714,16 +5982,26 @@ export function ModuleIWorkspace({
                   </p>
                 </div>
 
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleAddProspect}
-                  disabled={isVaultReadonly}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8 px-3 shrink-0"
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add Target Prospect
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={3}
+                    fieldId="mod-i-step3-dream10-pipeline"
+                    questionLabel="Who are our top 10 prospective pilot accounts or distribution partners?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddProspect}
+                    disabled={isVaultReadonly}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8 px-3 shrink-0"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add Target Prospect
+                  </Button>
+                </div>
               </div>
 
               {/* Pipeline summary counts */}
@@ -5927,17 +6205,27 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.4: COLD & WARM OUTREACH SCRIPT ENGINE                   */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    3.4 Cold &amp; Warm Outreach Script Engine (3 High-Converting Approaches)
-                  </h3>
+            <div id="mod-i-step3-outreach-scripts" className="space-y-4 scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-emerald-700" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      3.4 Cold &amp; Warm Outreach Script Engine (3 High-Converting Approaches)
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Switch between 3 battle-tested outreach frameworks. Personalize the tokens and copy directly into your email or LinkedIn messenger.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600">
-                  Switch between 3 battle-tested outreach frameworks. Personalize the tokens and copy directly into your email or LinkedIn messenger.
-                </p>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={3}
+                  fieldId="mod-i-step3-outreach-scripts"
+                  questionLabel="What is our primary cold/warm outreach message structure?"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               {/* Approach Selector Tabs */}
@@ -6079,17 +6367,27 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.5: 4-TOUCH FOLLOW-UP CADENCE & POLITE BREAKUP EMAIL     */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    3.5 The 4-Touch Follow-Up Cadence &amp; Polite Breakup Email
-                  </h3>
+            <div id="mod-i-step3-followup-cadence" className="space-y-4 scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-emerald-700" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      3.5 The 4-Touch Follow-Up Cadence &amp; Polite Breakup Email
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Over 70% of pilot deals close on the 3rd or 4th touch. Never badger—follow up with genuine value bumps, concluding with the famous &quot;polite breakup email&quot;.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600">
-                  Over 70% of pilot deals close on the 3rd or 4th touch. Never badger—follow up with genuine value bumps, concluding with the famous &quot;polite breakup email&quot;.
-                </p>
+                <FieldParkButton
+                  moduleCode="MOD_I_MARKETING"
+                  stepNumber={3}
+                  fieldId="mod-i-step3-followup-cadence"
+                  questionLabel="What is our multi-touch follow-up schedule before closing or breaking up?"
+                  onPark={onParkOpenQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -6228,7 +6526,7 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.6: TOP 3 EARLY-STAGE OBJECTION BUSTERS                  */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-i-step3-objection-busters" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -6241,7 +6539,16 @@ export function ModuleIWorkspace({
                     Pre-scripted, highly persuasive rebuttals to the 3 most common early-stage friction points tailored to your venture.
                   </p>
                 </div>
-                <Button
+                <div className="flex items-center gap-2 shrink-0">
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={3}
+                    fieldId="mod-i-step3-objection-busters"
+                    questionLabel="What are the top 3 objections we will face and how do we rebut them?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
                   type="button"
                   variant="outline"
                   size="sm"
@@ -6261,6 +6568,7 @@ export function ModuleIWorkspace({
                     </>
                   )}
                 </Button>
+                </div>
               </div>
 
               {objectionSuccessMessage && (
@@ -6575,7 +6883,7 @@ export function ModuleIWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.7: 1-CLICK NON-BINDING LETTER OF INTENT (LOI) GENERATOR */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-i-step3-loi-generator" className="space-y-4 scroll-mt-24">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs text-emerald-950">
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
@@ -6602,6 +6910,14 @@ export function ModuleIWorkspace({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={3}
+                    fieldId="mod-i-step3-loi-generator"
+                    questionLabel="Should we secure a signed non-binding Letter of Intent (LOI) to de-risk demand?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"
@@ -6896,47 +7212,7 @@ export function ModuleIWorkspace({
               </div>
             )}
 
-            {/* --------------------------------------------------------- */}
-            {/* STEP 3 PARKING LOT: OPEN QUESTIONS                        */}
-            {/* --------------------------------------------------------- */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                <Bookmark className="h-4 w-4 text-emerald-700" />
-                <span>Uncertain About Your First 10 Strategy? Park It in Open Questions</span>
-              </div>
-              <p className="text-xs text-slate-600">
-                Don&#39;t let unanswered sales or pipeline questions stall your momentum. Park the question here to resolve during upcoming mentor reviews or pilot calls.
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  type="text"
-                  value={parkingQuestionTextStep3}
-                  onChange={(e) => setParkingQuestionTextStep3(e.target.value)}
-                  placeholder="e.g. Should we offer an annual prepayment incentive during the pilot?"
-                  disabled={isVaultReadonly || isParkingQuestionStep3}
-                  className="h-8 text-base sm:text-xs flex-1 min-w-[240px] bg-white"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleParkStep3Question}
-                  disabled={!parkingQuestionTextStep3.trim() || isParkingQuestionStep3 || isVaultReadonly}
-                  className="h-8 border-slate-300 text-xs shrink-0"
-                >
-                  {isParkingQuestionStep3 ? (
-                    <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Bookmark className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  )}
-                  Park Question
-                </Button>
-              </div>
-              {parkingSuccessStep3 && (
-                <p className="text-xs text-emerald-600 font-medium">
-                  ✓ Question successfully parked to your Open Questions parking lot!
-                </p>
-              )}
-            </div>
+
 
             {/* --------------------------------------------------------- */}
             {/* STEP 3 BOTTOM ACTION TOOLBAR                              */}
@@ -6962,13 +7238,7 @@ export function ModuleIWorkspace({
                     </>
                   )}
                 </Button>
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
-                  moduleCode="MOD_I_MARKETING"
-                  stepLabel="Module I • Step 3"
-                  suggestedQuestion="Which 10 specific named prospects or local stockists can we reach out to personally this week?"
-                  disabled={isVaultReadonly}
-                />
+
               </div>
 
               <div className="flex items-center gap-2">
@@ -7427,7 +7697,7 @@ export function ModuleIWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* 4.2 TARGET CUSTOMER GOAL PRESET & INTERACTIVE SLIDER           */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-4 rounded-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50/20 to-slate-50/20 p-5">
+            <div id="mod-i-step4-monthly-customers-target" className="space-y-4 rounded-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50/20 to-slate-50/20 p-5 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -7438,9 +7708,19 @@ export function ModuleIWorkspace({
                     Start with your Module H Year 1 Breakeven target ({upstreamEconomics.y1BreakevenCustomers} customers/mo) or drag the slider to stress-test any monthly acquisition milestone.
                   </p>
                 </div>
-                <Badge className="bg-slate-100 text-slate-900 border-emerald-300 text-xs font-bold px-3 py-1">
-                  {step4Data.targetMonthlyNewCustomers.toLocaleString()} New Customers / Month
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-slate-100 text-slate-900 border-emerald-300 text-xs font-bold px-3 py-1">
+                    {step4Data.targetMonthlyNewCustomers.toLocaleString()} New Customers / Month
+                  </Badge>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={4}
+                    fieldId="mod-i-step4-monthly-customers-target"
+                    questionLabel="How Many New Customers Do You Need Per Month?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
               </div>
 
               {/* Goal Preset Pills (including OTHER per GEMINI.md Rule 1.5) */}
@@ -7686,7 +7966,7 @@ export function ModuleIWorkspace({
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Slider Card A: Lead-to-Customer Conversion Rate */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                <div id="mod-i-step4-lead-conv" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs scroll-mt-24">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-xs font-bold text-slate-900">
@@ -7696,9 +7976,19 @@ export function ModuleIWorkspace({
                         % of qualified leads, demos, or cart checkouts that become paying customers.
                       </p>
                     </div>
-                    <Badge className="bg-emerald-50 text-emerald-900 border-slate-200 text-xs font-bold shrink-0">
-                      {step4Data.leadToCustomerConversionPercent}%
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge className="bg-emerald-50 text-emerald-900 border-slate-200 text-xs font-bold">
+                        {step4Data.leadToCustomerConversionPercent}%
+                      </Badge>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={4}
+                        fieldId="mod-i-step4-lead-conv"
+                        questionLabel="Lead / Trial-to-Paying Customer Close Rate (%)"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                   </div>
 
                   <input
@@ -7748,7 +8038,7 @@ export function ModuleIWorkspace({
                 </div>
 
                 {/* Slider Card B: Visitor / Outreach-to-Lead Conversion Rate */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                <div id="mod-i-step4-visitor-conv" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs scroll-mt-24">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-xs font-bold text-slate-900">
@@ -7758,9 +8048,19 @@ export function ModuleIWorkspace({
                         % of website visitors, ad clicks, or cold outreach messages that become a lead.
                       </p>
                     </div>
-                    <Badge className="bg-emerald-50 text-emerald-900 border-slate-200 text-xs font-bold shrink-0">
-                      {step4Data.visitorToLeadConversionPercent}%
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge className="bg-emerald-50 text-emerald-900 border-slate-200 text-xs font-bold">
+                        {step4Data.visitorToLeadConversionPercent}%
+                      </Badge>
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={4}
+                        fieldId="mod-i-step4-visitor-conv"
+                        questionLabel="Visitor / Outreach Touch-to-Lead Rate (%)"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                   </div>
 
                   <input
@@ -7809,7 +8109,7 @@ export function ModuleIWorkspace({
                 </div>
 
                 {/* Slider Card C: Paid Traffic Share vs. Organic Sweat Equity with Reversible Toggle */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                <div id="mod-i-step4-paid-mix" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs scroll-mt-24">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="text-xs font-bold text-slate-900">
@@ -7819,7 +8119,16 @@ export function ModuleIWorkspace({
                         Balance between paid clicks ({isOptedOutOfPaid ? 0 : step4Data.paidTrafficSharePercent}%) and founder outreach/organic ({isOptedOutOfPaid ? 100 : 100 - step4Data.paidTrafficSharePercent}%).
                       </p>
                     </div>
-                    <Badge
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={4}
+                        fieldId="mod-i-step4-paid-mix"
+                        questionLabel="Paid Ads vs. Sweat-Equity Organic Split (%) & CPC"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                      <Badge
                       className={`text-xs font-bold shrink-0 ${
                         isOptedOutOfPaid
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
@@ -7829,7 +8138,8 @@ export function ModuleIWorkspace({
                       {isOptedOutOfPaid
                         ? '🛡️ 100% Organic (Paid Ads Opted Out)'
                         : `${step4Data.paidTrafficSharePercent}% Paid / ${100 - step4Data.paidTrafficSharePercent}% Organic`}
-                    </Badge>
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Reversible Paid Acquisition Strategy Toggle */}
@@ -7982,7 +8292,7 @@ export function ModuleIWorkspace({
                 </div>
 
                 {/* Slider Card D: Retention / Purchase Frequency & Founder Time Assumptions */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                <div id="mod-i-step4-customer-lifespan" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs scroll-mt-24">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-xs font-bold text-slate-900">
@@ -7992,7 +8302,16 @@ export function ModuleIWorkspace({
                         Choose whether customers subscribe monthly, buy once, or repeat-buy, plus founder time per organic touch.
                       </p>
                     </div>
-                    <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-xs font-bold shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <FieldParkButton
+                        moduleCode="MOD_I_MARKETING"
+                        stepNumber={4}
+                        fieldId="mod-i-step4-customer-lifespan"
+                        questionLabel="Customer Lifespan (LTV) & Founder Time"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                      <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-xs font-bold">
                       {step4LiveMetrics.activeLtvModel === 'SINGLE_ONE_TIME_PURCHASE'
                         ? '1x One-Time Order'
                         : step4LiveMetrics.activeLtvModel === 'REPEAT_PURCHASE_ORDERS'
@@ -8000,7 +8319,8 @@ export function ModuleIWorkspace({
                         : step4LiveMetrics.activeLtvModel === 'OTHER'
                         ? `${step4LiveMetrics.effectiveLtvMultiplier}x Custom LTV`
                         : `${step4LiveMetrics.effectiveLtvMultiplier} Mo Lifespan`}
-                    </Badge>
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Purchase Frequency Mode Selector (including OTHER per GEMINI.md Rule 1.5) */}
@@ -8824,7 +9144,7 @@ export function ModuleIWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* 4.6 3-BUCKET MONTHLY MARKETING BUDGET & GRANT ELIGIBILITY      */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-5">
+            <div id="mod-i-step4-budget-items" className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-5 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -8852,6 +9172,14 @@ export function ModuleIWorkspace({
                       {step4LiveMetrics.impliedPaidMediaSpend.toLocaleString()}/mo)
                     </Button>
                   )}
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={4}
+                    fieldId="mod-i-step4-budget-items"
+                    questionLabel="What are our required monthly marketing expenses and software subscriptions?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"
@@ -9150,7 +9478,7 @@ export function ModuleIWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* 4.7 GRANT-READY CAC & MARKETING BUDGET NARRATIVE               */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-2.5">
+            <div id="mod-i-step4-cac-narrative" className="space-y-2.5 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold text-slate-900">
@@ -9160,17 +9488,27 @@ export function ModuleIWorkspace({
                     Explains how your marketing budget, conversion rates, and Pocket-Profit LTV prove commercial scalability.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={isVaultReadonly}
-                  onClick={handleGenerateRefreshStep4Narrative}
-                  className="h-7 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
-                >
-                  <RefreshCw className="mr-1 h-3 w-3" />
-                  Sync Narrative with Current Sliders
-                </Button>
+                <div className="flex items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={4}
+                    fieldId="mod-i-step4-cac-narrative"
+                    questionLabel="Grant & Investor CAC Justification Narrative"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isVaultReadonly}
+                    onClick={handleGenerateRefreshStep4Narrative}
+                    className="h-7 border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-slate-100"
+                  >
+                    <RefreshCw className="mr-1 h-3 w-3" />
+                    Sync Narrative with Current Sliders
+                  </Button>
+                </div>
               </div>
 
               <textarea
@@ -9188,45 +9526,7 @@ export function ModuleIWorkspace({
               />
             </div>
 
-            {/* Momentum Protection: Park It in Open Questions */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Bookmark className="h-4 w-4 text-emerald-700" />
-                  <span className="text-xs font-bold text-slate-900">
-                    Unsure about your exact CPC or conversion rate? Park It in Open Questions
-                  </span>
-                </div>
-                {parkingSuccessStep4 && (
-                  <span className="text-xs font-medium text-emerald-700">
-                    ✓ Parked in Open Questions!
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 flex flex-col sm:flex-row gap-2">
-                <Input
-                  value={parkingQuestionTextStep4}
-                  disabled={isVaultReadonly}
-                  onChange={(e) => setParkingQuestionTextStep4(e.target.value)}
-                  placeholder="e.g., Run a €150 LinkedIn/Google test campaign in Month 1 to validate whether CPC is closer to €1.50 or €3.00..."
-                  className="flex-1 bg-white text-base sm:text-xs"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleParkStep4Question}
-                  disabled={
-                    !parkingQuestionTextStep4.trim() ||
-                    isParkingQuestionStep4 ||
-                    isVaultReadonly
-                  }
-                  className="shrink-0 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  Park Question
-                </Button>
-              </div>
-            </div>
+
 
             {/* Bottom Step 4 Save & Next Step Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -9822,11 +10122,21 @@ export function ModuleIWorkspace({
             {/* ============================================================= */}
             {/* SECTION 3: AUDIT READINESS POSTURE SELECTOR                   */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-slate-100/80 pt-4">
+            <div id="mod-i-step5-readiness-posture" className="space-y-3 border-t border-slate-100/80 pt-4 scroll-mt-24">
               <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  3. Marketing &amp; GTM Readiness Posture (Grant &amp; Investor Diligence)
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    3. Marketing &amp; GTM Readiness Posture (Grant &amp; Investor Diligence)
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={5}
+                    fieldId="mod-i-step5-readiness-posture"
+                    questionLabel="GTM Readiness & Diligence Posture"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <span className="text-[11px] text-slate-500">
                   Includes &ldquo;Other&rdquo; custom posture option
                 </span>
@@ -10060,7 +10370,7 @@ export function ModuleIWorkspace({
             {/* ============================================================= */}
             {/* SECTION 5: EXECUTIVE MARKETING DEFENSE NARRATIVE (3 PARAS)    */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-slate-100/80 pt-4">
+            <div id="mod-i-step5-defense-narrative" className="space-y-3 border-t border-slate-100/80 pt-4 scroll-mt-24">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -10073,6 +10383,14 @@ export function ModuleIWorkspace({
 
                 {/* Section 5 Action Toolbar: Generate with AI + Document Exports */}
                 <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_I_MARKETING"
+                    stepNumber={5}
+                    fieldId="mod-i-step5-defense-narrative"
+                    questionLabel="Executive Commercial Defense Narrative"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"

@@ -51,7 +51,10 @@ import {
   Copy,
   SlidersHorizontal,
 } from 'lucide-react';
-import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import {
+  FieldParkButton,
+  scrollAndHighlightElement,
+} from '@/components/workspace/field-park-button';
 import {
   parseCvAndDraftPromoterBioAction,
   generateRoleMatrixSummaryAction,
@@ -153,6 +156,7 @@ export interface ModuleFWorkspaceProps {
   onContinueToModuleG?: () => void;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
 }
 
 export const TEAM_STRUCTURE_POSTURE_OPTIONS: Array<{
@@ -2323,6 +2327,7 @@ export function ModuleFWorkspace({
   onContinueToModuleG,
   initialStep,
   highlightTarget,
+  navToken,
 }: ModuleFWorkspaceProps) {
   // Step Accordion View State: default to Step 1 open so founders land directly in action
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
@@ -2336,19 +2341,10 @@ export function ModuleFWorkspace({
   useEffect(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 6) {
       setOpenStep(initialStep);
-      setTimeout(() => {
-        const targetId = highlightTarget || `module-f-step-${initialStep}`;
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth;
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
-        }
-      }, 250);
+      const targetId = highlightTarget || `module-f-step-${initialStep}`;
+      scrollAndHighlightElement(targetId);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
 
   // Micro-coaching popovers
@@ -4402,9 +4398,20 @@ export function ModuleFWorkspace({
             <CardContent className="space-y-6 pt-5">
               {/* Team Structure Posture Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1.5">
-                  1. Current Team Structure Posture
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label id="mod-f-step1-posture" className="block text-xs font-bold text-slate-900">
+                    1. Current Team Structure Posture
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_F_COFOUNDER_TEAM"
+                    stepNumber={1}
+                    fieldId="mod-f-step1-posture"
+                    questionLabel="Team Structure Posture"
+                    suggestedAction="Align on whether building solo, with equal co-founders, or key hires"
+                    disabled={isVaultReadonly}
+                    onPark={onParkOpenQuestion}
+                  />
+                </div>
                 <p className="text-xs text-slate-500 mb-3">
                   How is your startup structured today?
                 </p>
@@ -4472,9 +4479,20 @@ export function ModuleFWorkspace({
               <div className="space-y-4 pt-2 border-t border-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">
-                      2. Founders &amp; Key Team Members Roster
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 id="mod-f-step1-roster" className="text-xs font-bold text-slate-900">
+                        2. Founders &amp; Key Team Members Roster
+                      </h3>
+                      <FieldParkButton
+                        moduleCode="MOD_F_COFOUNDER_TEAM"
+                        stepNumber={1}
+                        fieldId="mod-f-step1-roster"
+                        questionLabel="Founders & Key Team Members Roster"
+                        suggestedAction="Add promoter bios, LinkedIn profiles, and clarify equity splits"
+                        disabled={isVaultReadonly}
+                        onPark={onParkOpenQuestion}
+                      />
+                    </div>
                     <p className="text-xs text-slate-500">
                       Add each promoter, co-founder, key existing employee, and advisor.
                     </p>
@@ -5139,14 +5157,6 @@ export function ModuleFWorkspace({
               {/* Step Toolbar: Park + Save + Next */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_F_COFOUNDER_TEAM"
-                    stepLabel="Module F • Step 1"
-                    suggestedQuestion="Gather updated CVs and confirm founder bio highlights before submitting our plan or grant application."
-                    disabled={isVaultReadonly}
-                    onParkQuestion={onParkOpenQuestion}
-                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -5573,13 +5583,24 @@ export function ModuleFWorkspace({
 
               {/* 2. The 7 Startup Hats Assignment Grid */}
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900">
-                    2. "7 Startup Hats" Single-Point Accountability Grid
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Assign Primary and Backup ownership across all 7 functions to eliminate role ambiguity and establish business continuity.
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 id="mod-f-step2-hats" className="text-xs font-bold text-slate-900">
+                      2. &ldquo;7 Startup Hats&rdquo; Single-Point Accountability Grid
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Assign Primary and Backup ownership across all 7 functions to eliminate role ambiguity and establish business continuity.
+                    </p>
+                  </div>
+                  <FieldParkButton
+                    moduleCode="MOD_F_COFOUNDER_TEAM"
+                    stepNumber={2}
+                    fieldId="mod-f-step2-hats"
+                    questionLabel="7 Startup Hats Ownership Matrix"
+                    suggestedAction="Assign primary and backup owners for key operational functions"
+                    disabled={isVaultReadonly}
+                    onPark={onParkOpenQuestion}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -5819,13 +5840,24 @@ export function ModuleFWorkspace({
               {/* 3. Strategic Advisory Board & Mentors */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900">
-                      3. Strategic Advisory Board &amp; Industry Mentors (Non-Executive)
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      LEO mentorship panels, Enterprise Ireland advisors, university spin-out mentors, or sector veterans.
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <h3 id="mod-f-step2-advisors" className="text-xs font-bold text-slate-900">
+                        3. Strategic Advisory Board &amp; Industry Mentors (Non-Executive)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        LEO mentorship panels, Enterprise Ireland advisors, university spin-out mentors, or sector veterans.
+                      </p>
+                    </div>
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={2}
+                      fieldId="mod-f-step2-advisors"
+                      questionLabel="Strategic Advisory Board & Mentors"
+                      suggestedAction="Identify non-executive mentors to plug domain or commercial gaps"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {step2Data.advisors.length > 1 && (
@@ -6154,13 +6186,24 @@ export function ModuleFWorkspace({
               {/* 4. Executive Division of Responsibilities Narrative */}
               <div className="space-y-3 pt-4 border-t border-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900">
-                      4. Executive Division of Responsibilities Narrative (LEO Section 1 &amp; UK Innovate UK IFS Q8)
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Synthesized grant-ready summary articulating team balance, domain competence, and risk mitigation.
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <h3 id="mod-f-step2-governance" className="text-xs font-bold text-slate-900">
+                        4. Executive Division of Responsibilities Narrative (LEO Section 1 &amp; UK Innovate UK IFS Q8)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Synthesized grant-ready summary articulating team balance, domain competence, and risk mitigation.
+                      </p>
+                    </div>
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={2}
+                      fieldId="mod-f-step2-governance"
+                      questionLabel="Executive Division of Responsibilities Narrative"
+                      suggestedAction="Synthesize team balance and risk mitigation for grant assessors"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -6241,14 +6284,6 @@ export function ModuleFWorkspace({
               {/* Step 2 Toolbar: Park Open Question + Save Step 2 + Next Step */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_F_COFOUNDER_TEAM"
-                    stepLabel="Module F • Step 2"
-                    suggestedQuestion="Decide which 1–2 functional hats (e.g., bookkeeping, specialist build, or design) we should delegate to part-time support so founder weekly hours stay sustainable."
-                    disabled={isVaultReadonly}
-                    onParkQuestion={onParkOpenQuestion}
-                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6604,9 +6639,20 @@ export function ModuleFWorkspace({
                     {/* 1. Quick Presets Bar */}
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <label className="text-xs font-bold text-slate-900">
-                          1. Quick Jump-Start Presets (Click to Auto-Fill Scrollers)
-                        </label>
+                        <div className="flex items-center gap-2">
+                          <label id="mod-f-step3-floor" className="text-xs font-bold text-slate-900">
+                            1. Quick Jump-Start Presets (Click to Auto-Fill Scrollers)
+                          </label>
+                          <FieldParkButton
+                            moduleCode="MOD_F_COFOUNDER_TEAM"
+                            stepNumber={3}
+                            fieldId="mod-f-step3-floor"
+                            questionLabel="Personal Survival Budget & Take-Home Floor"
+                            suggestedAction="Calibrate personal minimum monthly outgoings and cash survival floor"
+                            disabled={isVaultReadonly}
+                            onPark={onParkOpenQuestion}
+                          />
+                        </div>
                         <span className="text-[11px] text-slate-500">
                           Editing budget for: <strong>{activeFounder.memberName}</strong>
                         </span>
@@ -6667,13 +6713,24 @@ export function ModuleFWorkspace({
 
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                         {/* Bucket 1: Housing & Utilities */}
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
+                        <div id="mod-f-step3-housing" className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>🏠</span>
-                                <span>Housing &amp; Home Utilities</span>
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>🏠</span>
+                                  <span>Housing &amp; Home Utilities</span>
+                                </span>
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={3}
+                                  fieldId="mod-f-step3-housing"
+                                  questionLabel="Housing & Home Utilities (Survival Budget)"
+                                  suggestedAction="Confirm rent/mortgage and utility bills for founder survival"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                              </div>
                               <p className="text-[11px] text-slate-500">
                                 Rent / Mortgage, Council/Property Tax, Energy &amp; Broadband
                               </p>
@@ -6725,13 +6782,24 @@ export function ModuleFWorkspace({
                         </div>
 
                         {/* Bucket 2: Groceries & Essentials */}
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
+                        <div id="mod-f-step3-groceries" className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>🛒</span>
-                                <span>Groceries &amp; Daily Essentials</span>
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>🛒</span>
+                                  <span>Groceries &amp; Daily Essentials</span>
+                                </span>
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={3}
+                                  fieldId="mod-f-step3-groceries"
+                                  questionLabel="Groceries & Daily Essentials"
+                                  suggestedAction="Confirm monthly food, personal care, and household expenses"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                              </div>
                               <p className="text-[11px] text-slate-500">
                                 Food, household consumables, personal care &amp; pharmacy
                               </p>
@@ -6783,13 +6851,24 @@ export function ModuleFWorkspace({
                         </div>
 
                         {/* Bucket 3: Transport & Commute */}
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
+                        <div id="mod-f-step3-transport" className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>🚗</span>
-                                <span>Transport, Fuel &amp; Commute</span>
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>🚗</span>
+                                  <span>Transport, Fuel &amp; Commute</span>
+                                </span>
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={3}
+                                  fieldId="mod-f-step3-transport"
+                                  questionLabel="Transport, Fuel & Commute"
+                                  suggestedAction="Confirm monthly transit, vehicle, and fuel costs"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                              </div>
                               <p className="text-[11px] text-slate-500">
                                 Fuel, car insurance, road tax, public transit, train pass
                               </p>
@@ -6841,13 +6920,24 @@ export function ModuleFWorkspace({
                         </div>
 
                         {/* Bucket 4: Debt & Loan Commitments */}
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
+                        <div id="mod-f-step3-debt" className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>💳</span>
-                                <span>Existing Debt &amp; Credit Lines</span>
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>💳</span>
+                                  <span>Existing Debt &amp; Credit Lines</span>
+                                </span>
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={3}
+                                  fieldId="mod-f-step3-debt"
+                                  questionLabel="Existing Debt & Loan Obligations"
+                                  suggestedAction="Confirm non-business loan repayments and credit servicing"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                              </div>
                               <p className="text-[11px] text-slate-500">
                                 Credit cards, car finance / PCP, personal loans, overdraft
                               </p>
@@ -6899,13 +6989,24 @@ export function ModuleFWorkspace({
                         </div>
 
                         {/* Bucket 5: Dependents & Family */}
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
+                        <div id="mod-f-step3-dependent" className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>👶</span>
-                                <span>Dependents, Family &amp; Health</span>
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>👶</span>
+                                  <span>Dependents, Family &amp; Health</span>
+                                </span>
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={3}
+                                  fieldId="mod-f-step3-dependent"
+                                  questionLabel="Dependents, Family & Health"
+                                  suggestedAction="Confirm childcare and dependent financial commitments"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                              </div>
                               <p className="text-[11px] text-slate-500">
                                 Childcare/creche, school costs, dependents, health cover
                               </p>
@@ -6957,13 +7058,24 @@ export function ModuleFWorkspace({
                         </div>
 
                         {/* Bucket 6: Non-Startup Income Cushion (Offset) */}
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-2xs space-y-2.5">
+                        <div id="mod-f-step3-income-offset" className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-2xs space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                                <span>🛡️</span>
-                                <span>Income Offset Cushion (Reduces Drawings)</span>
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                                  <span>🛡️</span>
+                                  <span>Income Offset Cushion (Reduces Drawings)</span>
+                                </span>
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={3}
+                                  fieldId="mod-f-step3-income-offset"
+                                  questionLabel="Non-Startup Income Cushion"
+                                  suggestedAction="Review spousal or secondary income offsetting survival drawings"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                              </div>
                               <p className="text-[11px] text-emerald-700">
                                 Partner household contribution, part-time earnings, passive income
                               </p>
@@ -7017,13 +7129,24 @@ export function ModuleFWorkspace({
                     </div>
 
                     {/* 3. Personal Savings Cushion & Runway Scroller */}
-                    <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/50 p-4 sm:p-5 shadow-2xs space-y-4">
+                    <div id="mod-f-step3-runway" className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 via-white to-slate-50/50 p-4 sm:p-5 shadow-2xs space-y-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                            <PiggyBank className="h-4 w-4 text-emerald-700" />
-                            <span>3. Personal Savings Buffer (Liquid Living Reserves)</span>
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <PiggyBank className="h-4 w-4 text-emerald-700" />
+                              <span>3. Personal Savings Buffer (Liquid Living Reserves)</span>
+                            </span>
+                            <FieldParkButton
+                              moduleCode="MOD_F_COFOUNDER_TEAM"
+                              stepNumber={3}
+                              fieldId="mod-f-step3-runway"
+                              questionLabel="Personal Savings Cushion & Runway"
+                              suggestedAction="Confirm liquid reserves available before salary drawdown is required"
+                              disabled={isVaultReadonly}
+                              onPark={onParkOpenQuestion}
+                            />
+                          </div>
                           <p className="text-xs text-slate-500 mt-0.5">
                             Cash savings allocated specifically to cover your personal living costs before the company or grants begin paying you a formal salary.
                           </p>
@@ -7075,7 +7198,7 @@ export function ModuleFWorkspace({
                     </div>
 
                     {/* 4. Live Visual Scorecard: Survival Floor + Runway + Underwriter Verification */}
-                    <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 p-4 sm:p-5 text-white shadow-sm space-y-4">
+                    <div id="mod-f-step3-scorecard" className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 p-4 sm:p-5 text-white shadow-sm space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -7083,9 +7206,20 @@ export function ModuleFWorkspace({
                             Live Financial Feasibility &amp; Grant Scorecard
                           </span>
                         </div>
-                        <span className="text-[11px] text-slate-300">
-                          Founder: <strong>{activeFounder.memberName}</strong>
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <FieldParkButton
+                            moduleCode="MOD_F_COFOUNDER_TEAM"
+                            stepNumber={3}
+                            fieldId="mod-f-step3-scorecard"
+                            questionLabel="Financial Feasibility & Grant Scorecard"
+                            suggestedAction="Verify personal survival budget compliance for LEO or Start Up Loans"
+                            disabled={isVaultReadonly}
+                            onPark={onParkOpenQuestion}
+                          />
+                          <span className="text-[11px] text-slate-300">
+                            Founder: <strong>{activeFounder.memberName}</strong>
+                          </span>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -7181,14 +7315,6 @@ export function ModuleFWorkspace({
               {/* Step 3 Toolbar: Park Open Question + Save Step 3 + Next Step */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_F_COFOUNDER_TEAM"
-                    stepLabel="Module F • Step 3"
-                    suggestedQuestion="Confirm our exact personal household buffer and minimum monthly drawings timeline before committing to full-time hours."
-                    disabled={isVaultReadonly}
-                    onParkQuestion={onParkOpenQuestion}
-                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -7586,7 +7712,7 @@ export function ModuleFWorkspace({
                           {!isSoloFounderMode && (
                             <span className="text-base">{currentCat?.emoji}</span>
                           )}
-                          <h4 className="text-sm font-bold text-slate-900">
+                          <h4 id="mod-f-step4-questions" className="text-sm font-bold text-slate-900">
                             {isSoloFounderMode
                               ? '8 Solo Founder Boundaries & Execution Guardrails'
                               : currentCat?.label}
@@ -7622,6 +7748,7 @@ export function ModuleFWorkspace({
                         return (
                           <div
                             key={q.key}
+                            id={`mod-f-step4-q-${q.key}`}
                             className={`rounded-xl border p-4 sm:p-5 transition-all ${
                               selectedVal
                                 ? 'border-slate-200 bg-white shadow-2xs'
@@ -7643,12 +7770,23 @@ export function ModuleFWorkspace({
                                   </p>
                                 </div>
                               </div>
-                              {selectedVal && (
-                                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-[10px] shrink-0">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Answered
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <FieldParkButton
+                                  moduleCode="MOD_F_COFOUNDER_TEAM"
+                                  stepNumber={4}
+                                  fieldId={`mod-f-step4-q-${q.key}`}
+                                  questionLabel={`Alignment Q${q.number}: ${q.title}`}
+                                  suggestedAction="Discuss and align with co-founders or review solo operating boundaries"
+                                  disabled={isVaultReadonly}
+                                  onPark={onParkOpenQuestion}
+                                />
+                                {selectedVal && (
+                                  <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-[10px] shrink-0">
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Answered
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
 
                             {/* Why it Matters Context Helper */}
@@ -7998,11 +8136,22 @@ export function ModuleFWorkspace({
 
                   {/* Side-by-Side Alignment Heatmap (Only when revealed) */}
                   {step4Data.isRevealed && (
-                    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                    <div id="mod-f-step4-heatmap" className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
                       <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                          Side-by-Side Alignment Heatmap (20 Questions)
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                            Side-by-Side Alignment Heatmap (20 Questions)
+                          </span>
+                          <FieldParkButton
+                            moduleCode="MOD_F_COFOUNDER_TEAM"
+                            stepNumber={4}
+                            fieldId="mod-f-step4-heatmap"
+                            questionLabel="Co-Founder Side-by-Side Alignment Heatmap"
+                            suggestedAction="Review alignment heatmap and schedule coffee to discuss top differences"
+                            disabled={isVaultReadonly}
+                            onPark={onParkOpenQuestion}
+                          />
+                        </div>
                         <div className="flex items-center gap-3 text-xs">
                           <span className="flex items-center gap-1 text-emerald-700 font-semibold">
                             <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -8143,18 +8292,6 @@ export function ModuleFWorkspace({
               {/* Step 4 Toolbar: Park Open Question + Save Step 4 + Next Step */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <div className="flex items-center gap-2">
-                  <ParkOpenQuestionPopover
-                    planId={plan.id}
-                    moduleCode="MOD_F_COFOUNDER_TEAM"
-                    stepLabel="Module F • Step 4"
-                    suggestedQuestion={
-                      isSoloFounderMode
-                        ? 'Confirm my weekly mentor/accountability check-in cadence and personal cash stop-loss cap before launch.'
-                        : 'Schedule a dedicated founder coffee session to resolve any misaligned answers in our Step 4 alignment survey.'
-                    }
-                    disabled={isVaultReadonly}
-                    onParkQuestion={onParkOpenQuestion}
-                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -8443,12 +8580,23 @@ export function ModuleFWorkspace({
               {/* ------------------------------------------------------------- */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <Label id="mod-f-step5-posture" className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     1. Core Hiring Strategy &amp; Team Posture
                   </Label>
-                  <span className="text-[11px] text-slate-400">
-                    Select the model that fits your cash and growth stage
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={5}
+                      fieldId="mod-f-step5-posture"
+                      questionLabel="Core Hiring Strategy & Posture"
+                      suggestedAction="Confirm team expansion model (contractors vs core equity hires)"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
+                    <span className="text-[11px] text-slate-400">
+                      Select the model that fits your cash and growth stage
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -8523,13 +8671,24 @@ export function ModuleFWorkspace({
               {/* ------------------------------------------------------------- */}
               <div className="space-y-4 pt-2 border-t border-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                      2. Headcount Schedule &amp; Role Builder
-                    </Label>
-                    <p className="text-[11px] text-slate-500">
-                      Schedule planned hires, set cash salaries, and model sweat equity incentives.
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <Label id="mod-f-step5-headcount" className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        2. Headcount Schedule &amp; Role Builder
+                      </Label>
+                      <p className="text-[11px] text-slate-500">
+                        Schedule planned hires, set cash salaries, and model sweat equity incentives.
+                      </p>
+                    </div>
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={5}
+                      fieldId="mod-f-step5-headcount"
+                      questionLabel="3-Year Headcount & Role Schedule"
+                      suggestedAction="Map out key hires, start dates, and compensation packages"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
                   </div>
 
                   {/* Year Tabs: Year 1 | Year 2 | Year 3 */}
@@ -9203,12 +9362,23 @@ export function ModuleFWorkspace({
               {/* ------------------------------------------------------------- */}
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <Label id="mod-f-step5-scorecard" className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     3. Live 3-Year Headcount, Payroll &amp; Grant Scorecard
                   </Label>
-                  <span className="text-[11px] text-emerald-600 font-bold">
-                    ✓ Feeds directly into Module J Financial Model
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={5}
+                      fieldId="mod-f-step5-scorecard"
+                      questionLabel="3-Year Payroll & Headcount Scorecard"
+                      suggestedAction="Verify PRSI/NIC on-costs and grant eligibility for new roles"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
+                    <span className="text-[11px] text-emerald-600 font-bold">
+                      ✓ Feeds directly into Module J Financial Model
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -9411,13 +9581,24 @@ export function ModuleFWorkspace({
               {/* ------------------------------------------------------------- */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                      4. Executive Hiring &amp; Retention Strategy (LEO &amp; Innovate UK Grant Narrative)
-                    </Label>
-                    <p className="text-[11px] text-slate-400">
-                      Official form summary for grant assessors and loan underwriters
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <Label id="mod-f-step5-narrative" className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        4. Executive Hiring &amp; Retention Strategy (LEO &amp; Innovate UK Grant Narrative)
+                      </Label>
+                      <p className="text-[11px] text-slate-400">
+                        Official form summary for grant assessors and loan underwriters
+                      </p>
+                    </div>
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={5}
+                      fieldId="mod-f-step5-narrative"
+                      questionLabel="Executive Hiring & Retention Strategy Narrative"
+                      suggestedAction="Summarize recruitment timeline and non-dilutive grant offsets"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
                   </div>
                   <Button
                     type="button"
@@ -9465,14 +9646,8 @@ export function ModuleFWorkspace({
 
               {/* Step 5 Bottom Action Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
-                  moduleCode="MOD_F_COFOUNDER_TEAM"
-                  stepLabel="Module F • Step 5"
-                  suggestedQuestion="What monthly revenue milestone should trigger our first paid hire so we never over-commit fixed payroll?"
-                  disabled={isVaultReadonly}
-                  onParkQuestion={onParkOpenQuestion}
-                />
+                <div className="flex items-center gap-2">
+                </div>
 
                 <div className="flex items-center gap-2">
                   {step5AutosavedAt && (
@@ -9659,12 +9834,23 @@ export function ModuleFWorkspace({
               {/* ============================================================= */}
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <h3 id="mod-f-step6-checklist" className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     1. Founding Team &amp; Governance Architecture Checklist
                   </h3>
-                  <span className="text-[11px] text-slate-500 font-medium">
-                    {completedModuleFCoreStepsCount} of 5 Core Sections Complete
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={6}
+                      fieldId="mod-f-step6-checklist"
+                      questionLabel="Founding Team & Governance Architecture Checklist"
+                      suggestedAction="Complete all 5 core sections of team architecture"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {completedModuleFCoreStepsCount} of 5 Core Sections Complete
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -9874,13 +10060,24 @@ export function ModuleFWorkspace({
               {/* ============================================================= */}
               <div className="space-y-3 border-t border-slate-100/80 pt-5">
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
-                      3. Constructive Team &amp; Governance &ldquo;Things to Consider&rdquo; Blind-Spot Review
-                    </h3>
-                    <p className="text-[11px] text-slate-500">
-                      Constructive blind-spot check tailored to LEO panels, Innovate UK assessors, and early investors.
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <h3 id="mod-f-step6-blindspots" className="text-xs font-bold uppercase tracking-wider text-slate-800 sm:text-sm">
+                        3. Constructive Team &amp; Governance &ldquo;Things to Consider&rdquo; Blind-Spot Review
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Constructive blind-spot check tailored to LEO panels, Innovate UK assessors, and early investors.
+                      </p>
+                    </div>
+                    <FieldParkButton
+                      moduleCode="MOD_F_COFOUNDER_TEAM"
+                      stepNumber={6}
+                      fieldId="mod-f-step6-blindspots"
+                      questionLabel="Team Blind-Spot Review"
+                      suggestedAction="Review constructive blind spots and address potential investor concerns"
+                      disabled={isVaultReadonly}
+                      onPark={onParkOpenQuestion}
+                    />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -9925,6 +10122,7 @@ export function ModuleFWorkspace({
                     return (
                       <div
                         key={item.id}
+                        id={`blindspot-card-${item.id}`}
                         className={`rounded-xl border p-3.5 transition ${
                           item.isResolved
                             ? 'border-emerald-300 bg-emerald-50/40'
@@ -9991,25 +10189,15 @@ export function ModuleFWorkspace({
                               {item.isResolved ? 'Resolved / Addressed' : 'Mark Addressed'}
                             </Button>
 
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={async () => {
-                                if (onParkOpenQuestion) {
-                                  onParkOpenQuestion(
-                                    `[Team Blind Spot] ${item.title}: ${item.recommendedActionOrFix}`
-                                  );
-                                  setSaveBanner(
-                                    `📌 Parked "${item.title}" in Open Questions!`
-                                  );
-                                }
-                              }}
-                              className="h-7 border-slate-300 bg-white px-2 text-[11px] text-slate-700 hover:bg-slate-100"
-                            >
-                              <Bookmark className="mr-1 h-3 w-3" />
-                              Park
-                            </Button>
+                            <FieldParkButton
+                              moduleCode="MOD_F_COFOUNDER_TEAM"
+                              stepNumber={6}
+                              fieldId={`blindspot-card-${item.id}`}
+                              questionLabel={`Blind Spot: ${item.title}`}
+                              suggestedAction={item.recommendedActionOrFix || item.whyItMatters || "Address this team blind spot"}
+                              disabled={isVaultReadonly}
+                              onPark={onParkOpenQuestion}
+                            />
 
                             {step6Data.blindSpots.length > 1 && (
                               <button
@@ -10122,12 +10310,23 @@ export function ModuleFWorkspace({
                   {/* Block 1: Executive Team Capability */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-800">
+                      <label id="mod-f-step6-executive-summary" className="text-xs font-bold text-slate-800">
                         A. Executive Team Capability &amp; Execution Track Record (LEO Appendix D &amp; Innovate UK Q8)
                       </label>
-                      <span className="text-[10px] text-slate-400">
-                        {step6Data.executiveTeamCapabilityNarrative.trim().split(/\s+/).filter(Boolean).length} words
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <FieldParkButton
+                          moduleCode="MOD_F_COFOUNDER_TEAM"
+                          stepNumber={6}
+                          fieldId="mod-f-step6-executive-summary"
+                          questionLabel="Executive Team Capability Narrative (LEO App D & Innovate UK)"
+                          suggestedAction="Draft comprehensive team capability and track record summary for assessors"
+                          disabled={isVaultReadonly}
+                          onPark={onParkOpenQuestion}
+                        />
+                        <span className="text-[10px] text-slate-400">
+                          {step6Data.executiveTeamCapabilityNarrative.trim().split(/\s+/).filter(Boolean).length} words
+                        </span>
+                      </div>
                     </div>
                     <textarea
                       rows={4}
@@ -10147,12 +10346,23 @@ export function ModuleFWorkspace({
                   {/* Block 2: Corporate Governance & Vesting */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-800">
+                      <label id="mod-f-step6-governance" className="text-xs font-bold text-slate-800">
                         B. Corporate Governance, 4-Year Vesting &amp; Deadlock Resolution
                       </label>
-                      <span className="text-[10px] text-slate-400">
-                        {step6Data.governanceAndVestingNarrative.trim().split(/\s+/).filter(Boolean).length} words
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <FieldParkButton
+                          moduleCode="MOD_F_COFOUNDER_TEAM"
+                          stepNumber={6}
+                          fieldId="mod-f-step6-governance"
+                          questionLabel="Corporate Governance & Vesting Narrative"
+                          suggestedAction="Detail 4-year vesting schedule and 50/50 dispute tie-breaking mechanisms"
+                          disabled={isVaultReadonly}
+                          onPark={onParkOpenQuestion}
+                        />
+                        <span className="text-[10px] text-slate-400">
+                          {step6Data.governanceAndVestingNarrative.trim().split(/\s+/).filter(Boolean).length} words
+                        </span>
+                      </div>
                     </div>
                     <textarea
                       rows={3}
@@ -10172,12 +10382,23 @@ export function ModuleFWorkspace({
                   {/* Block 3: Talent Retention & Hiring */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-800">
+                      <label id="mod-f-step6-retention" className="text-xs font-bold text-slate-800">
                         C. Talent Retention &amp; Non-Dilutive Grant Salary Offsets (LEO Priming / Innovate UK)
                       </label>
-                      <span className="text-[10px] text-slate-400">
-                        {step6Data.talentRetentionAndHiringNarrative.trim().split(/\s+/).filter(Boolean).length} words
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <FieldParkButton
+                          moduleCode="MOD_F_COFOUNDER_TEAM"
+                          stepNumber={6}
+                          fieldId="mod-f-step6-retention"
+                          questionLabel="Talent Retention & Grant Salary Offsets Narrative"
+                          suggestedAction="Detail incentive structures and grant-funded salary milestone offsets"
+                          disabled={isVaultReadonly}
+                          onPark={onParkOpenQuestion}
+                        />
+                        <span className="text-[10px] text-slate-400">
+                          {step6Data.talentRetentionAndHiringNarrative.trim().split(/\s+/).filter(Boolean).length} words
+                        </span>
+                      </div>
                     </div>
                     <textarea
                       rows={3}

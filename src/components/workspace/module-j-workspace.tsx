@@ -45,7 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PartnerSlot } from '@/components/workspace/partner-slot';
-import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import { FieldParkButton } from '@/components/workspace/field-park-button';
 import type {
   ActiveStartupPlan,
   FinanceViewLanguageMode,
@@ -139,6 +139,8 @@ export interface ModuleJWorkspaceProps {
   ) => void;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
+  onParkOpenQuestion?: (questionText: string) => Promise<void> | void;
 }
 
 const OPERATING_POSTURE_OPTIONS: Array<{
@@ -988,6 +990,8 @@ export function ModuleJWorkspace({
   onNavigateToModule,
   initialStep,
   highlightTarget,
+  navToken,
+  onParkOpenQuestion,
 }: ModuleJWorkspaceProps) {
   const effectiveCountry = (selectedCountry || plan.hqCountryCode || 'IE').toUpperCase();
   const isUK = effectiveCountry === 'GB' || effectiveCountry === 'UK';
@@ -1083,18 +1087,47 @@ export function ModuleJWorkspace({
   });
 
   useEffect(() => {
-    if (initialStep) {
+    if (initialStep && initialStep >= 1 && initialStep <= 5) {
       setOpenStep(initialStep);
     }
-    if (highlightTarget && typeof document !== 'undefined') {
+    const targetId = highlightTarget;
+    if (targetId) {
+      const scrollAndHighlight = () => {
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'transition-all');
+          if (typeof (el as HTMLElement).focus === 'function') {
+            (el as HTMLElement).focus();
+          }
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2');
+          }, 3000);
+        }
+      };
+      const timer = setTimeout(scrollAndHighlight, 350);
+      return () => clearTimeout(timer);
+    } else if (initialStep && initialStep >= 1 && initialStep <= 5) {
       setTimeout(() => {
-        const el = document.getElementById(highlightTarget);
+        const el = document.getElementById(`module-j-step-${initialStep}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-      }, 220);
+      }, 250);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
+
+  const handleParkQuestion = async (fullQuestionText: string) => {
+    if (onParkOpenQuestion) {
+      await onParkOpenQuestion(fullQuestionText);
+    } else {
+      await parkModuleJOpenQuestionAction({
+        planId: plan.id,
+        questionText: fullQuestionText,
+        stepLabel: 'Module J (Finance)',
+      });
+    }
+  };
 
   const isPlainMode = step1Data.viewLanguageMode === 'PLAIN_ENGLISH_FOUNDER';
 
@@ -1246,9 +1279,7 @@ export function ModuleJWorkspace({
   const [saveStatusStep2, setSaveStatusStep2] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isGeneratingAiStep2, setIsGeneratingAiStep2] = useState(false);
   const [aiMessageStep2, setAiMessageStep2] = useState<string | null>(null);
-  const [parkingQuestionStep2, setParkingQuestionStep2] = useState('');
-  const [isParkingStep2, setIsParkingStep2] = useState(false);
-  const [parkedSuccessStep2, setParkedSuccessStep2] = useState(false);
+
 
   // Live Step 2 Derived Working Capital & 12-Month Invoiced vs. Bank Cash Schedule
   const step2Metrics = useMemo(() => {
@@ -1419,9 +1450,7 @@ export function ModuleJWorkspace({
   const [saveStatusStep3, setSaveStatusStep3] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isGeneratingAiStep3, setIsGeneratingAiStep3] = useState(false);
   const [aiMessageStep3, setAiMessageStep3] = useState<string | null>(null);
-  const [parkingQuestionStep3, setParkingQuestionStep3] = useState('');
-  const [isParkingStep3, setIsParkingStep3] = useState(false);
-  const [parkedSuccessStep3, setParkedSuccessStep3] = useState(false);
+
   const [showQuarterlyTableStep3, setShowQuarterlyTableStep3] = useState(false);
   const [showBankingPartnerDrawerStep3, setShowBankingPartnerDrawerStep3] = useState(false);
 
@@ -1772,9 +1801,7 @@ export function ModuleJWorkspace({
   >('idle');
   const [isGeneratingAiStep4, setIsGeneratingAiStep4] = useState(false);
   const [aiMessageStep4, setAiMessageStep4] = useState<string | null>(null);
-  const [parkingQuestionStep4, setParkingQuestionStep4] = useState('');
-  const [isParkingStep4, setIsParkingStep4] = useState(false);
-  const [parkedSuccessStep4, setParkedSuccessStep4] = useState(false);
+
   const [cashflowGranularityStep4, setCashflowGranularityStep4] = useState<
     'ANNUAL_3YR' | 'QUARTERLY_12Q' | 'MONTHLY_36M'
   >('QUARTERLY_12Q');
@@ -2261,9 +2288,7 @@ export function ModuleJWorkspace({
   const [syncBannerMessage, setSyncBannerMessage] = useState<string | null>(null);
 
   // Open Question Parking Lot State for Step 1
-  const [parkingQuestionStep1, setParkingQuestionStep1] = useState('');
-  const [isParkingStep1, setIsParkingStep1] = useState(false);
-  const [parkedSuccessStep1, setParkedSuccessStep1] = useState(false);
+
 
   // Re-sync handler from upstream Modules D-I
   const handleSyncFromUpstreamModules = () => {
@@ -2451,24 +2476,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  // Park Open Question in Step 1
-  const handleParkStep1Question = async () => {
-    const clean = parkingQuestionStep1.trim();
-    if (!clean) return;
-    setIsParkingStep1(true);
-    try {
-      await parkModuleJOpenQuestionAction({
-        planId: plan.id,
-        questionText: clean,
-        stepLabel: 'Module J Step 1 (Overheads & Taxes)',
-      });
-      setParkingQuestionStep1('');
-      setParkedSuccessStep1(true);
-      setTimeout(() => setParkedSuccessStep1(false), 3000);
-    } finally {
-      setIsParkingStep1(false);
-    }
-  };
+
 
   // ---------------------------------------------------------------------------
   // STEP 2 HANDLERS: WORKING CAPITAL, PAYMENT TIMING & SEASONALITY
@@ -2591,23 +2599,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleParkStep2Question = async () => {
-    const clean = parkingQuestionStep2.trim();
-    if (!clean) return;
-    setIsParkingStep2(true);
-    try {
-      await parkModuleJOpenQuestionAction({
-        planId: plan.id,
-        questionText: clean,
-        stepLabel: 'Module J Step 2 (Payment Timing & Working Capital)',
-      });
-      setParkingQuestionStep2('');
-      setParkedSuccessStep2(true);
-      setTimeout(() => setParkedSuccessStep2(false), 3000);
-    } finally {
-      setIsParkingStep2(false);
-    }
-  };
+
 
   // ---------------------------------------------------------------------------
   // STEP 3 HANDLERS: 36-MONTH CASHFLOW TROUGH & CAPITAL STACK BRIDGE
@@ -2764,23 +2756,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleParkStep3Question = async () => {
-    const clean = parkingQuestionStep3.trim();
-    if (!clean) return;
-    setIsParkingStep3(true);
-    try {
-      await parkModuleJOpenQuestionAction({
-        planId: plan.id,
-        questionText: clean,
-        stepLabel: 'Module J Step 3 (36-Month Cash Trough & Grant Bridge)',
-      });
-      setParkingQuestionStep3('');
-      setParkedSuccessStep3(true);
-      setTimeout(() => setParkedSuccessStep3(false), 3000);
-    } finally {
-      setIsParkingStep3(false);
-    }
-  };
+
 
   // ---------------------------------------------------------------------------
   // STEP 4 HANDLERS: 3-YEAR P&L, 36-MONTH CASHFLOW, STRESS-TEST & IP SHIELD
@@ -2892,23 +2868,7 @@ export function ModuleJWorkspace({
     }
   };
 
-  const handleParkStep4Question = async () => {
-    const clean = parkingQuestionStep4.trim();
-    if (!clean) return;
-    setIsParkingStep4(true);
-    try {
-      await parkModuleJOpenQuestionAction({
-        planId: plan.id,
-        questionText: clean,
-        stepLabel: 'Module J Step 4 (3-Year P&L, Stress Test & IP Shield)',
-      });
-      setParkingQuestionStep4('');
-      setParkedSuccessStep4(true);
-      setTimeout(() => setParkedSuccessStep4(false), 3000);
-    } finally {
-      setIsParkingStep4(false);
-    }
-  };
+
 
   // ---------------------------------------------------------------------------
   // STEP 5 HANDLERS: FINAL OVERVIEW BRIEF & AI UNDERWRITER AUDIT
@@ -4658,22 +4618,32 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 1.1: OPERATING COST POSTURE SELECTOR (With Mandatory OTHER) */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    1.1{' '}
+            <div id="mod-j-step1-operating-posture" className="space-y-4 scroll-mt-24">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-emerald-700" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      1.1{' '}
+                      {isPlainMode
+                        ? 'How Lean Is Your Day-to-Day Setup?'
+                        : 'Select Operating Expenditure (OpEx) Cost Posture'}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600">
                     {isPlainMode
-                      ? 'How Lean Is Your Day-to-Day Setup?'
-                      : 'Select Operating Expenditure (OpEx) Cost Posture'}
-                  </h3>
+                      ? 'Pick the style that best matches how you will run the business in Year 1. You can tweak every individual bill right below.'
+                      : 'Establish the baseline operating overhead structure for grant underwriting and benchmark calibration.'}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600">
-                  {isPlainMode
-                    ? 'Pick the style that best matches how you will run the business in Year 1. You can tweak every individual bill right below.'
-                    : 'Establish the baseline operating overhead structure for grant underwriting and benchmark calibration.'}
-                </p>
+                <FieldParkButton
+                  moduleCode="MOD_J_FINANCE"
+                  stepNumber={1}
+                  fieldId="mod-j-step1-operating-posture"
+                  questionLabel="Operating Cost Structure & Posture"
+                  onPark={handleParkQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -4756,7 +4726,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 1.2: DRIVER-BASED MONTHLY RUNNING BILLS (NO-SPREADSHEET)  */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-j-step1-overhead-items" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -4776,6 +4746,14 @@ export function ModuleJWorkspace({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={1}
+                    fieldId="mod-j-step1-overhead-items"
+                    questionLabel="Itemized Operating Expenditure (OpEx) & Monthly Bills"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"
@@ -5062,22 +5040,32 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 1.3: PAYROLL, LOCALIZED EMPLOYER TAXES & VAT AUTO-PILOT   */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Landmark className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    1.3{' '}
+            <div id="mod-j-step1-employer-taxes" className="space-y-4 scroll-mt-24">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Landmark className="h-4 w-4 text-emerald-700" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      1.3{' '}
+                      {isPlainMode
+                        ? 'Team Pay, Automatic Payroll Taxes & The "VAT Isn\'t Your Money" Guardrail'
+                        : `Statutory Payroll Taxes (${isUK ? 'UK NIC & Pension' : 'IE Employer PRSI'}), VAT Regime & Export Split`}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600">
                     {isPlainMode
-                      ? 'Team Pay, Automatic Payroll Taxes & The "VAT Isn\'t Your Money" Guardrail'
-                      : `Statutory Payroll Taxes (${isUK ? 'UK NIC & Pension' : 'IE Employer PRSI'}), VAT Regime & Export Split`}
-                  </h3>
+                      ? 'We pulled your survival budget and hiring plan from Module F. Keep the Tax Auto-Pilot switched ON so we automatically add mandatory employer taxes and separate VAT from your revenue.'
+                      : 'Calibrate directors drawings, Y1–Y3 gross payroll, statutory employer social insurance, VAT registration timing, and international export share.'}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600">
-                  {isPlainMode
-                    ? 'We pulled your survival budget and hiring plan from Module F. Keep the Tax Auto-Pilot switched ON so we automatically add mandatory employer taxes and separate VAT from your revenue.'
-                    : 'Calibrate directors drawings, Y1–Y3 gross payroll, statutory employer social insurance, VAT registration timing, and international export share.'}
-                </p>
+                <FieldParkButton
+                  moduleCode="MOD_J_FINANCE"
+                  stepNumber={1}
+                  fieldId="mod-j-step1-employer-taxes"
+                  questionLabel="Statutory Employer Payroll Taxes (PRSI / NIC & Pension)"
+                  onPark={handleParkQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               {/* Payroll + Employer Tax Grid */}
@@ -5245,13 +5233,23 @@ export function ModuleJWorkspace({
               </div>
 
               {/* VAT Strategy Selector (with Mandatory OTHER) */}
-              <div className="space-y-3 pt-2">
+              <div id="mod-j-step1-vat-strategy" className="space-y-3 pt-2 scroll-mt-24">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label className="text-xs font-bold text-slate-900">
-                    {isPlainMode
-                      ? 'How Will You Handle VAT? ("VAT Isn\'t Your Money" Guardrail)'
-                      : `VAT Registration & Remittance Strategy (${step1Data.standardVatRatePercent}% Standard Rate)`}
-                  </Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-xs font-bold text-slate-900">
+                      {isPlainMode
+                        ? 'How Will You Handle VAT? ("VAT Isn\'t Your Money" Guardrail)'
+                        : `VAT Registration & Remittance Strategy (${step1Data.standardVatRatePercent}% Standard Rate)`}
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_J_FINANCE"
+                      stepNumber={1}
+                      fieldId="mod-j-step1-vat-strategy"
+                      questionLabel="VAT Registration & Remittance Strategy"
+                      onPark={handleParkQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Badge
                     variant="outline"
                     className="border-amber-300 bg-amber-50 text-[10px] text-amber-900"
@@ -5329,7 +5327,7 @@ export function ModuleJWorkspace({
                 )}
 
                 {/* Export Revenue Share Slider (Mandatory for IE LEO & Enterprise Ireland) */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div id="mod-j-step1-export-capex" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h4 className="text-xs font-bold text-slate-900">
@@ -5343,10 +5341,20 @@ export function ModuleJWorkspace({
                           : 'Mandatory for Irish LEO Priming/Feasibility & Enterprise Ireland to prove non-displacement of local competitors.'}
                       </p>
                     </div>
-                    <Badge className="bg-emerald-700 text-white text-xs px-2.5 py-0.5">
-                      {step1Data.exportRevenueSharePercent}% Export /{' '}
-                      {100 - step1Data.exportRevenueSharePercent}% Domestic
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-700 text-white text-xs px-2.5 py-0.5">
+                        {step1Data.exportRevenueSharePercent}% Export /{' '}
+                        {100 - step1Data.exportRevenueSharePercent}% Domestic
+                      </Badge>
+                      <FieldParkButton
+                        moduleCode="MOD_J_FINANCE"
+                        stepNumber={1}
+                        fieldId="mod-j-step1-export-capex"
+                        questionLabel="International Export Share & CapEx Depreciation"
+                        onPark={handleParkQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                   </div>
 
                   <input
@@ -5577,7 +5585,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 1.5: WRITTEN COST & TAX JUSTIFICATION + OPEN QUESTIONS    */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-j-step1-cost-narrative" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold text-slate-900">
@@ -5590,17 +5598,27 @@ export function ModuleJWorkspace({
                     Optional to edit — we auto-draft this summary from your live numbers when you save, or click <strong>&quot;Synthesize Summary&quot;</strong> to enrich it.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGenerateAiStep1}
-                  disabled={isGeneratingAiStep1 || isVaultReadonly}
-                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
-                >
-                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep1 ? 'Synthesizing...' : 'Synthesize Summary'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={1}
+                    fieldId="mod-j-step1-cost-narrative"
+                    questionLabel="Operating Cost & Tax Justification Narrative"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateAiStep1}
+                    disabled={isGeneratingAiStep1 || isVaultReadonly}
+                    className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
+                  >
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                    {isGeneratingAiStep1 ? 'Synthesizing...' : 'Synthesize Summary'}
+                  </Button>
+                </div>
               </div>
 
               <textarea
@@ -5629,42 +5647,7 @@ export function ModuleJWorkspace({
                 </div>
               )}
 
-              {/* Momentum Protection: Park It in Open Questions (Strict GEMINI.md Rule 1.3) */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                    <HelpCircle className="h-4 w-4 text-emerald-700" />
-                    <span>
-                      Not 100% sure on an insurance quote, accountant fee, or VAT rule yet? Park it in Open Questions so you don&apos;t lose momentum:
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-2 flex flex-col sm:flex-row gap-2">
-                  <Input
-                    type="text"
-                    value={parkingQuestionStep1}
-                    onChange={(e) => setParkingQuestionStep1(e.target.value)}
-                    placeholder="e.g. Confirm with accountant whether we should register for VAT in Month 1 or Month 6..."
-                    disabled={isVaultReadonly}
-                    className="h-8 bg-white text-base sm:text-xs flex-1"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleParkStep1Question}
-                    disabled={isParkingStep1 || !parkingQuestionStep1.trim() || isVaultReadonly}
-                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50 shrink-0"
-                  >
-                    Park It in Open Questions
-                  </Button>
-                </div>
-                {parkedSuccessStep1 && (
-                  <p className="mt-1.5 text-[11px] font-medium text-emerald-700">
-                    ✓ Parked in your Open Questions list for mentor/accountant review!
-                  </p>
-                )}
-              </div>
+
             </div>
 
             {/* Bottom Step 1 Toolbar (Strict GEMINI.md Rule 6.1 Standard) */}
@@ -5958,7 +5941,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 2.1: CUSTOMER PAYMENT TIMING (DEBTOR DAYS) (+ OTHER)      */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-3">
+            <div id="mod-j-step2-customer-terms" className="space-y-3 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold text-slate-900">
@@ -5971,9 +5954,19 @@ export function ModuleJWorkspace({
                     Choose how long it takes for a sale to turn into cleared cash in your business bank account.
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-slate-200 text-emerald-800">
-                  Effective Lag: {step2Metrics.effectiveDebtorDays} Days
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] border-slate-200 text-emerald-800">
+                    Effective Lag: {step2Metrics.effectiveDebtorDays} Days
+                  </Badge>
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={2}
+                    fieldId="mod-j-step2-customer-terms"
+                    questionLabel="Customer Payment Terms & Debtor Collection Days"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -6072,17 +6065,27 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
               {/* Left 7 Cols: Inventory / Supplier Prepayment Timing (+ OTHER) */}
-              <div className="lg:col-span-7 space-y-3">
-                <div>
-                  <Label className="text-xs font-bold text-slate-900">
-                    2.2{' '}
-                    {isPlainMode
-                      ? 'Do You Have to Buy Stock or Pay Suppliers Before You Sell?'
-                      : 'Inventory Holding Lead Time & Supplier Credit (Accounts Payable)'}
-                  </Label>
-                  <p className="text-[11px] text-slate-500">
-                    Physical product businesses often have to pay for stock weeks or months before customers buy.
-                  </p>
+              <div id="mod-j-step2-supplier-terms" className="lg:col-span-7 space-y-3 scroll-mt-24">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <Label className="text-xs font-bold text-slate-900">
+                      2.2{' '}
+                      {isPlainMode
+                        ? 'Do You Have to Buy Stock or Pay Suppliers Before You Sell?'
+                        : 'Inventory Holding Lead Time & Supplier Credit (Accounts Payable)'}
+                    </Label>
+                    <p className="text-[11px] text-slate-500">
+                      Physical product businesses often have to pay for stock weeks or months before customers buy.
+                    </p>
+                  </div>
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={2}
+                    fieldId="mod-j-step2-supplier-terms"
+                    questionLabel="Supplier Payment Terms & Prepayment Lead Time"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -6146,7 +6149,7 @@ export function ModuleJWorkspace({
               </div>
 
               {/* Right 5 Cols: Pre-Revenue Build Months & Stock Buffer Sliders */}
-              <div className="lg:col-span-5 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div id="mod-j-step2-pre-revenue-timing" className="lg:col-span-5 space-y-4 rounded-xl border border-slate-200 bg-white p-4 scroll-mt-24">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-bold text-slate-900">
@@ -6154,9 +6157,19 @@ export function ModuleJWorkspace({
                         ? 'Which Month Do Paying Sales Start?'
                         : 'Commercial Revenue Commencement Month (M1–M12)'}
                     </Label>
-                    <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
-                      Month {step2Data.monthToStartRevenue}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className="bg-slate-100 text-emerald-900 text-[10px]">
+                        Month {step2Data.monthToStartRevenue}
+                      </Badge>
+                      <FieldParkButton
+                        moduleCode="MOD_J_FINANCE"
+                        stepNumber={2}
+                        fieldId="mod-j-step2-pre-revenue-timing"
+                        questionLabel="Commercial Revenue Start Month & Stock Buffer"
+                        onPark={handleParkQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                   </div>
                   <p className="text-[11px] text-slate-500">
                     If you need 1–3 months to finish building V1 or fitting out premises before charging customers, slide this right.
@@ -6243,17 +6256,27 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 2.3: SEASONALITY RAMP CURVE (+ OTHER) & 12-MO VISUAL CHART */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs font-bold text-slate-900">
-                  2.3{' '}
-                  {isPlainMode
-                    ? 'How Do Your Sales Ramp Up Across the 12 Months of the Year?'
-                    : 'Monthly Revenue Phasing & Seasonality Weighting Curve (M1–M12)'}
-                </Label>
-                <p className="text-[11px] text-slate-500">
-                  Nobody sells the exact same amount in Month 1 as Month 12. Pick the curve that best matches your industry.
-                </p>
+            <div id="mod-j-step2-seasonality" className="space-y-4 scroll-mt-24">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Label className="text-xs font-bold text-slate-900">
+                    2.3{' '}
+                    {isPlainMode
+                      ? 'How Do Your Sales Ramp Up Across the 12 Months of the Year?'
+                      : 'Monthly Revenue Phasing & Seasonality Weighting Curve (M1–M12)'}
+                  </Label>
+                  <p className="text-[11px] text-slate-500">
+                    Nobody sells the exact same amount in Month 1 as Month 12. Pick the curve that best matches your industry.
+                  </p>
+                </div>
+                <FieldParkButton
+                  moduleCode="MOD_J_FINANCE"
+                  stepNumber={2}
+                  fieldId="mod-j-step2-seasonality"
+                  questionLabel="Monthly Sales Phasing & Seasonality Curve"
+                  onPark={handleParkQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -6543,7 +6566,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 2.5: WRITTEN WORKING CAPITAL JUSTIFICATION + PARKING LOT  */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-j-step2-working-capital-narrative" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold text-slate-900">
@@ -6556,17 +6579,27 @@ export function ModuleJWorkspace({
                     Optional to edit — auto-drafted on save from your payment timing, stock lead times, and monthly sales ramp.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGenerateAiStep2}
-                  disabled={isGeneratingAiStep2 || isVaultReadonly}
-                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
-                >
-                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep2 ? 'Synthesizing...' : 'Synthesize Summary'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={2}
+                    fieldId="mod-j-step2-working-capital-narrative"
+                    questionLabel="Working Capital & Debtor Lag Justification Narrative"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateAiStep2}
+                    disabled={isGeneratingAiStep2 || isVaultReadonly}
+                    className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
+                  >
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                    {isGeneratingAiStep2 ? 'Synthesizing...' : 'Synthesize Summary'}
+                  </Button>
+                </div>
               </div>
 
               <textarea
@@ -6595,40 +6628,7 @@ export function ModuleJWorkspace({
                 </div>
               )}
 
-              {/* Momentum Protection: Park It in Open Questions (Rule 1.3) */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <HelpCircle className="h-4 w-4 text-emerald-700" />
-                  <span>
-                    Unsure what payment terms enterprise buyers or wholesalers in your sector demand? Park it in Open Questions:
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-col sm:flex-row gap-2">
-                  <Input
-                    type="text"
-                    value={parkingQuestionStep2}
-                    onChange={(e) => setParkingQuestionStep2(e.target.value)}
-                    placeholder="e.g. Check whether retail stockists pay on 30-day or 60-day invoice terms..."
-                    disabled={isVaultReadonly}
-                    className="h-8 bg-white text-base sm:text-xs flex-1"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleParkStep2Question}
-                    disabled={isParkingStep2 || !parkingQuestionStep2.trim() || isVaultReadonly}
-                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50 shrink-0"
-                  >
-                    Park It in Open Questions
-                  </Button>
-                </div>
-                {parkedSuccessStep2 && (
-                  <p className="mt-1.5 text-[11px] font-medium text-emerald-700">
-                    ✓ Parked in your Open Questions list!
-                  </p>
-                )}
-              </div>
+
             </div>
 
             {/* Bottom Step 2 Toolbar (Strict GEMINI.md Rule 6.1 Standard) */}
@@ -6951,7 +6951,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.1: PRIMARY FUNDING & RUNWAY STRATEGY (With Mandatory OTHER) */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-3">
+            <div id="mod-j-step3-funding-strategy" className="space-y-3 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -6967,18 +6967,28 @@ export function ModuleJWorkspace({
                       : 'Select the primary financing structure for bridging the pre-breakeven operating cash trough.'}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleMatchRecommendedRaiseStep3}
-                  disabled={isVaultReadonly}
-                  className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  <Calculator className="mr-1 h-3.5 w-3.5" />
-                  Auto-Size Stack to Cover My Cash Trough ({currencySymbol}
-                  {step3Metrics.recommendedCapitalRaise.toLocaleString()})
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={3}
+                    fieldId="mod-j-step3-funding-strategy"
+                    questionLabel="Capital Stack & Financing Posture"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleMatchRecommendedRaiseStep3}
+                    disabled={isVaultReadonly}
+                    className="h-7 border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <Calculator className="mr-1 h-3.5 w-3.5" />
+                    Auto-Size Stack to Cover My Cash Trough ({currencySymbol}
+                    {step3Metrics.recommendedCapitalRaise.toLocaleString()})
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -7056,7 +7066,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.2: STARTING CASH, SAFETY BUFFER & LOAN REPAYMENT TERMS  */}
             {/* --------------------------------------------------------- */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+            <div id="mod-j-step3-starting-cash" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
@@ -7071,6 +7081,14 @@ export function ModuleJWorkspace({
                       : 'Sets opening liquidity, contingency buffer above peak deficit, and loan repayment terms.'}
                   </p>
                 </div>
+                <FieldParkButton
+                  moduleCode="MOD_J_FINANCE"
+                  stepNumber={3}
+                  fieldId="mod-j-step3-starting-cash"
+                  questionLabel="Day-1 Starting Cash, Contingency Reserve & Loan Terms"
+                  onPark={handleParkQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -7229,7 +7247,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.3: CAPITAL STACK BUILDER & GRANT REIMBURSEMENT BRIDGE   */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-j-step3-capital-stack" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -7246,6 +7264,14 @@ export function ModuleJWorkspace({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={3}
+                    fieldId="mod-j-step3-capital-stack"
+                    questionLabel="Funding Sources & Arrears Grant Drawdown Timing"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"
@@ -7835,7 +7861,7 @@ export function ModuleJWorkspace({
             {/* --------------------------------------------------------- */}
             {/* 3.6: WRITTEN FUNDING GAP JUSTIFICATION + PARKING LOT      */}
             {/* --------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-j-step3-funding-narrative" className="space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold text-slate-900">
@@ -7848,17 +7874,27 @@ export function ModuleJWorkspace({
                     Optional to edit — auto-drafted on save from your Month {step3Metrics.operatingCashTroughMonth} cash trough and funding bridge.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGenerateAiStep3}
-                  disabled={isGeneratingAiStep3 || isVaultReadonly}
-                  className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
-                >
-                  <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep3 ? 'Synthesizing...' : 'Synthesize Summary'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={3}
+                    fieldId="mod-j-step3-funding-narrative"
+                    questionLabel="36-Month Cash Trough & Grant Reimbursement Bridge Narrative"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateAiStep3}
+                    disabled={isGeneratingAiStep3 || isVaultReadonly}
+                    className="h-7 border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
+                  >
+                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-emerald-700" />
+                    {isGeneratingAiStep3 ? 'Synthesizing...' : 'Synthesize Summary'}
+                  </Button>
+                </div>
               </div>
 
               <textarea
@@ -7887,42 +7923,7 @@ export function ModuleJWorkspace({
                 </div>
               )}
 
-              {/* Momentum Protection: Park It in Open Questions (Rule 1.3) */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <HelpCircle className="h-4 w-4 text-emerald-700" />
-                  <span>
-                    Unsure how long your local LEO or Innovate UK grant claim takes to reimburse, or whether you qualify for a startup loan? Park it in Open Questions:
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-col sm:flex-row gap-2">
-                  <Input
-                    type="text"
-                    value={parkingQuestionStep3}
-                    onChange={(e) => setParkingQuestionStep3(e.target.value)}
-                    placeholder="e.g. Confirm whether Microfinance Ireland can approve a €15k bridge loan alongside LEO Priming..."
-                    disabled={isVaultReadonly}
-                    className="h-8 bg-white text-base sm:text-xs flex-1"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleParkStep3Question}
-                    disabled={
-                      isParkingStep3 || !parkingQuestionStep3.trim() || isVaultReadonly
-                    }
-                    className="h-8 border-slate-200 text-xs font-medium text-emerald-800 hover:bg-emerald-50 shrink-0"
-                  >
-                    Park It in Open Questions
-                  </Button>
-                </div>
-                {parkedSuccessStep3 && (
-                  <p className="mt-1.5 text-[11px] font-medium text-emerald-700">
-                    ✓ Parked in your Open Questions list!
-                  </p>
-                )}
-              </div>
+
             </div>
 
             {/* Bottom Step 3 Toolbar (Strict GEMINI.md Rule 6.1 Standard) */}
@@ -8240,7 +8241,7 @@ export function ModuleJWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* SECTION 4.1: 1-CLICK SENSITIVITY & STRESS-TESTER              */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5">
+            <div id="mod-j-step4-stress-test" className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 scroll-mt-24">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -8255,24 +8256,34 @@ export function ModuleJWorkspace({
                   </p>
                 </div>
 
-                {step4Data.activeStressScenario !== 'BASE_CASE_OFFICIAL' && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      setStep4Data((prev) => ({
-                        ...prev,
-                        activeStressScenario: 'BASE_CASE_OFFICIAL',
-                      }))
-                    }
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={4}
+                    fieldId="mod-j-step4-stress-test"
+                    questionLabel="Downside Sensitivity & Stress-Test Scenario"
+                    onPark={handleParkQuestion}
                     disabled={isVaultReadonly}
-                    className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
-                  >
-                    <RefreshCw className="mr-1 h-3 w-3" />
-                    Reset to Official Base Case
-                  </Button>
-                )}
+                  />
+                  {step4Data.activeStressScenario !== 'BASE_CASE_OFFICIAL' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setStep4Data((prev) => ({
+                          ...prev,
+                          activeStressScenario: 'BASE_CASE_OFFICIAL',
+                        }))
+                      }
+                      disabled={isVaultReadonly}
+                      className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
+                    >
+                      <RefreshCw className="mr-1 h-3 w-3" />
+                      Reset to Official Base Case
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -8471,7 +8482,7 @@ export function ModuleJWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* SECTION 4.2: OFFICIAL 3-YEAR PROFIT & LOSS (INCOME STATEMENT) */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div id="mod-j-step4-pl-statement" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -8502,6 +8513,14 @@ export function ModuleJWorkspace({
 
                 {/* Grant-Compliant Export Buttons */}
                 <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={4}
+                    fieldId="mod-j-step4-pl-statement"
+                    questionLabel="Official 3-Year Profit & Loss Statement (Excl. VAT)"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"
@@ -8848,7 +8867,7 @@ export function ModuleJWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* SECTION 4.3: 36-MONTH / 12-QUARTER / 3-YEAR CASHFLOW TABLE    */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div id="mod-j-step4-cashflow-statement" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -8863,8 +8882,17 @@ export function ModuleJWorkspace({
                   </p>
                 </div>
 
-                {/* Granularity Switcher */}
-                <div className="grid grid-cols-1 gap-1.5 rounded-lg border border-slate-200 bg-slate-100 p-1 sm:flex">
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={4}
+                    fieldId="mod-j-step4-cashflow-statement"
+                    questionLabel="Official 36-Month Cashflow Statement"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  {/* Granularity Switcher */}
+                  <div className="grid grid-cols-1 gap-1.5 rounded-lg border border-slate-200 bg-slate-100 p-1 sm:flex">
                   {[
                     { id: 'ANNUAL_3YR' as const, label: 'Annual (Y1–Y3)' },
                     { id: 'QUARTERLY_12Q' as const, label: '12 Quarters (Q1–Q12)' },
@@ -8883,6 +8911,7 @@ export function ModuleJWorkspace({
                       {tab.label}
                     </button>
                   ))}
+                  </div>
                 </div>
               </div>
 
@@ -9024,7 +9053,7 @@ export function ModuleJWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* SECTION 4.4: CORPORATE / IP CHECKLIST & PERKS PLACEHOLDER     */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50 p-4 sm:p-5">
+            <div id="mod-j-step4-corporate-checklist" className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50 p-4 sm:p-5 scroll-mt-24">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -9046,19 +9075,29 @@ export function ModuleJWorkspace({
                   </p>
                 </div>
 
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setShowCorporateIpPartnerDrawerStep4((prev) => !prev)
-                  }
-                  className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
-                >
-                  {showCorporateIpPartnerDrawerStep4
-                    ? 'Hide Incorporation & IP Partners'
-                    : 'View Incorporation & IP Perks'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={4}
+                    fieldId="mod-j-step4-corporate-checklist"
+                    questionLabel="Corporate Structure, IP Assignment & Banking Readiness"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setShowCorporateIpPartnerDrawerStep4((prev) => !prev)
+                    }
+                    className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50"
+                  >
+                    {showCorporateIpPartnerDrawerStep4
+                      ? 'Hide Incorporation & IP Partners'
+                      : 'View Incorporation & IP Perks'}
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -9354,7 +9393,7 @@ export function ModuleJWorkspace({
             {/* ------------------------------------------------------------- */}
             {/* SECTION 4.6: WRITTEN FINANCIAL ASSUMPTIONS & PARKING LOT      */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
+            <div id="mod-j-step4-financial-assumptions" className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -9368,19 +9407,29 @@ export function ModuleJWorkspace({
                       : 'Summarizes your 3-Year revenue trajectory, gross margin, EBITDA scaling, statutory tax assumptions, and downside stress-test solvency for Module L.'}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGenerateAiStep4}
-                  disabled={isGeneratingAiStep4 || isVaultReadonly}
-                  className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-slate-50"
-                >
-                  <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
-                  {isGeneratingAiStep4
-                    ? 'Synthesizing...'
-                    : 'Synthesize Assumptions Note'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={4}
+                    fieldId="mod-j-step4-financial-assumptions"
+                    questionLabel="Notes to the 3-Year Financial Statements"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateAiStep4}
+                    disabled={isGeneratingAiStep4 || isVaultReadonly}
+                    className="h-7 border-slate-200 bg-white text-[11px] font-semibold text-emerald-800 hover:bg-slate-50"
+                  >
+                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-emerald-700" />
+                    {isGeneratingAiStep4
+                      ? 'Synthesizing...'
+                      : 'Synthesize Assumptions Note'}
+                  </Button>
+                </div>
               </div>
 
               <textarea
@@ -9404,31 +9453,7 @@ export function ModuleJWorkspace({
                 </div>
               )}
 
-              {/* Momentum Protection: Open Questions Parking Lot */}
-              <div className="flex flex-col gap-2 border-t border-slate-200/80 pt-3 sm:flex-row sm:items-center">
-                <Input
-                  type="text"
-                  value={parkingQuestionStep4}
-                  disabled={isVaultReadonly}
-                  onChange={(e) => setParkingQuestionStep4(e.target.value)}
-                  placeholder="Unsure about R&D tax credits, VAT registration timing, or IP assignment? Park it for your accountant..."
-                  className="flex-1 bg-white text-base sm:text-xs"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleParkStep4Question}
-                  disabled={
-                    isParkingStep4 || !parkingQuestionStep4.trim() || isVaultReadonly
-                  }
-                  className="h-8 shrink-0 text-xs font-medium"
-                >
-                  {parkedSuccessStep4
-                    ? '✓ Parked in Open Questions'
-                    : 'Park It in Open Questions'}
-                </Button>
-              </div>
+
             </div>
 
             {/* Bottom Step 4 Toolbar */}
@@ -9940,14 +9965,24 @@ export function ModuleJWorkspace({
             {/* ========================================================= */}
             {/* 5.3 FINANCIAL READINESS POSTURE SELECTOR (WITH "OTHER")    */}
             {/* ========================================================= */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  3. Select Your Financial Underwriting Posture
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  How should Module K (Grants &amp; Funding) and Module L (Business Plan Compiler) frame your financial position? (Includes mandatory &ldquo;Other&rdquo; custom option per Rule 1.5).
-                </p>
+            <div id="mod-j-step5-readiness-posture" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4 scroll-mt-24">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    3. Select Your Financial Underwriting Posture
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    How should Module K (Grants &amp; Funding) and Module L (Business Plan Compiler) frame your financial position? (Includes mandatory &ldquo;Other&rdquo; custom option per Rule 1.5).
+                  </p>
+                </div>
+                <FieldParkButton
+                  moduleCode="MOD_J_FINANCE"
+                  stepNumber={5}
+                  fieldId="mod-j-step5-readiness-posture"
+                  questionLabel="Financial Underwriting & Audit Posture"
+                  onPark={handleParkQuestion}
+                  disabled={isVaultReadonly}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -10020,7 +10055,7 @@ export function ModuleJWorkspace({
             {/* ========================================================= */}
             {/* 5.4 1-PAGE EXECUTIVE FINANCIAL BRIEF & EXPORT HUB          */}
             {/* ========================================================= */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+            <div id="mod-j-step5-finance-brief" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
@@ -10031,6 +10066,14 @@ export function ModuleJWorkspace({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <FieldParkButton
+                    moduleCode="MOD_J_FINANCE"
+                    stepNumber={5}
+                    fieldId="mod-j-step5-finance-brief"
+                    questionLabel="Executive Financial Defense Narrative"
+                    onPark={handleParkQuestion}
+                    disabled={isVaultReadonly}
+                  />
                   <Button
                     type="button"
                     size="sm"
@@ -10112,13 +10155,15 @@ export function ModuleJWorkspace({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
+                <FieldParkButton
                   moduleCode="MOD_J_FINANCE"
-                  stepLabel="Module J • Financial Overview"
-                  defaultQuestion="Confirm accountant sign-off or final VAT/working-capital assumptions before submitting our grant application."
+                  stepNumber={5}
+                  fieldId="mod-j-step5-finance-brief"
+                  questionLabel="Financial Model & Underwriting Sign-Off"
+                  suggestedAction="Confirm accountant sign-off or final VAT/working-capital assumptions before submitting our grant application"
+                  onPark={handleParkQuestion}
                   disabled={isVaultReadonly}
-                  align="end"
+                  className="bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
                 />
                 <Button
                   type="button"

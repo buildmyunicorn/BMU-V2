@@ -636,7 +636,7 @@ function parseParkedQuestionTarget(
         targetMod = 'MOD_H_REVENUE';
       } else if (/marketing|brand positioning|first 10 customers|4ps/i.test(text)) {
         targetMod = 'MOD_I_MARKETING';
-      } else if (/cashflow|sensitivity|funding gap|overhead/i.test(text)) {
+      } else if (/cashflow|sensitivity|funding gap|overhead|vat strategy|operating cost|working capital|capital stack|debtor/i.test(text)) {
         targetMod = 'MOD_J_FINANCE';
       } else if (/grant|leo|enterprise ireland|innovate uk|seis|eis/i.test(text)) {
         targetMod = 'MOD_K_GRANTS_FUNDING';
@@ -657,6 +657,7 @@ function parseParkedQuestionTarget(
     else if (targetMod === 'MOD_F_COFOUNDER_TEAM') stepNum = 6;
     else if (targetMod === 'MOD_H_REVENUE') stepNum = 5;
     else if (targetMod === 'MOD_I_MARKETING') stepNum = 5;
+    else if (targetMod === 'MOD_J_FINANCE') stepNum = 5;
   }
 
   // Construct targetId for DOM scroll & attention-highlight fallback
@@ -8071,6 +8072,10 @@ export default function WorkspacePage() {
               }}
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              navToken={moduleNavTarget?.navToken}
+              onParkOpenQuestion={handleParkSpecificQuestion}
               onSaveStep1RevenueModel={async (step1Data, progress = 20) => {
                 return runWithAutosaveTracking(async () => {
                   setSession((prev) => {
@@ -8212,8 +8217,6 @@ export default function WorkspacePage() {
                   });
                 });
               }}
-              initialStep={moduleNavTarget?.step}
-              highlightTarget={moduleNavTarget?.highlightTarget}
               onBackToModuleG={() => {
                 navigateToModuleWithHistory('MOD_F_COFOUNDER_TEAM', 6, 'module-f-step-6');
               }}
@@ -8250,6 +8253,10 @@ export default function WorkspacePage() {
               }}
               selectedCountry={selectedCountry}
               isVaultReadonly={activeEntitlement.isVaultReadonly}
+              initialStep={moduleNavTarget?.step}
+              highlightTarget={moduleNavTarget?.highlightTarget}
+              navToken={moduleNavTarget?.navToken}
+              onParkOpenQuestion={handleParkSpecificQuestion}
               onSaveStep1Positioning={async (step1Data, progress = 25) => {
                 return runWithAutosaveTracking(async () => {
                   setSession((prev) => {
@@ -8391,8 +8398,6 @@ export default function WorkspacePage() {
                   });
                 });
               }}
-              initialStep={moduleNavTarget?.step}
-              highlightTarget={moduleNavTarget?.highlightTarget}
               onBackToModuleH={() => {
                 navigateToModuleWithHistory('MOD_H_REVENUE', 5, 'module-h-step-5');
               }}
@@ -8433,6 +8438,8 @@ export default function WorkspacePage() {
               isVaultReadonly={activeEntitlement.isVaultReadonly}
               initialStep={moduleNavTarget?.step}
               highlightTarget={moduleNavTarget?.highlightTarget}
+              navToken={moduleNavTarget?.navToken}
+              onParkOpenQuestion={handleParkSpecificQuestion}
               onSaveStep1OverheadsTax={async (step1Data, progress = 25) => {
                 return runWithAutosaveTracking(async () => {
                   setSession((prev) => {

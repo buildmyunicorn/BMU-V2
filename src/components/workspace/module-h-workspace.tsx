@@ -50,7 +50,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ParkOpenQuestionPopover } from '@/components/workspace/park-open-question-popover';
+import {
+  FieldParkButton,
+  scrollAndHighlightElement,
+} from '@/components/workspace/field-park-button';
 import { parkOpenQuestionAction } from '@/app/actions/module-a';
 import type {
   ActiveStartupPlan,
@@ -115,6 +118,8 @@ interface ModuleHWorkspaceProps {
   ) => void;
   initialStep?: number;
   highlightTarget?: string;
+  navToken?: number;
+  onParkOpenQuestion?: (questionText: string) => Promise<void> | void;
 }
 
 export function ModuleHWorkspace({
@@ -131,6 +136,8 @@ export function ModuleHWorkspace({
   onNavigateToModule,
   initialStep,
   highlightTarget,
+  navToken,
+  onParkOpenQuestion,
 }: ModuleHWorkspaceProps) {
   // Step expansion state: default to Step 1 open so founders can act immediately
   const [openStep, setOpenStep] = useState<number | 'ALL'>(() => {
@@ -144,19 +151,12 @@ export function ModuleHWorkspace({
   useEffect(() => {
     if (initialStep && initialStep >= 1 && initialStep <= 5) {
       setOpenStep(initialStep);
+      const targetId = highlightTarget || `module-h-step-${initialStep}`;
       setTimeout(() => {
-        const targetId = highlightTarget || `module-h-step-${initialStep}`;
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('attention-highlight');
-          void el.offsetWidth;
-          el.classList.add('attention-highlight');
-          setTimeout(() => el.classList.remove('attention-highlight'), 3000);
-        }
-      }, 250);
+        scrollAndHighlightElement(targetId);
+      }, 150);
     }
-  }, [initialStep, highlightTarget]);
+  }, [initialStep, highlightTarget, navToken]);
 
   const [activeWhyCard, setActiveWhyCard] = useState<number | null>(null);
   const [activeExampleCard, setActiveExampleCard] = useState<number | null>(null);
@@ -2183,10 +2183,20 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
           <CardContent className="pt-6 space-y-6">
             {/* 1. SELECT REVENUE VEHICLE TILES */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. How do customers pay you?
-                </Label>
+              <div id="mod-h-step1-vehicle" className="flex items-center justify-between scroll-mt-24">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    1. How do customers pay you?
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_H_REVENUE"
+                    stepNumber={1}
+                    fieldId="mod-h-step1-vehicle"
+                    questionLabel="Which revenue model vehicle (subscription, one-off, retainer, marketplace) best matches our cashflow needs?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <span className="text-[11px] text-slate-400">Select one primary model</span>
               </div>
 
@@ -2255,10 +2265,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               {step1Data.revenueModelVehicle === 'OTHER' && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2 mt-2">
-                  <Label className="text-xs font-semibold text-slate-900">
-                    Describe your custom revenue model:
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-semibold text-slate-900">
+                      Describe your custom revenue model:
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={1}
+                      fieldId="mod-h-step1-custom-vehicle"
+                      questionLabel="How should our custom revenue model and billing structure be clearly defined?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
+                    id="mod-h-step1-custom-vehicle"
                     value={step1Data.otherRevenueModelText || ''}
                     onChange={(e) =>
                       setStep1Data((prev) => ({
@@ -2275,11 +2296,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
             {/* 2. OFFERING STRUCTURE: SINGLE VS MULTI-OFFERING */}
             <div className="space-y-3 pt-4 border-t border-slate-100">
-              <div className="flex items-center justify-between">
+              <div id="mod-h-step1-offering-structure" className="flex items-center justify-between scroll-mt-24">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    2. Single Hero Product vs. Multiple Offerings / Tiers
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      2. Single Hero Product vs. Multiple Offerings / Tiers
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={1}
+                      fieldId="mod-h-step1-offering-structure"
+                      questionLabel="Should we launch with a single hero offering first, or a tiered package menu?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     Are you starting with one signature product, or offering 2–3 tiers or SKUs?
                   </p>
@@ -2410,10 +2441,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               {step1Data.offeringStructure === 'OTHER' && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2 mt-2">
-                  <Label className="text-xs font-semibold text-slate-900">
-                    Describe how your offerings or packages are structured:
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-semibold text-slate-900">
+                      Describe how your offerings or packages are structured:
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={1}
+                      fieldId="mod-h-step1-custom-offering-structure"
+                      questionLabel="How should our custom packaging and deliverable structure be defined?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
+                    id="mod-h-step1-custom-offering-structure"
                     value={step1Data.otherOfferingStructureText || ''}
                     onChange={(e) =>
                       setStep1Data((prev) => ({
@@ -2432,9 +2474,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="space-y-3 pt-4 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    3. What Unit You Charge For (e.g., per bottle, per user, per month) — Value Metric
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      3. What Unit You Charge For (e.g., per bottle, per user, per month) — Value Metric
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={1}
+                      fieldId="mod-h-step1-value-metric"
+                      questionLabel="What is the fairest, highest-retention unit/metric to charge our customers for?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     Your &ldquo;Value Metric&rdquo; is simply the unit on your price tag—like charging per box shipped, per active team member, or per completed project.
                   </p>
@@ -2443,6 +2495,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               <div className="space-y-2">
                 <Input
+                  id="mod-h-step1-value-metric"
                   value={step1Data.valueMetric}
                   onChange={(e) =>
                     setStep1Data((prev) => ({
@@ -2533,13 +2586,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     Back to Module F (Team &amp; Runway)
                   </Button>
                 )}
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
-                  moduleCode="MOD_H_REVENUE"
-                  stepLabel="Module H • Step 1"
-                  suggestedQuestion="Should we charge a one-off fee, recurring subscription, or package retainer for our core offer?"
-                  disabled={isVaultReadonly}
-                />
+
                 {saveStatus === 'saved' && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -2839,14 +2886,24 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
           <CardContent className="pt-6 space-y-6">
             {/* TIER CARDS GRID */}
-            <div id="target-mod-h-pricing-tiers" className="space-y-4 rounded-xl p-2 transition-all scroll-mt-28">
+            <div id="mod-h-step2-tiers" className="space-y-4 rounded-xl p-2 transition-all scroll-mt-28">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    {step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
-                      ? 'Your Pricing Tiers & Deliverables'
-                      : 'Your Flagship Offering'}
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      {step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
+                        ? 'Your Pricing Tiers & Deliverables'
+                        : 'Your Flagship Offering'}
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={2}
+                      fieldId="mod-h-step2-tiers"
+                      questionLabel="What pricing tiers, SKUs, or package menus best capture customer willingness to pay?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     {step1Data.offeringStructure === 'MULTI_OFFERING_TIERS'
                       ? 'Define up to 3 tiers or packages. Enter customer price (including VAT) and expected sales share.'
@@ -2937,10 +2994,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       {/* Tier Name & Target Persona */}
                       <div className="space-y-2">
                         <div>
-                          <Label className="text-[11px] font-semibold text-slate-700">
-                            Tier / SKU Name:
-                          </Label>
+                          <div className="flex items-center justify-between gap-1">
+                            <Label className="text-[11px] font-semibold text-slate-700">
+                              Tier / SKU Name:
+                            </Label>
+                            <FieldParkButton
+                              moduleCode="MOD_H_REVENUE"
+                              stepNumber={2}
+                              fieldId={`mod-h-step2-tier-name-${index}`}
+                              questionLabel={`What should we name tier #${index + 1} (${tier.name || 'Tier'})?`}
+                              onPark={onParkOpenQuestion}
+                              disabled={isVaultReadonly}
+                            />
+                          </div>
                           <Input
+                            id={`mod-h-step2-tier-name-${index}`}
                             value={tier.name}
                             onChange={(e) =>
                               handleUpdateTier(tier.id, { name: e.target.value })
@@ -2951,10 +3019,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         </div>
 
                         <div>
-                          <Label className="text-[11px] font-semibold text-slate-700">
-                            Who is this for?
-                          </Label>
+                          <div className="flex items-center justify-between gap-1">
+                            <Label className="text-[11px] font-semibold text-slate-700">
+                              Who is this for?
+                            </Label>
+                            <FieldParkButton
+                              moduleCode="MOD_H_REVENUE"
+                              stepNumber={2}
+                              fieldId={`mod-h-step2-tier-audience-${index}`}
+                              questionLabel={`Which specific customer segment is tier #${index + 1} (${tier.name || 'Tier'}) designed for?`}
+                              onPark={onParkOpenQuestion}
+                              disabled={isVaultReadonly}
+                            />
+                          </div>
                           <Input
+                            id={`mod-h-step2-tier-audience-${index}`}
                             value={tier.targetPersona}
                             onChange={(e) =>
                               handleUpdateTier(tier.id, { targetPersona: e.target.value })
@@ -2986,10 +3065,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                             {/* Billing Cadence & VAT Rate Controls */}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                                  Billing Cadence
-                                </Label>
+                                <div className="flex items-center justify-between gap-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                    Billing Cadence
+                                  </Label>
+                                  <FieldParkButton
+                                    moduleCode="MOD_H_REVENUE"
+                                    stepNumber={2}
+                                    fieldId={`mod-h-step2-tier-cadence-${index}`}
+                                    questionLabel={`What billing frequency (monthly, annual, one-off) optimizes cashflow for tier #${index + 1}?`}
+                                    onPark={onParkOpenQuestion}
+                                    disabled={isVaultReadonly}
+                                  />
+                                </div>
                                 <select
+                                  id={`mod-h-step2-tier-cadence-${index}`}
                                   disabled={isVaultReadonly}
                                   value={tier.billingFrequency || 'MONTHLY'}
                                   onChange={(e) =>
@@ -3006,10 +3096,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                 </select>
                               </div>
                               <div>
-                                <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                                  VAT / Sales Tax
-                                </Label>
+                                <div className="flex items-center justify-between gap-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                    VAT / Sales Tax
+                                  </Label>
+                                  <FieldParkButton
+                                    moduleCode="MOD_H_REVENUE"
+                                    stepNumber={2}
+                                    fieldId={`mod-h-step2-tier-vat-${index}`}
+                                    questionLabel={`What statutory VAT or sales tax rate applies to tier #${index + 1}?`}
+                                    onPark={onParkOpenQuestion}
+                                    disabled={isVaultReadonly}
+                                  />
+                                </div>
                                 <select
+                                  id={`mod-h-step2-tier-vat-${index}`}
                                   disabled={isVaultReadonly}
                                   value={String(taxRate)}
                                   onChange={(e) => {
@@ -3050,9 +3151,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
                             <div>
                               <div className="flex items-center justify-between gap-1 mb-1.5">
-                                <Label className="text-xs font-bold text-slate-800">
-                                  Customer Sticker Price (Inc. Tax / VAT):
-                                </Label>
+                                <div className="flex items-center gap-1.5">
+                                  <Label className="text-xs font-bold text-slate-800">
+                                    Customer Sticker Price (Inc. Tax / VAT):
+                                  </Label>
+                                  <FieldParkButton
+                                    moduleCode="MOD_H_REVENUE"
+                                    stepNumber={2}
+                                    fieldId={`mod-h-step2-tier-price-${index}`}
+                                    questionLabel={`What gross customer price point validates demand for tier #${index + 1}?`}
+                                    onPark={onParkOpenQuestion}
+                                    disabled={isVaultReadonly}
+                                  />
+                                </div>
                                 <span className="text-[10px] text-slate-500 font-medium">
                                   {taxRate}% VAT
                                 </span>
@@ -3062,6 +3173,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                                   {currencySymbol}
                                 </div>
                                 <Input
+                                  id={`mod-h-step2-tier-price-${index}`}
                                   type="number"
                                   min="0"
                                   step="any"
@@ -3148,10 +3260,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
                       {/* What's Included */}
                       <div>
-                        <Label className="text-[11px] font-semibold text-slate-700">
-                          What is included?
-                        </Label>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <Label className="text-[11px] font-semibold text-slate-700">
+                            What is included?
+                          </Label>
+                          <FieldParkButton
+                            moduleCode="MOD_H_REVENUE"
+                            stepNumber={2}
+                            fieldId={`mod-h-step2-tier-deliverables-${index}`}
+                            questionLabel={`What specific deliverables or features are included in tier #${index + 1}?`}
+                            onPark={onParkOpenQuestion}
+                            disabled={isVaultReadonly}
+                          />
+                        </div>
                         <textarea
+                          id={`mod-h-step2-tier-deliverables-${index}`}
                           rows={3}
                           value={tier.deliverablesSummary}
                           onChange={(e) =>
@@ -3220,9 +3343,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="space-y-2 pt-2 border-t border-slate-100">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Your First Core Customer Group (Who buys first?) — Pricing Strategy Justification
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Your First Core Customer Group (Who buys first?) — Pricing Strategy Justification
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={2}
+                      fieldId="mod-h-step2-strategy-notes"
+                      questionLabel="How do we justify our pricing stance against competitors and cost of inaction for our first customer cohort?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     Written explanation of why your first core customer group will pay this price and how it protects gross margins. (A &ldquo;Beachhead&rdquo; simply means the very first specific group of customers you focus on winning before expanding to everyone else.)
                   </p>
@@ -3269,6 +3402,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               )}
 
               <textarea
+                id="mod-h-step2-strategy-notes"
                 rows={3}
                 value={step2Data.pricingStrategyNotes}
                 onChange={(e) =>
@@ -3297,13 +3431,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Step 1
                 </Button>
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
-                  moduleCode="MOD_H_REVENUE"
-                  stepLabel="Module H • Step 2"
-                  suggestedQuestion="Test our starter vs. flagship price points with 5 real prospects to confirm willingness to pay."
-                  disabled={isVaultReadonly}
-                />
+
                 {saveStatus === 'saved' && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -3771,9 +3899,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   {/* Input 1: Card / Channel Fee (%) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <Label className="text-xs font-semibold text-slate-700">
-                        Card / Marketplace Fee (%)
-                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-semibold text-slate-700">
+                          Card / Marketplace Fee (%)
+                        </Label>
+                        <FieldParkButton
+                          moduleCode="MOD_H_REVENUE"
+                          stepNumber={3}
+                          fieldId="mod-h-step3-platform-fee"
+                          questionLabel="What percentage does Stripe, Shopify, or the marketplace take per transaction?"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <span className="text-xs font-bold text-rose-600 shrink-0">
                         -{currencySymbol}
                         {gatewayFeeAmount.toFixed(2)} / sale
@@ -3782,6 +3920,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                     <div className="flex items-center gap-2">
                       <div className="relative flex-1">
                         <Input
+                          id="mod-h-step3-platform-fee"
                           type="number"
                           min="0"
                           max="60"
@@ -3816,11 +3955,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   {/* Input 2: Direct Delivery Cost Per Unit */}
                   <div className="space-y-1.5 pt-2 border-t border-slate-100">
                     <div className="flex items-center justify-between gap-2">
-                      <Label className="text-xs font-semibold text-slate-700">
-                        {isPlainMode
-                          ? 'Direct Cost to Make & Deliver 1 Sale'
-                          : 'Direct Cost to Make & Deliver 1 Sale (COGS)'}
-                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-semibold text-slate-700">
+                          {isPlainMode
+                            ? 'Direct Cost to Make & Deliver 1 Sale'
+                            : 'Direct Cost to Make & Deliver 1 Sale (COGS)'}
+                        </Label>
+                        <FieldParkButton
+                          moduleCode="MOD_H_REVENUE"
+                          stepNumber={3}
+                          fieldId="mod-h-step3-cogs"
+                          questionLabel="What is our exact direct variable cost (raw materials, unit packaging, postage, server API calls) per sale?"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <span className="text-xs font-bold text-rose-600 shrink-0">
                         -{currencySymbol}
                         {(directCogsAmount + refundAndAffiliateFeeAmount).toFixed(2)} / sale
@@ -3834,6 +3983,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                         {currencySymbol}
                       </div>
                       <Input
+                        id="mod-h-step3-cogs"
                         type="number"
                         min="0"
                         step="0.5"
@@ -4082,9 +4232,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3">
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <Label className="text-xs font-bold text-slate-800 leading-snug">
-                        Year {activeSimYear} Monthly Wages &amp; Founder Draw
-                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-bold text-slate-800 leading-snug">
+                          Year {activeSimYear} Monthly Wages &amp; Founder Draw
+                        </Label>
+                        <FieldParkButton
+                          moduleCode="MOD_H_REVENUE"
+                          stepNumber={3}
+                          fieldId="mod-h-step3-wages"
+                          questionLabel="What is the monthly founder draw / payroll baseline we must cover each month?"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <Badge
                         variant="outline"
                         className="shrink-0 text-[9px] border-slate-200 bg-slate-50 text-emerald-800"
@@ -4098,6 +4258,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           {currencySymbol}
                         </div>
                         <Input
+                          id="mod-h-step3-wages"
                           type="number"
                           min="0"
                           step="100"
@@ -4151,9 +4312,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between space-y-3">
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <Label className="text-xs font-bold text-slate-800 leading-snug">
-                        Other Monthly Fixed Bills (Rent, Software, Ins.)
-                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-bold text-slate-800 leading-snug">
+                          Other Monthly Fixed Bills (Rent, Software, Ins.)
+                        </Label>
+                        <FieldParkButton
+                          moduleCode="MOD_H_REVENUE"
+                          stepNumber={3}
+                          fieldId="mod-h-step3-other-bills"
+                          questionLabel="What are our recurring monthly overheads (software, rent, insurance, bookkeeping) regardless of sales?"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <Badge
                         variant="outline"
                         className="shrink-0 text-[9px] border-slate-200 bg-white text-slate-600"
@@ -4167,6 +4338,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                           {currencySymbol}
                         </div>
                         <Input
+                          id="mod-h-step3-other-bills"
                           type="number"
                           min="0"
                           step="50"
@@ -4545,12 +4717,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ========================================================= */}
             {/* PART D: 3-YEAR BREAKEVEN SUMMARY TABLE                     */}
             {/* ========================================================= */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+            <div id="mod-h-step3-breakeven-table" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    3. 3-Year Breakeven Comparison Table (Years 1–3)
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      3. 3-Year Breakeven Comparison Table (Years 1–3)
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={3}
+                      fieldId="mod-h-step3-breakeven-table"
+                      questionLabel="How many units or active clients do we need to sell each month across Years 1–3 to reach breakeven?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     Click any year row below to switch the graph above and inspect how new hires in Module F change your breakeven target.
                   </p>
@@ -4666,12 +4848,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Section 1: Debtor Days / Cash Timing Lag */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                <div id="mod-h-step3-payment-lag" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs scroll-mt-24">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-xs font-bold text-slate-900">
-                        How Fast Customers Actually Pay You (Instant vs 30–60 Day Invoices) — Debtor Payment Terms
-                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs font-bold text-slate-900">
+                          How Fast Customers Actually Pay You (Instant vs 30–60 Day Invoices) — Debtor Payment Terms
+                        </Label>
+                        <FieldParkButton
+                          moduleCode="MOD_H_REVENUE"
+                          stepNumber={3}
+                          fieldId="mod-h-step3-payment-lag"
+                          questionLabel="What are our customer payment terms and how much working capital lag do they create?"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         How quickly does customer money hit your bank account after a sale? (If you sell to businesses or supermarkets on &ldquo;Net 30&rdquo; or &ldquo;Net 60&rdquo; invoice terms, you deliver the product today but wait 30 to 60 days for the cash to hit your bank account.)
                       </p>
@@ -4769,8 +4961,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       + Other Custom Payment Terms
                     </button>
                     {step3Data.paymentTerms === 'OTHER' && (
-                      <div className="mt-2">
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-semibold text-slate-800">
+                            Custom Payment Terms
+                          </Label>
+                          <FieldParkButton
+                            moduleCode="MOD_H_REVENUE"
+                            stepNumber={3}
+                            fieldId="mod-h-step3-custom-payment-terms"
+                            questionLabel="What custom payment milestone terms (e.g. 50% deposit upfront) will we negotiate?"
+                            onPark={onParkOpenQuestion}
+                            disabled={isVaultReadonly}
+                          />
+                        </div>
                         <Input
+                          id="mod-h-step3-custom-payment-terms"
                           value={step3Data.otherPaymentTermsText || ''}
                           onChange={(e) =>
                             setStep3Data((prev) => ({
@@ -4808,13 +5014,23 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 </div>
 
                 {/* Section 2: Domestic vs Export Sales Split % */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs flex flex-col justify-between">
+                <div id="mod-h-step3-non-displacement" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs flex flex-col justify-between scroll-mt-24">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-xs font-bold text-slate-900">
-                          Why Grant Money Won&rsquo;t Just Take Sales From Another Local Shop — Non-Displacement / Deadweight
-                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs font-bold text-slate-900">
+                            Why Grant Money Won&rsquo;t Just Take Sales From Another Local Shop — Non-Displacement / Deadweight
+                          </Label>
+                          <FieldParkButton
+                            moduleCode="MOD_H_REVENUE"
+                            stepNumber={3}
+                            fieldId="mod-h-step3-non-displacement"
+                            questionLabel="How do we demonstrate non-displacement and international export potential for grant assessors?"
+                            onPark={onParkOpenQuestion}
+                            disabled={isVaultReadonly}
+                          />
+                        </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           {selectedCountry === 'GB'
                             ? 'UK Innovate UK & DBT prioritizes businesses with international trade traction.'
@@ -4864,10 +5080,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
                     {/* Target Export Territories Input */}
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold text-slate-700">
-                        Priority Export Markets / Jurisdictions:
-                      </Label>
+                      <div className="flex items-center justify-between gap-1">
+                        <Label className="text-[11px] font-semibold text-slate-700">
+                          Priority Export Markets / Jurisdictions:
+                        </Label>
+                        <FieldParkButton
+                          moduleCode="MOD_H_REVENUE"
+                          stepNumber={3}
+                          fieldId="mod-h-step3-export-markets"
+                          questionLabel="Which export countries or jurisdictions will we prioritize for Year 1–2 commercial sales?"
+                          onPark={onParkOpenQuestion}
+                          disabled={isVaultReadonly}
+                        />
+                      </div>
                       <Input
+                        id="mod-h-step3-export-markets"
                         value={step3Data.exportFocusRegions || ''}
                         onChange={(e) =>
                           setStep3Data((prev) => ({
@@ -4919,6 +5146,14 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                       <ShieldCheck className="h-4 w-4 text-emerald-700" />
                       Grant &amp; Bank Assessor Defense: Written Viability Narrative
                     </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={3}
+                      fieldId="mod-h-step3-viability-narrative"
+                      questionLabel="How do we formulate our written commercial defense for grant bodies and bank loan underwriters?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
                     <Badge className="bg-slate-100 text-emerald-900 border-slate-200 text-[9px] px-1.5 py-0 font-semibold shrink-0">
                       LEO / Innovate UK Ready
                     </Badge>
@@ -4969,6 +5204,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               )}
 
               <textarea
+                id="mod-h-step3-viability-narrative"
                 rows={4}
                 value={step3Data.breakevenNarrative || ''}
                 onChange={(e) =>
@@ -4994,13 +5230,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Step 2
                 </Button>
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
-                  moduleCode="MOD_H_REVENUE"
-                  stepLabel="Module H • Step 3"
-                  suggestedQuestion="Get supplier/packaging or delivery quotes so our direct cost per sale (COGS) leaves at least a 50%+ gross margin."
-                  disabled={isVaultReadonly}
-                />
+
                 {saveStatus === 'saved' && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -5293,13 +5523,24 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Delivery Capacity Ceiling */}
                 <div className="rounded-lg border border-slate-200 bg-white p-3.5 shadow-2xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                      Monthly Delivery Ceiling
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        Monthly Delivery Ceiling
+                      </span>
+                      <FieldParkButton
+                        moduleCode="MOD_H_REVENUE"
+                        stepNumber={4}
+                        fieldId="mod-h-step4-capacity-ceiling"
+                        questionLabel="What is our realistic maximum monthly production / delivery capacity before quality degrades?"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <span className="text-[10px] text-emerald-700 font-medium">Editable</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <Input
+                      id="mod-h-step4-capacity-ceiling"
                       type="number"
                       min="1"
                       max="100000"
@@ -5380,11 +5621,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ------------------------------------------------------------- */}
             {/* PART B: PRIMARY SALES MOTION & REVERSE FUNNEL CALCULATOR       */}
             {/* ------------------------------------------------------------- */}
-            <div className="space-y-4">
+            <div id="mod-h-step4-sales-motion" className="space-y-4 scroll-mt-24">
               <div>
-                <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Part B: Primary Sales Motion &amp; Conversion Velocity
-                </Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Part B: Primary Sales Motion &amp; Conversion Velocity
+                  </Label>
+                  <FieldParkButton
+                    moduleCode="MOD_H_REVENUE"
+                    stepNumber={4}
+                    fieldId="mod-h-step4-sales-motion"
+                    questionLabel="Which primary sales motion (self-serve, inside sales, enterprise RFP, retail) should drive our commercial growth?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   Select the primary commercial motion you will use to convert prospects into paying customers.
                 </p>
@@ -5465,10 +5716,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               {/* Revealed input for OTHER motion (Rule 1.5) */}
               {step4Data.primarySalesMotion === 'OTHER' && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1.5 animate-in fade-in-50">
-                  <Label className="text-xs font-semibold text-slate-800">
-                    Specify Your Custom Sales Motion
-                  </Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs font-semibold text-slate-800">
+                      Specify Your Custom Sales Motion
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={4}
+                      fieldId="mod-h-step4-custom-sales-motion"
+                      questionLabel="What custom sales motion or channel partnership model will we execute?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <Input
+                    id="mod-h-step4-custom-sales-motion"
                     type="text"
                     value={step4Data.otherSalesMotionText || ''}
                     onChange={(e) =>
@@ -5485,11 +5747,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Conversion Rate % */}
                 <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-bold text-slate-900">
-                      Expected Conversion Rate (%)
-                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-bold text-slate-900">
+                        Expected Conversion Rate (%)
+                      </Label>
+                      <FieldParkButton
+                        moduleCode="MOD_H_REVENUE"
+                        stepNumber={4}
+                        fieldId="mod-h-step4-conversion-rate"
+                        questionLabel="What is a realistic benchmark conversion rate from qualified lead to paying customer?"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <div className="flex items-center gap-1">
                       <Input
+                        id="mod-h-step4-conversion-rate"
                         type="number"
                         min="0.1"
                         max="100"
@@ -5555,11 +5828,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                 {/* Sales Cycle Days */}
                 <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-bold text-slate-900">
-                      Sales Cycle Velocity (Lead to Cash)
-                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-bold text-slate-900">
+                        Sales Cycle Velocity (Lead to Cash)
+                      </Label>
+                      <FieldParkButton
+                        moduleCode="MOD_H_REVENUE"
+                        stepNumber={4}
+                        fieldId="mod-h-step4-cycle-velocity"
+                        questionLabel="How many days elapse on average between first contact and customer cash clearing in our bank account?"
+                        onPark={onParkOpenQuestion}
+                        disabled={isVaultReadonly}
+                      />
+                    </div>
                     <div className="flex items-center gap-1">
                       <Input
+                        id="mod-h-step4-cycle-velocity"
                         type="number"
                         min="1"
                         max="365"
@@ -5672,12 +5956,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ------------------------------------------------------------- */}
             {/* PART C: RETENTION & CHURN REALITY                              */}
             {/* ------------------------------------------------------------- */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <div id="mod-h-step4-churn" className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Part C: Retention &amp; Customer Churn Assumptions
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      Part C: Retention &amp; Customer Churn Assumptions
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={4}
+                      fieldId="mod-h-step4-churn"
+                      questionLabel="What monthly churn rate or repeat purchase percentage should we model?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {step1Data.revenueModelVehicle === 'SUBSCRIPTION_RECURRING' ||
                     step1Data.revenueModelVehicle === 'USAGE_BASED_METERED'
@@ -5745,9 +6039,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="space-y-3 pt-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Part D: Written Sales Assumptions &amp; Assessor Defense
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      Part D: Written Sales Assumptions &amp; Assessor Defense
+                    </Label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={4}
+                      fieldId="mod-h-step4-written-assumptions"
+                      questionLabel="How do we defend our pipeline math, lead volume requirements, and capacity feasibility in written prose?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="mt-0.5 text-xs text-slate-500">
                     Defend your conversion rates, sales cycle timing, and operational capacity for grant and loan assessors.
                   </p>
@@ -5794,6 +6098,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
               {/* Structured 3-Paragraph Textarea */}
               <div className="space-y-1.5">
                 <textarea
+                  id="mod-h-step4-written-assumptions"
                   rows={8}
                   value={step4Data.writtenAssumptionsNarrative || ''}
                   onChange={(e) =>
@@ -5832,13 +6137,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
                   <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
                   Back to Step 3: Pocket Profit
                 </Button>
-                <ParkOpenQuestionPopover
-                  planId={plan.id}
-                  moduleCode="MOD_H_REVENUE"
-                  stepLabel="Module H • Step 4"
-                  suggestedQuestion="Verify realistic monthly delivery capacity and payment terms (upfront vs. 30-day invoice) before finalizing Year 1 sales targets."
-                  disabled={isVaultReadonly}
-                />
+
               </div>
 
               <div className="flex items-center gap-2">
@@ -6037,11 +6336,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 1: 4-PILLAR COMMERCIAL READINESS CHECKLIST GRID       */}
             {/* ============================================================= */}
-            <div className="space-y-2.5">
+            <div id="mod-h-step5-checklist" className="space-y-2.5 scroll-mt-24">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. Commercial Architecture Readiness Checklist
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    1. Commercial Architecture Readiness Checklist
+                  </h3>
+                  <FieldParkButton
+                    moduleCode="MOD_H_REVENUE"
+                    stepNumber={5}
+                    fieldId="mod-h-step5-checklist"
+                    questionLabel="Which pillars of our revenue model need deeper diligence before commercial launch?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <span className="text-[11px] text-slate-500 font-medium">
                   {completedCoreStepsCount} of 4 Core Steps Complete
                 </span>
@@ -6147,11 +6456,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 2: 1-PAGE EXECUTIVE COMMERCIAL DOSSIER                */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-slate-100/80 pt-4">
+            <div id="mod-h-step5-waterfall" className="space-y-3 border-t border-slate-100/80 pt-4 scroll-mt-24">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  2. Executive Commercial Snapshot &amp; Unit Economics Waterfall
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    2. Executive Commercial Snapshot &amp; Unit Economics Waterfall
+                  </h3>
+                  <FieldParkButton
+                    moduleCode="MOD_H_REVENUE"
+                    stepNumber={5}
+                    fieldId="mod-h-step5-waterfall"
+                    questionLabel="Does our per-unit pocket profit margin provide sufficient cashflow cushion to cover fixed bills?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <span className="text-[11px] text-slate-500">
                   Synced directly from Steps 1–4
                 </span>
@@ -6284,11 +6603,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 3: AUDIT READINESS POSTURE SELECTOR                   */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-slate-100/80 pt-4">
+            <div id="mod-h-step5-readiness-posture" className="space-y-3 border-t border-slate-100/80 pt-4 scroll-mt-24">
               <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  3. Commercial Readiness Posture (Grant &amp; Investor Diligence)
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    3. Commercial Readiness Posture (Grant &amp; Investor Diligence)
+                  </label>
+                  <FieldParkButton
+                    moduleCode="MOD_H_REVENUE"
+                    stepNumber={5}
+                    fieldId="mod-h-step5-readiness-posture"
+                    questionLabel="Which commercial readiness posture accurately reflects our current market validation?"
+                    onPark={onParkOpenQuestion}
+                    disabled={isVaultReadonly}
+                  />
+                </div>
                 <span className="text-[11px] text-slate-500">
                   Includes &ldquo;Other&rdquo; custom posture option
                 </span>
@@ -6372,10 +6701,21 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               {step5Data.revenueReadinessConfidence === 'OTHER' && (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-950">
-                    Describe Your Custom Commercial Posture:
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-xs font-semibold text-slate-950">
+                      Describe Your Custom Commercial Posture:
+                    </label>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={5}
+                      fieldId="mod-h-step5-custom-readiness-posture"
+                      questionLabel="What specific commercial nuances or contract structures define our readiness posture?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <input
+                    id="mod-h-step5-custom-readiness-posture"
                     type="text"
                     disabled={isVaultReadonly}
                     value={step5Data.otherReadinessConfidenceText || ''}
@@ -6395,12 +6735,22 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             {/* ============================================================= */}
             {/* SECTION 4: CONSTRUCTIVE "THINGS TO CONSIDER" BLIND-SPOT AUDIT */}
             {/* ============================================================= */}
-            <div className="space-y-3 border-t border-slate-100/80 pt-4">
+            <div id="mod-h-step5-blindspots" className="space-y-3 border-t border-slate-100/80 pt-4 scroll-mt-24">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    4. Constructive &ldquo;Things to Consider&rdquo; Commercial Blind-Spot Review
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      4. Constructive &ldquo;Things to Consider&rdquo; Commercial Blind-Spot Review
+                    </h3>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={5}
+                      fieldId="mod-h-step5-blindspots"
+                      questionLabel="What pricing, margin, or debtor blind spots should we address before submitting to assessors?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500">
                     Specific vulnerabilities grant committees and loan assessors look for in financial submissions.
                   </p>
@@ -6525,9 +6875,19 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
             <div className="space-y-3 border-t border-slate-100/80 pt-4">
               <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    5. Executive Commercial Defense Narrative (3 Structured Paragraphs)
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                      5. Executive Commercial Defense Narrative (3 Structured Paragraphs)
+                    </h3>
+                    <FieldParkButton
+                      moduleCode="MOD_H_REVENUE"
+                      stepNumber={5}
+                      fieldId="mod-h-step5-executive-narrative"
+                      questionLabel="How should our executive commercial summary articulate our unit economics and solvency bridge?"
+                      onPark={onParkOpenQuestion}
+                      disabled={isVaultReadonly}
+                    />
+                  </div>
                   <p className="text-[11px] text-slate-500">
                     Formal narrative addressing unit economics, breakeven viability, and delivery feasibility for Module L grant appendices.
                   </p>
@@ -6547,6 +6907,7 @@ ${step5Data.blindSpots.map((b, i) => `${i + 1}. [${b.severity}] ${b.title}: ${b.
 
               <div className="space-y-1.5">
                 <textarea
+                  id="mod-h-step5-executive-narrative"
                   rows={9}
                   disabled={isVaultReadonly}
                   value={step5Data.executiveCommercialSummaryNarrative}
